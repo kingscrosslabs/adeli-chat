@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "adeli-chat", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "3030"], "port": 3030 }
+  ]
+}
