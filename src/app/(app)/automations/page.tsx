@@ -13,7 +13,7 @@ import { PageHeading } from "@/components/page-heading";
 import { Button } from "@/components/ui/button";
 import type { Automation } from "@/lib/automations/schemas";
 import { triggerSummary } from "@/lib/automations/validate";
-import { useDemoState } from "@/lib/demo/store";
+import { byRecency, useDemoState } from "@/lib/demo/store";
 import { compactNumber, relativeTime } from "@/lib/format";
 
 export default function AutomationsPage() {
@@ -27,7 +27,7 @@ export default function AutomationsPage() {
 function AutomationsView() {
   const state = useDemoState();
   const [creating, setCreating] = useState(false);
-  const automations = state?.automations ?? [];
+  const automations = byRecency(state?.automations ?? []);
 
   const createButton = (
     <Button size="lg" onClick={() => setCreating(true)}>
@@ -37,7 +37,7 @@ function AutomationsView() {
 
   return (
     <div className="space-y-6 p-4 md:p-8">
-      <PageHeading title="Automations" description="Reply to comments and send DMs while you get on with your day." action={automations.length ? createButton : null} />
+      <PageHeading title="Automations" action={automations.length ? createButton : null} />
       {automations.length === 0 ? (
         <EmptyState action={createButton} />
       ) : (

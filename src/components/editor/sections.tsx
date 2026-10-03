@@ -15,7 +15,7 @@ import type { FieldErrors } from "@/lib/automations/validate";
 import { snapshotOf } from "@/lib/demo/samples";
 import { cn } from "@/lib/utils";
 
-import { ChoiceRow, Counter, FieldError, InfoTip, Section, TextField, type PreviewTab } from "./fields";
+import { ChoiceRow, Counter, FieldError, Section, TextField, type PreviewTab } from "./fields";
 import { KeywordInput } from "./keyword-input";
 
 export type SectionProps = {
@@ -31,7 +31,7 @@ const soon = <Badge variant="outline" className="font-medium text-muted-foregrou
 export function PostSection({ draft, patch, errors, onFocusTab, accountId }: SectionProps & { accountId: string }) {
   const errorId = useId();
   return (
-    <Section step={1} title="When someone comments on" tab="post" onFocusTab={onFocusTab}>
+    <Section step={1} title="When someone comments on" info="Pick the post or reel people will comment on. Each automation watches one post." tab="post" onFocusTab={onFocusTab}>
       <div className="grid gap-2">
         <ChoiceRow name="post-scope" checked title="A specific post or reel" />
         <ChoiceRow name="post-scope" checked={false} disabled title="Any post or reel" badge={soon} />
@@ -51,15 +51,20 @@ export function PostSection({ draft, patch, errors, onFocusTab, accountId }: Sec
 
 /** C. And this comment has (FR-5.7 to FR-5.11). */
 export function TriggerSection({ draft, patch, errors, onFocusTab }: SectionProps) {
-  const helpId = useId();
   const errorId = useId();
   const match = draft.trigger.match;
   const setMatch = (value: "keywords" | "any") => patch((current) => ({ ...current, trigger: { ...current.trigger, match: value } }));
   return (
-    <Section step={2} title="And this comment has" tab="comments" onFocusTab={onFocusTab}>
+    <Section
+      step={2}
+      title="And this comment has"
+      info={<>A specific keyword: only comments containing one of your words, not case-sensitive. Press Enter or comma to add each one.<br /><br />Any comment: everyone who comments gets your DM. Either way, each person gets it once.</>}
+      tab="comments"
+      onFocusTab={onFocusTab}
+    >
       <div className="grid gap-2 sm:grid-cols-2">
-        <ChoiceRow name="match" checked={match === "keywords"} onSelect={() => setMatch("keywords")} title="A specific keyword" description="Only comments with your words" />
-        <ChoiceRow name="match" checked={match === "any"} onSelect={() => setMatch("any")} title="Any comment" description="Every comment on the post" />
+        <ChoiceRow name="match" checked={match === "keywords"} onSelect={() => setMatch("keywords")} title="A specific keyword" />
+        <ChoiceRow name="match" checked={match === "any"} onSelect={() => setMatch("any")} title="Any comment" />
       </div>
       {match === "keywords" ? (
         <div className="space-y-1.5" data-field="trigger.keywords">
@@ -71,17 +76,11 @@ export function TriggerSection({ draft, patch, errors, onFocusTab }: SectionProp
             keywords={draft.trigger.keywords}
             onChange={(keywords) => patch((current) => ({ ...current, trigger: { ...current.trigger, keywords } }))}
             error={errors["trigger.keywords"]}
-            describedBy={errors["trigger.keywords"] ? errorId : helpId}
+            describedBy={errors["trigger.keywords"] ? errorId : undefined}
           />
-          {errors["trigger.keywords"] ? (
-            <FieldError id={errorId} message={errors["trigger.keywords"]} />
-          ) : (
-            <p id={helpId} className="text-xs text-muted-foreground">Matches comments that contain any of these words. Not case-sensitive. Press Enter or comma to add.</p>
-          )}
+          <FieldError id={errorId} message={errors["trigger.keywords"]} />
         </div>
-      ) : (
-        <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">Everyone who comments gets your DM, once per person.</p>
-      )}
+      ) : null}
     </Section>
   );
 }
@@ -96,7 +95,7 @@ export function ReplySection({ draft, patch, errors, onFocusTab }: SectionProps)
     <Section
       step={3}
       title="Reply to their comment"
-      description="A public reply under their comment, so they know to check their DMs."
+      info="A public reply under their comment, so they know to check their DMs. Write 3 or more. We'll send them in a random order so replies look natural."
       tab="comments"
       onFocusTab={onFocusTab}
       action={
@@ -108,7 +107,6 @@ export function ReplySection({ draft, patch, errors, onFocusTab }: SectionProps)
     >
       {enabled ? (
         <div className="space-y-2" data-field="commentReply.variants">
-          <p className="text-xs text-muted-foreground">Write 3 or more. We&apos;ll send them in a random order so replies look natural.</p>
           <ul className="space-y-2">
             {variants.map((variant, index) => (
               <li key={index} className="flex items-center gap-2">
@@ -137,9 +135,7 @@ export function ReplySection({ draft, patch, errors, onFocusTab }: SectionProps)
           </div>
           <FieldError id={errorId} message={errors["commentReply.variants"]} />
         </div>
-      ) : (
-        <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">No public reply. People still get the DM.</p>
-      )}
+      ) : null}
     </Section>
   );
 }
@@ -150,10 +146,9 @@ export function OpeningDmSection({ draft, patch, errors, onFocusTab }: SectionPr
     <Section
       step={4}
       title="Opening DM"
-      description="The first message they get. It needs a button."
+      info="The first message they get, and it needs a button. Instagram only lets you send one message until the person taps. The button opens the conversation so we can send your link."
       tab="dm"
       onFocusTab={onFocusTab}
-      action={<InfoTip label="Why the button?">Instagram only lets you send one message until the person taps. This button opens the conversation so we can send your link.</InfoTip>}
     >
       <TextField field="openingDm.text" label="Message" multiline value={draft.openingDm.text} max={LIMITS.dmText} error={errors["openingDm.text"]} onChange={(text) => patch((current) => ({ ...current, openingDm: { ...current.openingDm, text } }))} />
       <TextField field="openingDm.buttonLabel" label="Button label" value={draft.openingDm.buttonLabel} max={LIMITS.buttonLabel} error={errors["openingDm.buttonLabel"]} onChange={(buttonLabel) => patch((current) => ({ ...current, openingDm: { ...current.openingDm, buttonLabel } }))} />
@@ -176,7 +171,7 @@ export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProp
     finalDm: { ...current.finalDm, buttons: [{ ...button, ...next }, ...current.finalDm.buttons.slice(1)] },
   }));
   return (
-    <Section step={5} title="Final DM" description="Sent when they tap the button. This is where your link goes." tab="dm" onFocusTab={onFocusTab}>
+    <Section step={5} title="Final DM" info="Sent when they tap the button. This is where your link goes." tab="dm" onFocusTab={onFocusTab}>
       <div className="space-y-1.5">
         <Label>DM type</Label>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="DM type">

@@ -88,6 +88,11 @@ export function readDemoState() {
   return getState();
 }
 
+/** Most recently updated first. Used by the sidebar and the list page. */
+export function byRecency(automations: Automation[]) {
+  return [...automations].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 function now() {
   return new Date().toISOString();
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, KeyRound, ServerCog, ShieldCheck } from "lucide-react";
+import { ChevronRight, KeyRound, ServerCog } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -69,16 +69,6 @@ function SetupCard() {
         <GetKeyInstructions />
         <Separator />
         <AdeliKeyForm onSaved={goNext} />
-        <details className="group rounded-lg border px-4 py-3 text-sm">
-          <summary className="flex cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">
-            <ShieldCheck className="size-4 text-primary" /> Is this safe?
-            <ChevronRight className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-90" />
-          </summary>
-          <div className="mt-2 space-y-2 text-muted-foreground">
-            <p>Your key stays on this server. It&apos;s encrypted in your database and never sent back to your browser after you save it.</p>
-            <p>Adeli Chat never sees your Instagram password or tokens. Adeli holds those. You can delete the key in Adeli at any time to cut off access instantly.</p>
-          </div>
-        </details>
         <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">Just exploring?</p>
           <p className="mt-0.5">This is a demo build, so you can skip the key and use sample data.</p>

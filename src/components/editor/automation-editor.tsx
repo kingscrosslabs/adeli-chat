@@ -183,12 +183,12 @@ export function AutomationEditor({ automation }: { automation: Automation }) {
               className="min-w-0 max-w-sm flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-lg font-semibold outline-none hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
               placeholder="Name this automation"
             />
-            <StatusPill status={automation.status} />
-            <span className="hidden text-xs text-muted-foreground sm:inline" aria-live="polite">
-              {dirty ? <span className="font-medium text-warning">Unsaved changes</span> : `Saved ${relativeTime(automation.updatedAt)}`}
-            </span>
           </div>
           <div className="flex items-center gap-2">
+            <span className="hidden text-xs whitespace-nowrap text-muted-foreground sm:inline" aria-live="polite">
+              {dirty ? <span className="font-medium text-warning">Unsaved changes</span> : `Saved ${relativeTime(automation.updatedAt)}`}
+            </span>
+            <StatusPill status={automation.status} className="mr-1" />
             <Button variant="outline" className="lg:hidden" onClick={() => setPreviewOpen(true)}>
               <Smartphone /> Preview
             </Button>

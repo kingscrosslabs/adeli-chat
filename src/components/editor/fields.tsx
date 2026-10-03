@@ -14,12 +14,13 @@ export type PreviewTab = "post" | "comments" | "dm";
 
 /**
  * One editor section (B to F). Focusing anything inside switches the phone
- * preview to the matching tab (FR-6.3).
+ * preview to the matching tab (FR-6.3). Explanations live in an info icon
+ * beside the title, not as body text, to keep the form focused.
  */
-export function Section({ step, title, description, tab, onFocusTab, children, action }: {
+export function Section({ step, title, info, tab, onFocusTab, children, action }: {
   step: number;
   title: string;
-  description?: React.ReactNode;
+  info?: React.ReactNode;
   tab: PreviewTab;
   onFocusTab: (tab: PreviewTab) => void;
   children: React.ReactNode;
@@ -33,13 +34,11 @@ export function Section({ step, title, description, tab, onFocusTab, children, a
       onPointerDownCapture={() => onFocusTab(tab)}
       className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5"
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">{step}</span>
-          <div>
-            <h2 id={headingId} className="text-base font-semibold leading-6">{title}</h2>
-            {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}
-          </div>
+          <h2 id={headingId} className="text-base font-semibold leading-6">{title}</h2>
+          {info ? <InfoTip label={`About ${title}`}>{info}</InfoTip> : null}
         </div>
         {action}
       </div>
