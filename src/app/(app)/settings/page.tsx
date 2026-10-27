@@ -212,7 +212,7 @@ function SessionCard() {
         <CardDescription>You stay logged in on this device for 30 days.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="outline" onClick={() => { actions.logout(); router.replace("/login"); }}><LogOut /> Log out</Button>
+        <Button variant="outline" onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); actions.logout(); router.replace("/login"); }}><LogOut /> Log out</Button>
       </CardContent>
     </Card>
   );

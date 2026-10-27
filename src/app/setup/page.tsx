@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronRight, KeyRound, ServerCog } from "lucide-react";
+import { AlertTriangle, ChevronRight, KeyRound, ServerCog } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Guard } from "@/components/guard";
 import { AdeliKeyForm } from "@/components/onboarding/adeli-key-form";
@@ -29,9 +29,52 @@ function SetupCard() {
   const state = useDemoState();
   const router = useRouter();
   const key = state?.adeliKey;
+  const [serverChecked, setServerChecked] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   // Only offer "keep current key" if one existed when the page opened, so it doesn't flash in after saving.
   const [hadKey] = useState(() => Boolean(readDemoState().adeliKey));
   const goNext = () => router.push(readDemoState().account ? "/automations" : "/connect");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/adeli/config", { cache: "no-store" })
+      .then(async (response) => {
+        const config = await response.json() as { mode?: "mock" | "real"; profiles?: Array<{ id: string; name: string }>; error?: { message?: string } };
+        if (!response.ok) throw new Error(config.error?.message ?? "We couldn't check the server's Adeli configuration.");
+        const profile = config.profiles?.[0];
+        if (!cancelled && config.mode === "real") {
+          if (!profile) throw new Error("This Adeli organization does not have a profile yet.");
+          actions.saveKey({ prefix: "rk_live_…", profileId: profile.id, profileName: profile.name, source: "env" });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setServerError(error instanceof Error ? error.message : "We couldn't check the server's Adeli configuration.");
+      })
+      .finally(() => { if (!cancelled) setServerChecked(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!serverChecked) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><ServerCog className="size-4 text-primary" /> Checking server configuration</CardTitle>
+          <CardDescription>Looking for an Adeli API key configured on this server.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (serverError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4 text-destructive" /> Server configuration needs attention</CardTitle>
+          <CardDescription>{serverError} Check `ADELI_API_KEY`, `ADMIN_PASSWORD`, and `SESSION_SECRET`, then log in again.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (key?.source === "env") {
     return (

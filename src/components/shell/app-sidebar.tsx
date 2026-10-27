@@ -74,7 +74,8 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start"
-          onClick={() => {
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
             actions.logout();
             router.replace("/login");
           }}

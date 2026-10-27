@@ -9,6 +9,8 @@ export type AdeliProfile = { id: string; name: string };
 
 export type AdeliAccount = {
   accountId: string;
+  profileId?: string;
+  profileName?: string;
   providerId: string;
   displayName: string;
   /** Instagram handle without the @. */
@@ -32,16 +34,18 @@ export type ConnectSessionStatus = "pending_authorization" | "processing" | "con
 
 export type ConnectSession = {
   id: string;
+  profileId?: string;
   status: ConnectSessionStatus;
   authUrl: string;
   accountId: string | null;
   error: string | null;
+  isMock?: boolean;
 };
 
-export type AdeliErrorCode = "unauthorized" | "network" | "missing_permission" | "personal_account" | "cancelled";
+export type AdeliErrorCode = "unauthorized" | "network" | "missing_permission" | "personal_account" | "cancelled" | (string & {});
 
 export class AdeliError extends Error {
-  constructor(public code: AdeliErrorCode, message: string) {
+  constructor(public code: AdeliErrorCode, message: string, public status?: number) {
     super(message);
   }
 }
@@ -51,8 +55,8 @@ export interface AdeliClient {
   validateKey(key: string): Promise<AdeliProfile>;
   /** `GET /accounts?platform=instagram` */
   listInstagramAccounts(): Promise<AdeliAccount[]>;
-  /** `POST /profiles/{id}/connect` in poll mode (no redirectUrl). */
-  startConnect(authMethod: "instagram_login" | "facebook_login"): Promise<ConnectSession>;
+  /** `POST /profiles/{id}/connect`; real mode supplies this install's redirectUrl. */
+  startConnect(authMethod: "instagram_login" | "facebook_login", redirectUrl?: string): Promise<ConnectSession>;
   /** `GET /profiles/{id}/connect/{sessionId}` */
   getConnectSession(sessionId: string): Promise<ConnectSession>;
   /** `GET /posts?platform=instagram&accountId=` */

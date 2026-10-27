@@ -12,8 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { adeli, MOCK_NEW_ACCOUNT } from "@/lib/adeli/mock";
-import type { AdeliAccount } from "@/lib/adeli/types";
+import { adeli } from "@/lib/adeli/browser";
+import { AdeliError, type AdeliAccount } from "@/lib/adeli/types";
 import { actions, useDemoState } from "@/lib/demo/store";
 import { cn } from "@/lib/utils";
 
@@ -30,13 +30,14 @@ export default function ConnectPage() {
 type Flow =
   | { kind: "idle" }
   | { kind: "starting" }
-  | { kind: "waiting"; sessionId: string; processing: boolean }
+  | { kind: "waiting"; sessionId: string; profileId: string; authUrl: string; processing: boolean }
   | { kind: "failed"; message: string };
 
 function ConnectCard() {
   const router = useRouter();
   const state = useDemoState();
   const [accounts, setAccounts] = useState<AdeliAccount[] | null>(null);
+  const [connectProfileId, setConnectProfileId] = useState<string | null>(state?.adeliKey?.profileId ?? null);
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<string | null>(state?.account?.accountId ?? null);
   const [flow, setFlow] = useState<Flow>({ kind: "idle" });
@@ -64,6 +65,11 @@ function ConnectCard() {
       },
       () => { if (!cancelled) setLoadError(true); },
     );
+    fetch("/api/adeli/config", { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const config = await response.json() as { profiles?: Array<{ id: string }> };
+      if (!cancelled && config.profiles?.[0]) setConnectProfileId(config.profiles[0].id);
+    }).catch(() => undefined);
     return () => {
       cancelled = true;
       if (pollTimer.current) clearInterval(pollTimer.current);
@@ -76,29 +82,46 @@ function ConnectCard() {
   }
 
   async function startConnect(authMethod: "instagram_login" | "facebook_login") {
+    const profileId = accounts?.find((account) => account.accountId === selected)?.profileId
+      ?? connectProfileId
+      ?? state?.adeliKey?.profileId;
+    if (!profileId) {
+      setFlow({ kind: "failed", message: "Choose an Adeli profile before connecting Instagram." });
+      return;
+    }
     setFlow({ kind: "starting" });
+    const authWindow = window.open("about:blank", "_blank");
     try {
-      const session = await adeli.startConnect(authMethod);
-      // The real flow opens session.authUrl in a new tab here. The demo stays put.
-      setFlow({ kind: "waiting", sessionId: session.id, processing: false });
+      const session = await adeli.startConnect(profileId, authMethod);
+      if (session.isMock) authWindow?.close();
+      else if (authWindow) authWindow.location.href = session.authUrl;
+      setFlow({ kind: "waiting", sessionId: session.id, profileId, authUrl: session.authUrl, processing: false });
       stopPolling();
       pollTimer.current = setInterval(async () => {
-        const next = await adeli.getConnectSession(session.id);
-        if (next.status === "processing") setFlow({ kind: "waiting", sessionId: session.id, processing: true });
-        if (next.status === "connected") {
+        try {
+          const next = await adeli.getConnectSession(profileId, session.id);
+          if (next.status === "processing") setFlow({ kind: "waiting", sessionId: session.id, profileId, authUrl: session.authUrl, processing: true });
+          if (next.status === "connected") {
+            stopPolling();
+            const refreshed = await adeli.listInstagramAccounts();
+            const account = refreshed.find((item) => item.accountId === next.accountId);
+            setAccounts(refreshed);
+            setSelected(next.accountId);
+            setFlow({ kind: "idle" });
+            toast.success(account ? `Connected @${account.displayIdentifier}` : "Instagram connected");
+          }
+          if (next.status === "failed" || next.status === "expired") {
+            stopPolling();
+            setFlow({ kind: "failed", message: next.error ?? "Instagram didn't finish connecting." });
+          }
+        } catch (error) {
           stopPolling();
-          setAccounts((current) => [...(current ?? []).filter((account) => account.accountId !== MOCK_NEW_ACCOUNT.accountId), MOCK_NEW_ACCOUNT]);
-          setSelected(MOCK_NEW_ACCOUNT.accountId);
-          setFlow({ kind: "idle" });
-          toast.success(`Connected @${MOCK_NEW_ACCOUNT.displayIdentifier}`);
-        }
-        if (next.status === "failed" || next.status === "expired") {
-          stopPolling();
-          setFlow({ kind: "failed", message: next.error ?? "Instagram didn't finish connecting." });
+          setFlow({ kind: "failed", message: error instanceof AdeliError ? error.message : "We couldn't check the Instagram connection. Try again." });
         }
       }, 1000);
-    } catch {
-      setFlow({ kind: "failed", message: "We couldn't reach Adeli. Try again in a minute." });
+    } catch (error) {
+      authWindow?.close();
+      setFlow({ kind: "failed", message: error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute." });
     }
   }
 
@@ -178,7 +201,7 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
       </Avatar>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">@{account.displayIdentifier}</span>
-        <span className="block truncate text-xs text-muted-foreground">{account.displayName}</span>
+        <span className="block truncate text-xs text-muted-foreground">{account.displayName}{account.profileName ? ` · ${account.profileName}` : ""}</span>
       </span>
       {needsReconnect ? <Badge className="bg-warning-wash text-warning"><AlertTriangle /> Reconnect in Adeli</Badge> : null}
       <span className={cn("grid size-5 place-items-center rounded-full border", selected ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
@@ -200,7 +223,7 @@ function ConnectNew({ flow, primary, onStart, onCancel, onFail }: { flow: Flow; 
           {flow.processing ? "Almost there. Adeli is saving your connection." : "Finish logging in to Instagram in the tab we opened. This page updates by itself."}
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <a href="https://www.instagram.com/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline">Open Instagram login again <ExternalLink className="size-3" /></a>
+          <a href={flow.authUrl || "https://www.instagram.com/"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline">Open Instagram login again <ExternalLink className="size-3" /></a>
           <button type="button" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={onCancel}>Cancel</button>
           <button type="button" className="text-xs text-muted-foreground/80 underline-offset-4 hover:underline" onClick={onFail}>Demo: simulate a failure</button>
         </div>

@@ -2,30 +2,25 @@
 
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { nextOnboardingPath } from "@/components/guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { actions, readDemoState, useDemoState } from "@/lib/demo/store";
+import { actions, readDemoState } from "@/lib/demo/store";
 
 /**
- * Password screen (FR-0.x). In the frontend-only build any password except
- * "wrong" signs you in, so the error state can still be reviewed.
+ * Password screen (FR-0.x). Real API mode checks ADMIN_PASSWORD on the
+ * server. Mock mode accepts any password except "wrong".
  */
 export default function LoginPage() {
   const router = useRouter();
-  const state = useDemoState();
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (state?.session) router.replace(nextOnboardingPath(state));
-  }, [state, router]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -35,14 +30,24 @@ export default function LoginPage() {
       return;
     }
     setPending(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    if (password === "wrong") {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) {
+        setError(result.error?.message ?? "Login failed. Try again.");
+        return;
+      }
+      actions.login();
+      router.replace(nextOnboardingPath(readDemoState()));
+    } catch {
+      setError("We couldn't reach this Adeli Chat server.");
+    } finally {
       setPending(false);
-      setError("That password didn't match. Check ADMIN_PASSWORD in your server environment.");
-      return;
     }
-    actions.login();
-    router.replace(nextOnboardingPath(readDemoState()));
   }
 
   return (
@@ -80,7 +85,7 @@ export default function LoginPage() {
             {pending ? <Loader2 className="animate-spin" /> : null} Log in
           </Button>
         </form>
-        <p className="mt-6 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">Demo build: any password works. Type <code className="font-mono">wrong</code> to see the error.</p>
+        <p className="mt-6 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">In mock mode, any password works. Type <code className="font-mono">wrong</code> to see the error.</p>
       </section>
     </main>
   );
