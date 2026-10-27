@@ -2,10 +2,9 @@ import "server-only";
 
 import type { MediaType } from "@/lib/automations/schemas";
 
-import { getAdeliApiKey } from "./key";
+import { getAdeliConfig } from "./key";
 import { AdeliError, type AdeliAccount, type AdeliMedia, type AdeliProfile, type ConnectSession } from "./types";
 
-const DEFAULT_BASE_URL = "https://app.tryadeli.com/api/v1";
 const PAGE_SIZE = 9;
 
 type ApiErrorBody = { error?: { code?: string; message?: string } };
@@ -41,22 +40,17 @@ function toConnectSession(session: ApiConnectSession, profileId: string): Connec
   };
 }
 
-function baseUrl() {
-  return (process.env.ADELI_API_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/$/, "");
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const key = getAdeliApiKey();
-  if (!key) throw new AdeliError("unauthorized", "ADELI_API_KEY is not configured on this server.", 401);
+  const { baseURL, apiKey } = getAdeliConfig();
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl()}${path}`, {
+    response = await fetch(`${baseURL}/api/v1${path}`, {
       ...init,
       cache: "no-store",
       headers: {
         Accept: "application/json",
-        Authorization: `Bearer ${key}`,
+        Authorization: `Bearer ${apiKey}`,
         ...(init?.body ? { "Content-Type": "application/json" } : {}),
         ...init?.headers,
       },

@@ -2,19 +2,17 @@ import "server-only";
 
 import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 
-import { getAdeliApiKey } from "@/lib/adeli/key";
-
 const COOKIE_NAME = "adeli_chat_session";
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 
 function isMockMode() {
-  return process.env.ADELI_MOCK === "1" || !getAdeliApiKey();
+  return process.env.ADELI_MOCK === "1";
 }
 
 function secret() {
   if (isMockMode()) return process.env.SESSION_SECRET || "adeli-chat-local-mock";
   const value = process.env.SESSION_SECRET?.trim();
-  if (!value) throw new Error("SESSION_SECRET is required when ADELI_API_KEY is configured.");
+  if (!value) throw new Error("SESSION_SECRET is required unless ADELI_MOCK=1.");
   return value;
 }
 
@@ -31,7 +29,7 @@ function safeEqual(left: string, right: string) {
 export function verifyAdminPassword(password: string) {
   if (isMockMode()) return password !== "wrong";
   const configured = process.env.ADMIN_PASSWORD;
-  if (!configured) throw new Error("ADMIN_PASSWORD is required when ADELI_API_KEY is configured.");
+  if (!configured) throw new Error("ADMIN_PASSWORD is required unless ADELI_MOCK=1.");
   return safeEqual(password, configured);
 }
 

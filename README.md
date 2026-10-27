@@ -11,14 +11,15 @@ When someone comments a keyword on your post, Adeli Chat replies to their commen
 ```bash
 npm install
 cp .env.example .env.local
-# Edit .env.local: set ADELI_API_KEY, ADMIN_PASSWORD, and SESSION_SECRET
-# Remove ADELI_MOCK=1
+# Edit .env.local: set ADELI_BASE_URL, ADELI_API_KEY, ADMIN_PASSWORD, and SESSION_SECRET
 npm run dev
 ```
 
-Open http://localhost:3000 and log in with `ADMIN_PASSWORD`. The API key stays on the server behind an HTTP-only signed session. Adeli Chat uses it to list the key organization's profiles, list their connected Instagram accounts, start hosted Instagram authorization, poll connection status, and load Instagram posts.
+Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. The API key stays on the server behind an HTTP-only signed session. Adeli Chat uses it to list the key organization's profiles, list their connected Instagram accounts, start hosted Instagram authorization, poll connection status, and load Instagram posts.
 
-To use sample data instead, leave `ADELI_MOCK=1` in `.env.local`. In mock mode:
+To run against a local Adeli dev server, follow [docs/local-development.md](docs/local-development.md).
+
+To use sample data instead, add `ADELI_MOCK=1` to `.env.local`. In mock mode:
 
 - Any password logs you in. Type `wrong` to see the error state.
 - On the setup screen, **Fill a demo key** gives you a valid-looking key. Keys containing `bad` are rejected, `offline` simulates Adeli being down, and `other` belongs to a different Adeli profile.

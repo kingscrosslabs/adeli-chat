@@ -1,14 +1,13 @@
 import "server-only";
 
 import { createMockAdeliClient, MOCK_PROFILE } from "./mock";
-import { getAdeliApiKey } from "./key";
 import { realAdeli } from "./real";
 import type { AdeliAccount, AdeliMedia, AdeliProfile, ConnectSession } from "./types";
 
 const mock = createMockAdeliClient();
 
 export function usesAdeliMock() {
-  return process.env.ADELI_MOCK === "1" || !getAdeliApiKey();
+  return process.env.ADELI_MOCK === "1";
 }
 
 export async function listProfiles(): Promise<AdeliProfile[]> {
