@@ -1,7 +1,5 @@
 "use client";
 
-import { actions } from "@/lib/demo/store";
-
 import { AdeliError, type AdeliAccount, type AdeliMedia, type ConnectSession } from "./types";
 
 type ErrorBody = { error?: { code?: string; message?: string } };
@@ -17,7 +15,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const apiError = body && typeof body === "object" && "error" in body ? body.error : undefined;
     if (response.status === 401 && apiError?.code === "session_unauthorized") {
-      actions.logout();
       window.location.replace(`${window.location.origin}/login`);
     }
     throw new AdeliError(apiError?.code || "network", apiError?.message || "The Adeli request failed.", response.status);
@@ -31,11 +28,11 @@ export const adeli = {
     return result.accounts;
   },
 
-  startConnect(profileId: string, authMethod: "instagram_login" | "facebook_login") {
+  startConnect(profileId: string) {
     return request<ConnectSession>("/api/adeli/connect/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId, authMethod }),
+      body: JSON.stringify({ profileId }),
     });
   },
 

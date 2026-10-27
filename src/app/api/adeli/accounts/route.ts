@@ -1,5 +1,5 @@
 import { adeliErrorResponse } from "@/lib/adeli/http";
-import { listInstagramAccounts } from "@/lib/adeli/server";
+import { listInstagramAccounts } from "@/lib/adeli/instagram";
 import { requireSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";

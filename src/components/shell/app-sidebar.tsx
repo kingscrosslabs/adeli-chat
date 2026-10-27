@@ -25,14 +25,15 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { actions, byRecency, useDemoState } from "@/lib/demo/store";
+import type { AdeliAccount } from "@/lib/adeli/types";
+import type { Automation } from "@/lib/automations/schemas";
 import { cn } from "@/lib/utils";
 
-export function AppSidebar() {
+type AutomationLink = Pick<Automation, "id" | "name" | "status">;
+
+export function AppSidebar({ account, profileName, automations }: { account: AdeliAccount | null; profileName: string | null; automations: AutomationLink[] }) {
   const pathname = usePathname();
   const router = useRouter();
-  const state = useDemoState();
-  const account = state?.account;
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -45,7 +46,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <AutomationsNav />
+              <AutomationsNav automations={automations} connected={Boolean(account)} />
               <SidebarMenuItem>
                 <SidebarMenuButton render={<Link href="/settings" />} isActive={pathname.startsWith("/settings")}>
                   <Settings />
@@ -65,7 +66,7 @@ export function AppSidebar() {
             </Avatar>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">@{account.displayIdentifier}</span>
-              <span className="block truncate text-xs text-muted-foreground">via Adeli · {state?.adeliKey?.profileName}</span>
+              <span className="block truncate text-xs text-muted-foreground">via Adeli{profileName ? ` · ${profileName}` : ""}</span>
             </span>
           </Link>
         ) : (
@@ -76,7 +77,6 @@ export function AppSidebar() {
           className="w-full justify-start"
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
-            actions.logout();
             router.replace("/login");
           }}
         >
@@ -91,12 +91,10 @@ export function AppSidebar() {
  * Automations with its own dropdown of every automation, most recently
  * updated first. With none yet, the dropdown holds a create button instead.
  */
-function AutomationsNav() {
+function AutomationsNav({ automations, connected }: { automations: AutomationLink[]; connected: boolean }) {
   const pathname = usePathname();
-  const state = useDemoState();
   const [open, setOpen] = useState(true);
   const [creating, setCreating] = useState(false);
-  const automations = byRecency(state?.automations ?? []);
 
   return (
     <SidebarMenuItem>
@@ -139,7 +137,7 @@ function AutomationsNav() {
           )}
         </SidebarMenuSub>
       ) : null}
-      <CreateAutomationDialog open={creating} onOpenChange={setCreating} />
+      <CreateAutomationDialog open={creating} onOpenChange={setCreating} connected={connected} />
     </SidebarMenuItem>
   );
 }

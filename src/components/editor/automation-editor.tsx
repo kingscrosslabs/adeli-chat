@@ -22,8 +22,9 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LIMITS, type Automation, type AutomationContent } from "@/lib/automations/schemas";
-import { errorCount, findConflict, firstErrorField, validateForLive, type FieldErrors } from "@/lib/automations/validate";
-import { actions, readDemoState, useDemoState } from "@/lib/demo/store";
+import { goLive as goLiveAction, pauseAutomation, saveAutomation, type ActionResult } from "@/lib/actions";
+import type { AdeliAccount } from "@/lib/adeli/types";
+import { errorCount, firstErrorField, validateForLive, type FieldErrors } from "@/lib/automations/validate";
 import { compactNumber, relativeTime } from "@/lib/format";
 
 import type { PreviewTab } from "./fields";
@@ -46,18 +47,16 @@ function scrollToField(errors: FieldErrors) {
  * Split-screen editor (FR-4.x). Left: the form. Right: a sticky phone
  * preview. Below 1024px the preview moves into a drawer.
  */
-export function AutomationEditor({ automation }: { automation: Automation }) {
+export function AutomationEditor({ automation, account }: { automation: Automation; account: AdeliAccount }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const state = useDemoState();
-  const account = state?.account ?? null;
   const [draft, setDraft] = useState<AutomationContent>(() => contentOf(automation));
   const [validating, setValidating] = useState(() => searchParams.get("validate") === "1");
   const [tab, setTab] = useState<PreviewTab>("post");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [busy, setBusy] = useState<"save" | "live" | null>(null);
+  const [busy, setBusy] = useState<"save" | "live" | "pause" | null>(null);
   const [, setTick] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -98,14 +97,16 @@ export function AutomationEditor({ automation }: { automation: Automation }) {
     scrollToField(found);
   }
 
-  function conflictOrNull() {
-    const conflict = findConflict(draft, automation.id, readDemoState().automations);
-    if (!conflict) return false;
-    const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : "already answers comments on this post";
-    toast.error(`"${conflict.automation.name}" is live on this post and ${detail}.`, {
-      description: "Pause it, or change your keywords, so each comment only triggers one automation.",
-      action: { label: "Open it", onClick: () => router.push(`/automations/${conflict.automation.id}`) },
-    });
+  /** Shows why the server refused a save or Go Live. Returns true when it did. */
+  function rejected(result: ActionResult) {
+    if (result.ok) return false;
+    if (result.reason === "invalid") rejectForLive(validateForLive(draft));
+    else if (result.reason === "conflict") {
+      toast.error(result.message, {
+        description: "Pause it, or change your keywords, so each comment only triggers one automation.",
+        action: { label: "Open it", onClick: () => router.push(`/automations/${result.conflictId}`) },
+      });
+    } else toast.error(result.message);
     return true;
   }
 
@@ -114,30 +115,30 @@ export function AutomationEditor({ automation }: { automation: Automation }) {
       // FR-7.2: Save while Live runs full validation. On failure the live version is untouched.
       const found = validateForLive(draft);
       if (errorCount(found)) return rejectForLive(found);
-      if (conflictOrNull()) return;
     }
     setBusy("save");
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    actions.saveAutomation(automation.id, draft);
+    const result = await saveAutomation(automation.id, draft);
     setBusy(null);
+    if (rejected(result)) return;
     toast.success(isLive ? "Saved. Your changes are live." : "Saved");
   }
 
   async function goLive() {
     const found = validateForLive(draft);
     if (errorCount(found)) return rejectForLive(found);
-    if (conflictOrNull()) return;
     setBusy("live");
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    actions.saveAutomation(automation.id, draft);
-    actions.setStatus(automation.id, "live");
+    const result = await goLiveAction(automation.id, draft);
     setBusy(null);
+    if (rejected(result)) return;
     setValidating(false);
     toast.success("You're live!", { description: "New comments on your post will get a reply and a DM." });
   }
 
-  function pause() {
-    actions.setStatus(automation.id, "paused");
+  async function pause() {
+    setBusy("pause");
+    const result = await pauseAutomation(automation.id);
+    setBusy(null);
+    if (rejected(result)) return;
     toast("Paused", { description: "New comments won't trigger it. People already waiting on a tap still get their link." });
   }
 
@@ -196,7 +197,7 @@ export function AutomationEditor({ automation }: { automation: Automation }) {
               {busy === "save" ? <Loader2 className="animate-spin" /> : null} Save
             </Button>
             {isLive ? (
-              <Button size="lg" variant="secondary" onClick={pause}><Pause /> Pause</Button>
+              <Button size="lg" variant="secondary" onClick={() => void pause()} disabled={busy !== null}>{busy === "pause" ? <Loader2 className="animate-spin" /> : <Pause />} Pause</Button>
             ) : (
               <Button size="lg" onClick={() => void goLive()} disabled={busy !== null}>
                 {busy === "live" ? <Loader2 className="animate-spin" /> : <Play />} Go Live
@@ -221,7 +222,7 @@ export function AutomationEditor({ automation }: { automation: Automation }) {
           {isLive && dirty ? (
             <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-secondary-foreground">This automation is live. Saving applies your changes right away.</p>
           ) : null}
-          <PostSection {...sectionProps} accountId={account?.accountId ?? ""} />
+          <PostSection {...sectionProps} accountId={account.accountId} />
           <TriggerSection {...sectionProps} />
           <ReplySection {...sectionProps} />
           <OpeningDmSection {...sectionProps} />

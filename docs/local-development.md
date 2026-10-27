@@ -40,8 +40,46 @@ While the Meta app is in development mode, it delivers webhooks and allows messa
 
 ## 4. Run Adeli Chat
 
+You need Node.js 22 or later and Docker.
+
+### Postgres
+
 ```bash
-npm install
+docker compose up -d
+```
+
+Postgres 17 listens on `localhost:35438`, which doesn't collide with Adeli's own database on `35437`.
+
+### The Adeli SDK
+
+Adeli Chat calls Adeli through `@adeli/sdk`. Until the SDK is published to npm, install it from a local build. It is deliberately left out of `package.json` and `package-lock.json`, so **a fresh clone won't typecheck or build until you do this.**
+
+1. In your `adeli-sdk` checkout, next to this repository, build and pack it:
+
+   ```bash
+   npm ci
+   npm run build
+   npm pack
+   ```
+
+   This writes `adeli-sdk-0.1.0.tgz` in that checkout.
+
+2. In this repository, install everything, then the SDK:
+
+   ```bash
+   npm install
+   npm run sdk:local
+   ```
+
+   `sdk:local` installs the tarball without touching `package.json` or the lockfile. It reads `../adeli-sdk/adeli-sdk-0.1.0.tgz` by default. If yours is elsewhere, such as a worktree, point at it with `ADELI_SDK_TARBALL=/path/to/adeli-sdk-0.1.0.tgz npm run sdk:local`.
+
+3. Run `npm run sdk:local` again after every `npm install` or `npm ci`, because those remove packages that aren't in the lockfile.
+
+Never commit the tarball or a `file:` reference to it. Once the SDK is published, `@adeli/sdk` becomes a normal dependency (`^0.2.0`) and this step goes away.
+
+### Environment
+
+```bash
 cp .env.example .env.local
 ```
 
@@ -49,18 +87,28 @@ Edit `.env.local`:
 
 | Variable | Value |
 | --- | --- |
-| `ADELI_BASE_URL` | `http://localhost:3000`. An origin only, with no `/api/v1` path. |
+| `ADELI_BASE_URL` | `http://localhost:3000`. An origin only, with no `/api/v1` path. Leave it unset to use the hosted Adeli. |
 | `ADELI_API_KEY` | The key you created in step 3. |
+| `DATABASE_URL` | `postgres://adeli_chat:adeli_chat@localhost:35438/adeli_chat` |
 | `ADMIN_PASSWORD` | Any password, used to log in to Adeli Chat. |
 | `SESSION_SECRET` | At least 32 random characters. |
 | `APP_URL` | `http://localhost:3030` |
 
-Then start the app:
+### Start
 
 ```bash
+npm run db:migrate
 npm run dev
 ```
 
-Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. If `ADELI_API_KEY` is missing, Adeli Chat shows an error naming it.
+Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. If `ADELI_API_KEY` is missing, Adeli Chat shows an error naming it. Nothing is mocked: every screen reads from your local Adeli and Postgres.
+
+Before you push, run:
+
+```bash
+npm run typecheck && npm run lint && npm test && npm run build
+```
+
+After changing `src/lib/db/schema.ts`, create a migration with `npm run db:generate` and commit the new file in `drizzle/`.
 
 Never commit `.env.local` or an API key. This repository is public.

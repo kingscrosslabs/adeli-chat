@@ -1,6 +1,6 @@
 # Adeli Chat: PRD + Build Plan v0.3 (Instagram Comment to DM)
 
-> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-10-02
+> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-10-27
 >
 > Companion docs: [`docs/brand.md`](brand.md) (design system and copy voice).
 
@@ -21,11 +21,11 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D5 | Any comment | Yes. Trigger can be **Specific keywords** or **Any comment**. |
 | D6 | Stats | Basic counts only in v1. Link-click tracking is v1.1. |
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
-| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** (`https://app.tryadeli.com/api/v1`), wrapped in our own typed client in `src/lib/adeli/`. Endpoint map in §5.11. |
+| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_BASE_URL` is an origin (default `https://app.tryadeli.com`; a legacy `ADELI_API_BASE_URL` ending in `/api/v1` still works). Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
 | D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
-| D10 | Adeli API key | **Bring your own key** (confirmed by Mika, updated 2026-10-14). Each install uses its owner's organization-level Adeli key. Entered in a first-run **Setup** screen, validated live, stored encrypted in Postgres. `ADELI_API_KEY` in env overrides the UI and locks the field (for Docker/PaaS deploys and for our own hosted instance). Our KCL key never ships in the repo. |
-| D11 | Connecting Instagram | Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
-| D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat codes against its channel interface + mock until they ship. |
+| D10 | Adeli API key | **Bring your own key, env only** (updated 2026-10-27). Each install uses its owner's organization-level Adeli key, set as `ADELI_API_KEY`. There is no paste-a-key form and no key in the database: `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Setup checks the key live and records its status and default profile in `app_settings`. Our KCL key never ships in the repo. |
+| D11 | Connecting Instagram | **Instagram Login only** (updated 2026-10-27): Adeli's Facebook Login connections lack the comments permission and subscription. Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session with `authMethod: "instagram_login"`. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
+| D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
 
 ---
 
@@ -136,21 +136,22 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
     4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
   - A password-type input (Geist Mono) labelled "Adeli API key", placeholder `rk_live_…`, with a show/hide toggle, and a **Save and continue** button.
   - A collapsible "Is this safe?" note: "Your key stays on this server. It's encrypted in your database and never sent to your browser after you save it. You can delete it in Adeli at any time to revoke access instantly."
-- **FR-S.3** Validation on save: client-side format check (`rk_live_` + 43 URL-safe chars), then the server calls `GET /api/v1/profiles` with the key.
-  - `200`: save it, select the first returned profile as the default connect target, show "Connected to Adeli profile **{name}**" with a check, and continue to `/connect`.
-  - `401`: "Adeli didn't accept that key. Check you copied all of it, or create a new one." Nothing is saved.
-  - Network error or `5xx`: "We couldn't reach Adeli. Try again in a minute." Nothing is saved.
-- **FR-S.4** Storage: AES-256-GCM, key derived with HKDF from `SESSION_SECRET`. Store ciphertext, the display prefix (first 12 chars, e.g. `rk_live_Ab3d…`, matching how Adeli lists keys), and the default profile id and name selected from `GET /profiles`. The plaintext key is never returned to the browser, logged, or put in a URL. Changing `SESSION_SECRET` means re-entering the key (the Setup screen explains this if decryption fails).
-- **FR-S.5** Env-managed mode: if `ADELI_API_KEY` is set, `/setup` and Settings show "Managed by your server environment (`ADELI_API_KEY`)" with the masked prefix and default profile name, and hide the input. Validation still runs once at boot and surfaces a banner if the key is rejected.
-- **FR-S.6** Settings > Adeli: masked prefix, profile name, "Last checked" time, **Test connection**, **Replace key**, **Remove key** (confirm dialog; removing pauses all Live automations, same as Disconnect).
-- **FR-S.7** Key revoked later (any Adeli call returns `401`): mark the key `invalid`, pause runtime sending (jobs wait, nothing is dropped), and show a global banner: "Your Adeli key stopped working. Add a new one to resume your automations." linking to `/setup`.
-- **FR-S.8** Access mismatch guard: if the connected account is not available through a replacement key, warn before saving: "This key cannot access your connected Instagram account. The account will be removed and Live automations will be paused." Confirm or cancel.
-- **FR-S.9** Mock mode (`ADELI_MOCK=1`): Setup accepts any value (or a "Skip, use demo data" button) so contributors never need a real key.
+- **FR-S.3** Validation: Setup calls `GET /api/v1/profiles` (`client.profiles.listProfiles()`) with `ADELI_API_KEY`.
+  - `200`: record the key as `valid` with the first returned profile as the default connect target, show "Connected to Adeli" with the profile name, and continue to `/connect`.
+  - `401`: record the key as `invalid` and show "Adeli didn't accept the key in ADELI_API_KEY."
+  - Network error or `5xx`: "We couldn't reach Adeli. Try again in a minute." The last recorded status stays.
+  - Missing variable: show the exact configuration error, naming `ADELI_API_KEY`. There is no demo fallback.
+- **FR-S.4** Storage: the key lives only in the server environment. `app_settings` keeps its status, last check time, and default profile id and name. The key is never returned to the browser, logged, or put in a URL; Adeli Chat shows only its first 12 characters (e.g. `rk_live_Ab3d…`).
+- **FR-S.5** `/setup` and Settings always say "Managed by your server environment (`ADELI_API_KEY`)" with the masked prefix and default profile name. To change the key, update the variable and restart.
+- **FR-S.6** Settings > Adeli: status, masked prefix, profile name, "Last checked" time, and **Test connection**, which calls `listProfiles` for real. There are no Replace or Remove controls.
+- **FR-S.7** Key revoked later (any Adeli call returns `401`): mark the key `invalid` and show a global banner: "Adeli stopped accepting the key in ADELI_API_KEY. Set a new one and restart to resume your automations." linking to Settings.
+- **FR-S.8** Access mismatch guard: choosing an account on `/connect` checks the current key can still reach it. Switching to another account pauses the old account's Live automations.
+- **FR-S.9** No mock mode. Contributors run against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Unit tests inject a fake `fetch` instead.
 
 ### 5.1 Connect Instagram (via Adeli)
 - **FR-1.1** `/connect` first calls `GET /api/v1/profiles`, then `GET /api/v1/accounts?platform=instagram&profileId={profileId}` for each profile. Show the available accounts as selectable cards (handle, display name, profile name, connection status). Choosing one stores it. This is the default path and needs no OAuth on our side.
 - **FR-1.2** **Connect a new account** (shown always, primary if the list is empty): our backend calls `POST /api/v1/profiles/{profileId}/connect` with `{ "platform": "instagram", "redirectUrl": "{APP_URL}/connect" }`. The origin must be allowlisted by Adeli. Localhost and 127.0.0.1 may use HTTP; deployed installs use HTTPS. The UI opens the returned `authUrl` in a new tab and polls `GET /api/v1/profiles/{profileId}/connect/{sessionId}` every 2s, showing "Waiting for Instagram…" with a Cancel link. Adeli returns the authorization tab to `/connect`, but the server-side poll remains the source of truth. Sessions expire after 10 minutes.
-- **FR-1.3** Login method: default `authMethod: "instagram_login"`. Offer "Use Facebook login instead" as a secondary link (`facebook_login`) for accounts managed through a Facebook Page.
+- **FR-1.3** Login method: always `authMethod: "instagram_login"` (D11). There is no Facebook Login option.
 - **FR-1.4** On `connected`, store the Adeli `accountId`, `providerId` (IG user id), `displayName`, `displayIdentifier` (handle) and status. We never store Instagram tokens (Adeli holds them).
 - **FR-1.5** Errors: session `failed` or `expired`, user closed the tab, `403 missing_permission` on later calls (needs reconnect with comment + messaging permissions), personal account, Adeli unavailable. Each has a plain-language message and a retry button.
 - **FR-1.6** Settings: show account, **Reconnect** (re-runs FR-1.2; Adeli keeps the same `accountId`), **Disconnect** (removes it from Adeli Chat only and pauses all Live automations; we do not call Adeli's delete, since the account may be used by other Adeli apps. A link explains how to fully remove it in Adeli).
@@ -334,9 +335,9 @@ Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adel
 - **Forms:** React Hook Form + Zod (same schemas on server).
 - **DB:** Postgres + Drizzle ORM + drizzle-kit migrations.
 - **Queue/worker:** pg-boss. Started from Next.js `instrumentation.ts` in the same Node process (simplest), with an option to run `npm run worker` separately.
-- **Adeli client:** `src/lib/adeli/` typed client. Nothing else talks to Adeli directly. It gets its key from `getAdeliApiKey()` (`src/lib/adeli/key.ts`: env first, then decrypted `app_settings`), maps Adeli error codes (`unauthorized`, `missing_permission`, `window_closed`, `rate_limited`, `provider_error`) to typed errors, and marks the key `invalid` on any `401` (FR-S.7). Server-only (`import "server-only"`).
+- **Adeli client:** `@adeli/sdk`, used only in `src/lib/adeli/`. Nothing else talks to Adeli directly. `client.ts` builds the client from `getAdeliConfig()` (`src/lib/adeli/key.ts`, env only), maps SDK errors (`AuthenticationError`, `NetworkError`, `TimeoutError`, `ConfigurationError`, other `AdeliApiError` codes) to typed errors, and marks the key `invalid` on any `401` (FR-S.7). Server-only (`import "server-only"`).
 - **Channel adapter:** `src/lib/channels/types.ts` defines `listMedia`, `replyToComment`, `sendPrivateReply`, `sendMessage`, `parseWebhook`. `instagram.ts` implements it via the Adeli client. Facebook and TikTok add files here later.
-- **Mock mode:** `ADELI_MOCK=1` swaps in a fake Adeli client with sample posts and a "Simulate comment" button, so anyone can run the UI without Instagram or an Adeli key.
+- **No mock mode:** the app runs against a real Adeli, locally a dev server ([`docs/local-development.md`](local-development.md)). Tests inject a fake `fetch`.
 - **Deploy target (v1):** one long-running container (Docker Compose locally, Railway/Render/Fly or a VPS in prod). Vercel isn't supported in v1 because of the background worker.
 
 ### Proposed folder structure
@@ -375,17 +376,15 @@ docker-compose.yml
 
 ### Environment variables
 ```
-DATABASE_URL=
-APP_URL=http://localhost:3000
+DATABASE_URL=postgres://adeli_chat:adeli_chat@localhost:35438/adeli_chat
+APP_URL=http://localhost:3030
 ADMIN_PASSWORD=
-SESSION_SECRET=                         # also derives the key that encrypts the saved Adeli key
-ADELI_API_BASE_URL=https://app.tryadeli.com/api/v1
-ADELI_API_KEY=                          # optional. Set it to skip the Setup screen (PaaS, Docker, our hosted instance)
-ADELI_WEBHOOK_SECRET=                   # optional until Adeli ships outbound webhooks (A1)
-ADELI_MOCK=0
+SESSION_SECRET=
+ADELI_BASE_URL=https://app.tryadeli.com   # an origin; http://localhost:3000 for a local Adeli
+ADELI_API_KEY=                            # required
 ```
 
-**Our own key (KCL):** for our hosted instance and local dev, put the KCL key in `.env.local` / the host's secret store as `ADELI_API_KEY`. Never commit it. `.env*` stays gitignored, and CI runs with `ADELI_MOCK=1`.
+**Our own key (KCL):** for our hosted instance and local dev, put the KCL key in `.env.local` / the host's secret store as `ADELI_API_KEY`. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
 
 ---
 
@@ -404,7 +403,7 @@ ADELI_MOCK=0
 - `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
 - `docs/architecture.md`, plus guides for "Adding a channel" and "Adding a trigger".
 - CI (GitHub Actions): lint, typecheck, unit tests, build.
-- Seed script and mock mode so contributors can run everything without Instagram.
+- No mock mode. [`docs/local-development.md`](local-development.md) explains how to run against a local Adeli dev server with test Instagram accounts.
 
 ---
 
@@ -438,10 +437,11 @@ Not in the preview: anything in M4 (runtime), real stats, the webhook route.
 ### M0. Scaffold
 - [x] Next.js 16 + TypeScript + Tailwind v4 + ESLint (Prettier still to add)
 - [x] shadcn init with Adeli's `components.json`, copy Adeli `components/ui/*`, `globals.css` and fonts from [`docs/brand.md`](brand.md) §2 and §10
-- [ ] Drizzle + Postgres, `docker-compose.yml`, first migration (§6, including `app_settings`)
+- [x] Drizzle + Postgres, `docker-compose.yml`, first migration (§6, simplified: no `webhook_events`, the `runs` unique keys make delivery idempotent)
 - [ ] `.env.example`, env validation with Zod
-- [ ] Vitest set up, GitHub Actions CI (runs with `ADELI_MOCK=1`)
-- [x] Adeli client interface + mock implementation (typed error mapping comes with the real client)
+- [x] Vitest set up
+- [ ] GitHub Actions CI
+- [x] Adeli client on `@adeli/sdk` with typed error mapping (the mock was removed 2026-10-27)
 
 ### M1. Login + Adeli key + Connect
 - [ ] Password login, session cookie, `proxy.ts` guard (FR-0.x)
@@ -469,7 +469,6 @@ Not in the preview: anything in M4 (runtime), real stats, the webhook route.
 - [ ] Matcher (`match.ts`) with unit tests: contains, case, emoji, any comment, self-comments
 - [ ] Interim comment poller (FR-8.1), event dedupe, once-per-person rule (by handle until A1/A5)
 - [ ] pg-boss job: public comment reply via `POST /comments`, with retries and self-throttling
-- [ ] Mock mode "Simulate comment" and "Simulate tap" for end-to-end testing without Instagram
 
 ### M4b. Runtime DMs (needs Track A)
 - [ ] Opening DM as private reply with button (needs A2 + A3)
@@ -540,7 +539,7 @@ These are changes to the Adeli API (Track A). Adeli Chat is the first customer, 
 | A5 | **Commenter id on `Comment`.** | Add `authorId` (IG-scoped user id) to the public `Comment` shape on `GET /comments`. | Reliable once-per-person (D3) in polling mode; handles can change. |
 | A6 | **Meta permissions check.** | Confirm the approved Instagram app covers private replies and button templates (`instagram_business_manage_comments`, `instagram_business_manage_messages`) for both Instagram Login and Facebook Login connections. | Avoid building against a permission we don't have in production. |
 
-**Plan:** [`adeli/plans/2026-10-02-instagram-comment-to-dm-api-plan.md`](../../adeli/plans/2026-10-02-instagram-comment-to-dm-api-plan.md) (proposed, pending Nick's review). Milestone 1 = A2 + A3 + A5, Milestone 2 = A1 + webhook management API, Milestone 3 = A4.
+**Plan:** `~/repos/adeli/plans/2026-10-27-instagram-comment-to-dm-api-plan.md` in the Adeli repository (not public). Milestone 1 = A2 + A3 + A5, Milestone 2 = A1 + webhook management API, Milestone 3 = A4.
 
 **Recommended order:** A2 + A3 first (smallest change, unblocks the core DM flow, testable from the Adeli sandbox), then A1 + A4 together (one delivery system, two event types), then A5. Write it as one plan in `adeli/plans/` following that repo's plan template, and update `adeli/docs/public-api.md` and the public `/docs` pages in the same change.
 

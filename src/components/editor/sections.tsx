@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import type { AdeliMedia } from "@/lib/adeli/types";
 import { LIMITS, type AutomationContent } from "@/lib/automations/schemas";
 import type { FieldErrors } from "@/lib/automations/validate";
-import { snapshotOf } from "@/lib/demo/samples";
+import { snapshotOf } from "@/lib/automations/snapshot";
 import { cn } from "@/lib/utils";
 
 import { ChoiceRow, Counter, FieldError, Section, TextField, type PreviewTab } from "./fields";

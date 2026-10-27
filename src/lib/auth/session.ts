@@ -1,18 +1,14 @@
 import "server-only";
 
 import { createHmac, createHash, timingSafeEqual } from "node:crypto";
+import { cookies } from "next/headers";
 
 const COOKIE_NAME = "adeli_chat_session";
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 
-function isMockMode() {
-  return process.env.ADELI_MOCK === "1";
-}
-
 function secret() {
-  if (isMockMode()) return process.env.SESSION_SECRET || "adeli-chat-local-mock";
   const value = process.env.SESSION_SECRET?.trim();
-  if (!value) throw new Error("SESSION_SECRET is required unless ADELI_MOCK=1.");
+  if (!value) throw new Error("SESSION_SECRET is not set on this server. Add it to .env.local and restart.");
   return value;
 }
 
@@ -27,9 +23,8 @@ function safeEqual(left: string, right: string) {
 }
 
 export function verifyAdminPassword(password: string) {
-  if (isMockMode()) return password !== "wrong";
   const configured = process.env.ADMIN_PASSWORD;
-  if (!configured) throw new Error("ADMIN_PASSWORD is required unless ADELI_MOCK=1.");
+  if (!configured) throw new Error("ADMIN_PASSWORD is not set on this server. Add it to .env.local and restart.");
   return safeEqual(password, configured);
 }
 
@@ -45,9 +40,7 @@ export function clearSessionCookie(request: Request) {
   return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
-export function hasValidSession(request: Request) {
-  const cookie = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${COOKIE_NAME}=`));
-  const value = cookie?.slice(COOKIE_NAME.length + 1);
+function isValidSessionValue(value: string | undefined) {
   if (!value) return false;
   const [expiresAt, suppliedSignature] = value.split(".");
   if (!expiresAt || !suppliedSignature || Number(expiresAt) <= Math.floor(Date.now() / 1000)) return false;
@@ -56,6 +49,16 @@ export function hasValidSession(request: Request) {
   } catch {
     return false;
   }
+}
+
+export function hasValidSession(request: Request) {
+  const cookie = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${COOKIE_NAME}=`));
+  return isValidSessionValue(cookie?.slice(COOKIE_NAME.length + 1));
+}
+
+/** For Server Components and Server Actions, which don't get a `Request`. */
+export async function isLoggedIn() {
+  return isValidSessionValue((await cookies()).get(COOKIE_NAME)?.value);
 }
 
 export function requireSession(request: Request): Response | null {

@@ -5,16 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
-import { nextOnboardingPath } from "@/components/guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { actions, readDemoState } from "@/lib/demo/store";
 
-/**
- * Password screen (FR-0.x). Real API mode checks ADMIN_PASSWORD on the
- * server. Mock mode accepts any password except "wrong".
- */
+/** Password screen (FR-0.x). The server checks it against ADMIN_PASSWORD. */
 export default function LoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -41,8 +36,8 @@ export default function LoginPage() {
         setError(result.error?.message ?? "Login failed. Try again.");
         return;
       }
-      actions.login();
-      router.replace(nextOnboardingPath(readDemoState()));
+      // `/` and the proxy send you on to the first unfinished onboarding step.
+      router.replace("/");
     } catch {
       setError("We couldn't reach this Adeli Chat server.");
     } finally {
@@ -85,7 +80,6 @@ export default function LoginPage() {
             {pending ? <Loader2 className="animate-spin" /> : null} Log in
           </Button>
         </form>
-        <p className="mt-6 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">In mock mode, any password works. Type <code className="font-mono">wrong</code> to see the error.</p>
       </section>
     </main>
   );

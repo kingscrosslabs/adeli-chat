@@ -4,26 +4,13 @@ Free, open-source Instagram Comment to DM automations (a ManyChat alternative), 
 
 When someone comments a keyword on your post, Adeli Chat replies to their comment and sends them a DM with your link.
 
-**Status:** interactive preview with a real Adeli read and connect path. Connected Instagram accounts and posts can come from the Adeli API. Automations, authentication, webhooks, and the worker still use browser-only preview state. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
+**Status:** login, Setup, Connect and the automation editor run against the real Adeli API, with automations stored in Postgres. The Comment to DM runtime (webhooks, replies and DMs) is next. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
 
 ## Run with the real Adeli API
 
-```bash
-npm install
-cp .env.example .env.local
-# Edit .env.local: set ADELI_BASE_URL, ADELI_API_KEY, ADMIN_PASSWORD, and SESSION_SECRET
-npm run dev
-```
+Follow [docs/local-development.md](docs/local-development.md). It covers Postgres, the Adeli SDK, your `.env.local`, and running against a local Adeli dev server. Nothing is mocked, so you need an Adeli API key.
 
-Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. The API key stays on the server behind an HTTP-only signed session. Adeli Chat uses it to list the key organization's profiles, list their connected Instagram accounts, start hosted Instagram authorization, poll connection status, and load Instagram posts.
-
-To run against a local Adeli dev server, follow [docs/local-development.md](docs/local-development.md).
-
-To use sample data instead, add `ADELI_MOCK=1` to `.env.local`. In mock mode:
-
-- Any password logs you in. Type `wrong` to see the error state.
-- On the setup screen, **Fill a demo key** gives you a valid-looking key. Keys containing `bad` are rejected, `offline` simulates Adeli being down, and `other` belongs to a different Adeli profile.
-- The **Demo** button (bottom right) loads sample automations, resets to a fresh install, simulates a revoked key, and switches to "key set by environment" mode.
+Then open http://localhost:3030 and log in with `ADMIN_PASSWORD`. The API key stays on the server, behind an HTTP-only signed session.
 
 ## Get your Adeli API key
 
@@ -34,7 +21,7 @@ Every install uses its own Adeli key.
 3. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**.
 4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
 
-Paste it into the Setup screen, or set `ADELI_API_KEY` on your server to skip that screen. Never commit a key.
+Set it as `ADELI_API_KEY` in your server environment (`.env.local` locally) and restart. Never commit a key.
 
 ## Notes
 
