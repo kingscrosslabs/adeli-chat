@@ -13,6 +13,7 @@ import { automationContentSchema, type AutomationContent } from "@/lib/automatio
 import { errorCount, findConflict, validateForLive, validateLimits } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
+import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
 
 /**
  * Every write the UI makes, as Server Actions backed by Postgres. Each one
@@ -71,8 +72,11 @@ export async function checkAdeliKey(): Promise<KeyState> {
   let message: string | null = null;
   try {
     const [profile] = await listProfiles();
-    if (profile) await markKeyStatus("valid", profile);
-    else message = "This Adeli organization doesn't have a profile yet. Create one in Adeli.";
+    if (profile) {
+      await markKeyStatus("valid", profile);
+      // Boot registers the webhook too, but a key fixed after boot only works from here.
+      await ensureAdeliWebhook().catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
+    } else message = "This Adeli organization doesn't have a profile yet. Create one in Adeli.";
   } catch (error) {
     // `unauthorized` already marked the key invalid. A network error leaves the last result.
     message = error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute.";

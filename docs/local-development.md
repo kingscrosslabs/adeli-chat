@@ -103,6 +103,12 @@ npm run dev
 
 Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. If `ADELI_API_KEY` is missing, Adeli Chat shows an error naming it. Nothing is mocked: every screen reads from your local Adeli and Postgres.
 
+On start, and again whenever Setup confirms the key, Adeli Chat registers one Adeli webhook for `APP_URL/api/webhooks/adeli`, with the `comment.created` and `message.postback` events. It stores the webhook's id and signing secret in `app_settings`, and reuses it on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel.
+
+### Tests
+
+`npm test` runs the unit tests. The runtime tests use a separate `adeli_chat_test` database on the same Postgres, which they create and migrate themselves, so `docker compose up -d` must be running. They never call Adeli: a fake `fetch` stands in for it.
+
 Before you push, run:
 
 ```bash

@@ -4,16 +4,14 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import type { AdeliAccount } from "@/lib/adeli/types";
-import type { Automation } from "@/lib/automations/schemas";
+import type { Automation, AutomationStats } from "@/lib/automations/schemas";
+import { NO_STATS, statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
 /** Server reads for pages. Mutations live in `src/lib/actions.ts`. */
 
 type AccountRow = typeof schema.accounts.$inferSelect;
 type AutomationRow = typeof schema.automations.$inferSelect;
-
-/** Stats are counted from `runs` once the Comment to DM runtime sends anything. */
-const NO_STATS = { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, finalDms: 0 };
 
 export type ConnectedAccount = AdeliAccount & { id: string };
 
@@ -30,7 +28,7 @@ export function toAccount(row: AccountRow): ConnectedAccount {
   };
 }
 
-export function toAutomation(row: AutomationRow): Automation {
+export function toAutomation(row: AutomationRow, stats: AutomationStats = NO_STATS): Automation {
   return {
     id: row.id,
     type: row.type,
@@ -40,7 +38,7 @@ export function toAutomation(row: AutomationRow): Automation {
     commentReply: row.commentReply,
     openingDm: row.openingDm,
     finalDm: row.finalDm,
-    stats: NO_STATS,
+    stats,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     liveAt: row.liveAt?.toISOString() ?? null,
@@ -62,12 +60,14 @@ export async function requireAccount(): Promise<ConnectedAccount> {
 /** The account's automations, most recently updated first. */
 export async function listAutomations(accountId: string): Promise<Automation[]> {
   const rows = await db().select().from(schema.automations).where(eq(schema.automations.accountId, accountId)).orderBy(desc(schema.automations.updatedAt));
-  return rows.map(toAutomation);
+  const stats = await statsFor(rows.map((row) => row.id));
+  return rows.map((row) => toAutomation(row, stats.get(row.id)));
 }
 
 export async function getAutomation(accountId: string, id: string): Promise<Automation | null> {
   const [row] = await db().select().from(schema.automations).where(and(eq(schema.automations.id, id), eq(schema.automations.accountId, accountId))).limit(1);
-  return row ? toAutomation(row) : null;
+  if (!row) return null;
+  return toAutomation(row, (await statsFor([row.id])).get(row.id));
 }
 
 /** Live automations on the account other than `selfId`, for the Go Live conflict rule. */
@@ -77,5 +77,5 @@ export async function otherLiveAutomations(accountId: string, selfId: string): P
     eq(schema.automations.status, "live"),
     ne(schema.automations.id, selfId),
   ));
-  return rows.map(toAutomation);
+  return rows.map((row) => toAutomation(row));
 }

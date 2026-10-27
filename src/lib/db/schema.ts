@@ -62,8 +62,11 @@ export const runs = pgTable("runs", {
   igUsername: text("ig_username"),
   commentId: text("comment_id").notNull().unique(),
   commentText: text("comment_text"),
-  state: text("state", { enum: ["matched", "opening_sent", "tapped", "final_sent", "failed"] }).notNull().default("matched"),
+  /** `final_sending` is the postback claim: only one delivery moves a run out of `opening_sent`. */
+  state: text("state", { enum: ["matched", "opening_sent", "tapped", "final_sending", "final_sent", "failed"] }).notNull().default("matched"),
   commentReplyState: text("comment_reply_state", { enum: ["skipped", "sent", "failed"] }),
   error: text("error"),
+  openingSentAt: timestamp("opening_sent_at", { withTimezone: true }),
+  tappedAt: timestamp("tapped_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [unique("runs_automation_user").on(table.automationId, table.igUserId)]);

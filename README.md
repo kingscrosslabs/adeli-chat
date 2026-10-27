@@ -4,7 +4,7 @@ Free, open-source Instagram Comment to DM automations (a ManyChat alternative), 
 
 When someone comments a keyword on your post, Adeli Chat replies to their comment and sends them a DM with your link.
 
-**Status:** login, Setup, Connect and the automation editor run against the real Adeli API, with automations stored in Postgres. The Comment to DM runtime (webhooks, replies and DMs) is next. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
+**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
 
 ## Run with the real Adeli API
 
