@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, LogOut, RefreshCw, ServerCog, AtSign, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, ServerCog, AtSign, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -28,11 +28,10 @@ import { relativeTime } from "@/lib/format";
 export function SettingsView({ keyState, account, liveCount }: { keyState: KeyState; account: AdeliAccount | null; liveCount: number }) {
   return (
     <div className="space-y-6 p-4 md:p-8">
-      <PageHeading title="Settings" description="Your Adeli connection, Instagram account and session." />
+      <PageHeading title="Settings" description="Your Adeli connection and Instagram account." />
       <div className="grid max-w-3xl gap-4">
         <AdeliKeyCard keyState={keyState} />
         <InstagramCard account={account} liveCount={liveCount} canConnect={keyState.configured} />
-        <SessionCard />
       </div>
     </div>
   );
@@ -154,21 +153,6 @@ function InstagramCard({ account, liveCount, canConnect }: { account: AdeliAccou
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
-  );
-}
-
-function SessionCard() {
-  const router = useRouter();
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Session</CardTitle>
-        <CardDescription>You stay logged in on this device for 30 days.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button variant="outline" onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.replace("/login"); }}><LogOut /> Log out</Button>
-      </CardContent>
     </Card>
   );
 }

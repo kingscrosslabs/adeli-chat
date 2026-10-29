@@ -13,8 +13,7 @@ const KEY = `rk_live_${"a".repeat(43)}`;
 beforeEach(() => {
   vi.unstubAllEnvs();
   vi.stubEnv("ADELI_API_KEY", KEY);
-  vi.stubEnv("ADELI_BASE_URL", "http://localhost:3000");
-  vi.stubEnv("ADELI_API_BASE_URL", "");
+  vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000");
   markKeyStatus.mockClear();
 });
 
@@ -46,8 +45,7 @@ describe("getAdeliConfig", () => {
     expect(getAdeliConfig()).toEqual({ baseURL: "http://localhost:3000", apiKey: KEY });
   });
 
-  it("falls back to a legacy ADELI_API_BASE_URL, then production", () => {
-    vi.stubEnv("ADELI_BASE_URL", "");
+  it("accepts an /api/v1 base URL, and defaults to production", () => {
     vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000/api/v1");
     expect(getAdeliConfig().baseURL).toBe("http://localhost:3000");
     vi.stubEnv("ADELI_API_BASE_URL", "");

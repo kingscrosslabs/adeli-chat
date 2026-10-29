@@ -9,10 +9,10 @@ export type AdeliConfig = { baseURL: string; apiKey: string };
 /**
  * The only place server code reads the Adeli base URL and API key.
  *
- * `baseURL` is an origin, as `@adeli/sdk` expects. A legacy
- * `ADELI_API_BASE_URL` such as `http://localhost:3000/api/v1` still works: its
- * trailing `/api/v1` is stripped. There is no mock fallback; a missing key
- * throws `not_configured`. The key is never returned to the browser.
+ * `ADELI_API_BASE_URL` is optional. It may be an origin
+ * (`http://localhost:3000`) or end in `/api/v1`; either way `baseURL` is the
+ * origin `@adeli/sdk` expects. There is no mock fallback; a missing key throws
+ * `not_configured`. The key is never returned to the browser.
  */
 export function getAdeliConfig(): AdeliConfig {
   const apiKey = process.env.ADELI_API_KEY?.trim();
@@ -21,14 +21,12 @@ export function getAdeliConfig(): AdeliConfig {
 }
 
 function readBaseURL(): string {
-  const name = process.env.ADELI_BASE_URL?.trim() ? "ADELI_BASE_URL" : "ADELI_API_BASE_URL";
-  const raw = process.env[name]?.trim();
-  if (!raw) return DEFAULT_BASE_URL;
-  return normalizeBaseURL(raw, name);
+  const raw = process.env.ADELI_API_BASE_URL?.trim();
+  return raw ? normalizeBaseURL(raw) : DEFAULT_BASE_URL;
 }
 
-export function normalizeBaseURL(raw: string, name = "ADELI_BASE_URL"): string {
-  const invalid = () => notConfigured(`${name} must be an origin such as http://localhost:3000.`);
+export function normalizeBaseURL(raw: string): string {
+  const invalid = () => notConfigured("ADELI_API_BASE_URL must be an origin such as http://localhost:3000.");
   let url: URL;
   try {
     url = new URL(raw.trim());

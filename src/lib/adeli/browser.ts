@@ -14,9 +14,6 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const body = await response.json().catch(() => null) as T | ErrorBody | null;
   if (!response.ok) {
     const apiError = body && typeof body === "object" && "error" in body ? body.error : undefined;
-    if (response.status === 401 && apiError?.code === "session_unauthorized") {
-      window.location.replace(`${window.location.origin}/login`);
-    }
     throw new AdeliError(apiError?.code || "network", apiError?.message || "The Adeli request failed.", response.status);
   }
   return body as T;

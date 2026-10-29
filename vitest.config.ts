@@ -2,9 +2,6 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
-/** A separate database on the docker-compose Postgres, so tests never touch your data. */
-const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? "postgres://adeli_chat:adeli_chat@localhost:35438/adeli_chat_test";
-
 export default defineConfig({
   resolve: {
     alias: {
@@ -15,9 +12,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    globalSetup: ["./test/global-setup.ts"],
-    env: { DATABASE_URL: TEST_DATABASE_URL },
-    // Database tests share one test database.
-    fileParallelism: false,
+    // No DATABASE_URL, so every test file runs on a fresh in-memory PGlite.
+    env: { DATABASE_URL: "" },
+    setupFiles: ["./test/setup-db.ts"],
   },
 });

@@ -14,14 +14,14 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 
 | # | Question | Decision |
 |---|---|---|
-| D1 | Stack | Next.js (App Router) + TypeScript + Postgres (Drizzle ORM) + pg-boss job queue (runs inside Postgres, no Redis). |
-| D2 | Who logs in | Single owner per install. Password in `ADMIN_PASSWORD` env var, signed session cookie. |
+| D1 | Stack | Next.js (App Router) + TypeScript + Drizzle ORM. Postgres if `DATABASE_URL` is set, otherwise PGlite (in-process Postgres in `./.data`). Migrations apply on start. No job queue: webhook events are handled in `after()` and failures are recorded, not retried. (Updated 2026-10-29.) |
+| D2 | Who logs in | Nobody. No login: Adeli Chat is a demo of the Adeli API meant to run locally. The README warns not to deploy it publicly without adding auth. (Changed 2026-10-29.) |
 | D3 | Repeat commenters | A person gets the DM flow **once per automation**. Later comments from them are ignored by that automation. |
 | D4 | Editing a Live automation | **Save applies immediately** (after validation passes). |
 | D5 | Any comment | Yes. Trigger can be **Specific keywords** or **Any comment**. |
 | D6 | Stats | Basic counts only in v1. Link-click tracking is v1.1. |
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
-| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_BASE_URL` is an origin (default `https://app.tryadeli.com`; a legacy `ADELI_API_BASE_URL` ending in `/api/v1` still works). Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
+| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
 | D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
 | D10 | Adeli API key | **Bring your own key, env only** (updated 2026-10-27). Each install uses its owner's organization-level Adeli key, set as `ADELI_API_KEY`. There is no paste-a-key form and no key in the database: `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Setup checks the key live and records its status and default profile in `app_settings`. Our KCL key never ships in the repo. |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-10-27): Adeli's Facebook Login connections lack the comments permission and subscription. Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session with `authMethod: "instagram_login"`. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
@@ -84,7 +84,6 @@ Consequences:
 
 | # | Story | Acceptance |
 |---|---|---|
-| U1 | I log in to my install. | Password screen. Wrong password shows an error. Session lasts 30 days. |
 | U1a | On first run I'm told I need an Adeli API key, and shown exactly how to get one. | Setup screen with numbered steps and deep links to Adeli. Pasting a key validates it live and shows the default profile in its organization. |
 | U2 | I connect my Instagram account. | I can pick an account already connected in Adeli, or connect a new one without leaving the flow. After connecting I see my handle and avatar, and my posts load in the editor. |
 | U3 | I click **Create automation** and pick a template. | Modal shows "Comment to DM" (enabled) and 3 "Coming soon" options (disabled). |
@@ -102,14 +101,13 @@ Consequences:
 ## 4. Screens and routes
 
 ```
-/login                  Password screen
 /                       Redirect: /setup if no Adeli key, else /connect if no Instagram account, else /automations
 /setup                  Adeli API key: instructions, paste, validate (first run, and from Settings)
 /connect                Connect Instagram (pick from Adeli, or connect new via Adeli)
 /automations            List + "Create automation" button
   (modal)               Template picker
 /automations/[id]       Split-screen editor
-/settings               Adeli key (masked, replace, remove), connected account, reconnect, disconnect, log out
+/settings               Adeli key (masked, test connection), connected account, reconnect, disconnect
 /api/webhooks/adeli     Incoming events from Adeli (comments, button taps), once Adeli ships them (§12A)
 ```
 
@@ -119,14 +117,8 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
 
 ## 5. Functional requirements
 
-### 5.0 Login
-- **FR-0.1** All pages except `/login` and `/api/webhooks/*` require a session.
-- **FR-0.2** `/login` compares input to `ADMIN_PASSWORD` (constant-time). On success, set an HTTP-only signed cookie (`SESSION_SECRET`), 30-day expiry.
-- **FR-0.3** Simple rate limit: 5 failed attempts per IP per 15 min.
-- **FR-0.4** Log out clears the cookie.
-
 ### 5.0b Setup: Adeli API key
-- **FR-S.1** Key source, in priority order: (1) `ADELI_API_KEY` env var, (2) key saved through the UI (encrypted in `app_settings`). If neither exists, every app page except `/setup`, `/settings` and `/login` redirects to `/setup`.
+- **FR-S.1** The key comes only from the `ADELI_API_KEY` env var. Without it, every app page except `/setup` and `/settings` redirects to `/setup`.
 - **FR-S.2** `/setup` layout: Adeli Chat wordmark, the 3-step checklist, then a card titled **"Connect your Adeli account"** with:
   - One line of why: "Adeli Chat sends comments and DMs through Adeli, so it needs an API key from your Adeli account. It's free to create one."
   - Numbered instructions, each with a deep link that opens in a new tab:
@@ -134,8 +126,7 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
     2. **(Optional) Connect Instagram in Adeli.** Open **Connections** and connect your Instagram Business or Creator account. You can also do this from Adeli Chat in the next step.
     3. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**.
     4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
-  - A password-type input (Geist Mono) labelled "Adeli API key", placeholder `rk_live_…`, with a show/hide toggle, and a **Save and continue** button.
-  - A collapsible "Is this safe?" note: "Your key stays on this server. It's encrypted in your database and never sent to your browser after you save it. You can delete it in Adeli at any time to revoke access instantly."
+  - Where to put it: `ADELI_API_KEY` in `.env.local`, then restart. There is no paste field.
 - **FR-S.3** Validation: Setup calls `GET /api/v1/profiles` (`client.profiles.listProfiles()`) with `ADELI_API_KEY`.
   - `200`: record the key as `valid` with the first returned profile as the default connect target, show "Connected to Adeli" with the profile name, and continue to `/connect`.
   - `401`: record the key as `invalid` and show "Adeli didn't accept the key in ADELI_API_KEY."
@@ -233,7 +224,7 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
 ### 5.8 Runtime (backend)
 - **FR-8.1** Event intake has two interchangeable sources behind `channel.watchComments()`:
   - **Target: webhook.** Adeli posts comment and button-tap events to `/api/webhooks/adeli`. Verify the signature. Respond 200 within 1s and queue the work. Needs §12A items A1 and A4.
-  - **Interim: polling.** A pg-boss cron job calls `GET /api/v1/comments?platform=instagram&accountId=…&postId=…` for each post with a Live automation every 60s, and treats comment ids it hasn't seen as new events. Works with today's API; slower (up to 60s) and costs one Adeli call per live post per minute.
+  - **Interim: polling.** A recurring job calls `GET /api/v1/comments?platform=instagram&accountId=…&postId=…` for each post with a Live automation every 60s, and treats comment ids it hasn't seen as new events. Works with today's API; slower (up to 60s) and costs one Adeli call per live post per minute.
 - **FR-8.2** Ignore: comments by the connected account itself, replies inside comment threads that we posted, comments on posts with no Live automation.
 - **FR-8.3** On a match (keyword contained, or Any comment), if this person has **not** already had a run on this automation (D3), create a run and queue:
   1. If enabled, reply publicly to the comment with a random variant.
@@ -325,7 +316,7 @@ Trigger and message configs are JSON so new triggers, DM types and channels don'
 ## 7. Architecture
 
 ```
-Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adeli ──▶ pg-boss queue ──▶ worker
+Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adeli ──▶ after() handler
                                                                        │
           ◀──── comment reply / private reply / DM via Adeli API ──────┘
 ```
@@ -333,55 +324,49 @@ Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adel
 - **App:** Next.js 16 App Router + TypeScript (match Adeli's version). Server Actions for editor saves, route handlers for webhooks and auth. Next 16 uses `proxy.ts` for the auth guard, not `middleware.ts`.
 - **UI:** Tailwind CSS v4 (CSS-first, no `tailwind.config.ts`) + shadcn `base-nova` style on Base UI, with Adeli's component files copied in. All tokens live in `src/app/globals.css`. See [`docs/brand.md`](brand.md).
 - **Forms:** React Hook Form + Zod (same schemas on server).
-- **DB:** Postgres + Drizzle ORM + drizzle-kit migrations.
-- **Queue/worker:** pg-boss. Started from Next.js `instrumentation.ts` in the same Node process (simplest), with an option to run `npm run worker` separately.
+- **DB:** Drizzle ORM. Postgres when `DATABASE_URL` is set, otherwise PGlite in `./.data` (in memory under tests). `src/instrumentation.ts` applies the migrations in `drizzle/` on start; `npm run db:generate` creates new ones.
+- **Runtime:** no queue. The webhook route verifies the signature, answers 200, and handles the event in `after()`. A failed step is recorded on the run and not retried.
 - **Adeli client:** `@adeli/sdk`, used only in `src/lib/adeli/`. Nothing else talks to Adeli directly. `client.ts` builds the client from `getAdeliConfig()` (`src/lib/adeli/key.ts`, env only), maps SDK errors (`AuthenticationError`, `NetworkError`, `TimeoutError`, `ConfigurationError`, other `AdeliApiError` codes) to typed errors, and marks the key `invalid` on any `401` (FR-S.7). Server-only (`import "server-only"`).
 - **Channel adapter:** `src/lib/channels/types.ts` defines `listMedia`, `replyToComment`, `sendPrivateReply`, `sendMessage`, `parseWebhook`. `instagram.ts` implements it via the Adeli client. Facebook and TikTok add files here later.
 - **No mock mode:** the app runs against a real Adeli, locally a dev server ([`docs/local-development.md`](local-development.md)). Tests inject a fake `fetch`.
-- **Deploy target (v1):** one long-running container (Docker Compose locally, Railway/Render/Fly or a VPS in prod). Vercel isn't supported in v1 because of the background worker.
+- **Deploy target (v1):** your own machine, next to a local or hosted Adeli. There's no login, so don't expose it publicly.
 
 ### Proposed folder structure
 ```
 src/
   app/
-    (auth)/login/page.tsx
     (onboarding)/setup/page.tsx
     (onboarding)/connect/page.tsx
     (app)/automations/page.tsx
     (app)/automations/[id]/page.tsx
     (app)/settings/page.tsx
     api/webhooks/adeli/route.ts
-    api/setup/key/route.ts          POST validate + save, DELETE remove
     api/connect/start/route.ts      starts an Adeli connect session
     api/connect/status/route.ts     polls the session
     globals.css                     Adeli tokens (docs/brand.md §10)
   components/
     ui/                     copied from adeli/apps/web/components/ui
-    onboarding/             checklist, key form, setup instructions, account picker
+    onboarding/             checklist, setup instructions, account picker
     automations/            list, create modal, status pill
     editor/                 sections A to F, header bar, chip input
     preview/                phone frame, post / comments / dm views
   lib/
-    adeli/                  client.ts, mock.ts, types.ts, key.ts (resolve + encrypt/decrypt), errors.ts
+    adeli/                  client.ts (SDK + error mapping), instagram.ts, types.ts, key.ts (reads env)
     channels/               types.ts, instagram.ts
-    db/                     schema.ts, index.ts
+    db/                     schema.ts, index.ts (Postgres or PGlite)
     automations/            schemas.ts (zod), defaults.ts, validate.ts, conflicts.ts
     runtime/                match.ts, worker.ts, jobs.ts, poll-comments.ts (interim intake)
-    auth/                   session.ts
-proxy.ts                    auth + setup guard (Next 16)
+proxy.ts                    setup guard (Next 16)
 drizzle/                    migrations
-docker-compose.yml
 .env.example
 ```
 
 ### Environment variables
 ```
-DATABASE_URL=postgres://adeli_chat:adeli_chat@localhost:35438/adeli_chat
-APP_URL=http://localhost:3030
-ADMIN_PASSWORD=
-SESSION_SECRET=
-ADELI_BASE_URL=https://app.tryadeli.com   # an origin; http://localhost:3000 for a local Adeli
-ADELI_API_KEY=                            # required
+ADELI_API_KEY=          # required
+DATABASE_URL=           # optional. Empty means PGlite in ./.data
+ADELI_API_BASE_URL=     # optional. Defaults to https://app.tryadeli.com; http://localhost:3000 for a local Adeli
+APP_URL=                # optional, not in .env.example. Defaults to http://localhost:3030; set it if Adeli must reach this install elsewhere
 ```
 
 **Our own key (KCL):** for our hosted instance and local dev, put the KCL key in `.env.local` / the host's secret store as `ADELI_API_KEY`. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
@@ -391,7 +376,7 @@ ADELI_API_KEY=                            # required
 ## 8. Non-functional requirements
 - **Speed:** comment to Opening DM in under 10s at p95 (excluding Meta delays).
 - **Reliability:** never two DM flows for the same person on the same automation. Webhook handler answers within 1s.
-- **Security:** webhook signature check, all app pages behind login, only store what's needed (IG user id, username, comment text). The Adeli key is env or encrypted-at-rest only, server-only, never sent to the browser after save, never logged (redact `rk_live_*` in the logger).
+- **Security:** webhook signature check, only store what's needed (IG user id, username, comment text). The Adeli key lives only in the env, is server-only, never sent to the browser, never logged (redact `rk_live_*`). No login, so the README says to run it locally.
 - **Accessibility:** keyboard-friendly editor, labelled inputs, WCAG AA contrast.
 - **Responsive:** usable down to 375px wide.
 - **Compliance:** README reminds users to follow Meta Platform Terms and Instagram messaging policies.
@@ -411,7 +396,7 @@ ADELI_API_KEY=                            # required
 
 Each milestone ends in something you can click through. Check boxes as we go.
 
-Two tracks run in parallel. **Track C** (this repo) can go all the way through M3 on the mock. **Track A** (the Adeli repo, §12A) has to land before M4 can go fully live.
+Two tracks run in parallel. **Track C** (this repo) could build M0 to M3 before the runtime existed. **Track A** (the Adeli repo, §12A) has to land before M4 can go fully live.
 
 ```
 Track C (adeli-chat):  M0 ─ M1 ─ M2 ─ M3 ─ M4a (polling + comment replies) ─ M4b (DMs) ─ M5 ─ M6
@@ -421,15 +406,15 @@ Track A (adeli):        A2 + A3 (private reply, buttons) ─ A1 + A4 (webhooks) 
 
 ### Frontend preview (built 2026-10-03, frontend only)
 
-Every screen in §4 is built and clickable on mock data, so the UI can be reviewed before any backend exists. Run `npm run dev`. The README lists the demo shortcuts.
+Historical: every screen in §4 was first built on mock data in localStorage. The table below shows what replaced each piece; all of it is now done and the mock is gone.
 
 | Built | Where | Backend replaces it with |
 |---|---|---|
-| Login, Setup (key), Connect, Automations list + Create modal, Editor + phone preview, Settings | `src/app/**` | Same screens; data calls become Server Actions / route handlers |
+| Setup (key), Connect, Automations list + Create modal, Editor + phone preview, Settings | `src/app/**` | Same screens; data calls become Server Actions / route handlers |
 | Domain model, defaults, Go Live validation, conflict rule | `src/lib/automations/{schemas,defaults,validate}.ts` | **Kept as is.** Shared by the API and worker (zod) |
 | Adeli client interface + mock | `src/lib/adeli/{types,mock}.ts` | `src/lib/adeli/client.ts` implementing the same `AdeliClient` interface, server-only |
-| App state (session, key, account, automations) | `src/lib/demo/store.ts` (localStorage) | Postgres tables in §6. Each `actions.*` maps to one Server Action of the same name |
-| Route guard | `src/components/guard.tsx` | `proxy.ts` (session) + server redirects (key, account) |
+| App state (key, account, automations) | `src/lib/demo/store.ts` (localStorage) | Postgres tables in §6. Each `actions.*` maps to one Server Action of the same name |
+| Route guard | `src/components/guard.tsx` | `proxy.ts` (key) + server redirects (account) |
 | Demo controls | `src/components/demo/demo-controls.tsx` | Deleted |
 
 Not in the preview: anything in M4 (runtime), real stats, the webhook route.
@@ -437,19 +422,19 @@ Not in the preview: anything in M4 (runtime), real stats, the webhook route.
 ### M0. Scaffold
 - [x] Next.js 16 + TypeScript + Tailwind v4 + ESLint (Prettier still to add)
 - [x] shadcn init with Adeli's `components.json`, copy Adeli `components/ui/*`, `globals.css` and fonts from [`docs/brand.md`](brand.md) §2 and §10
-- [x] Drizzle + Postgres, `docker-compose.yml`, first migration (§6, simplified: no `webhook_events`, the `runs` unique keys make delivery idempotent)
-- [ ] `.env.example`, env validation with Zod
-- [x] Vitest set up
+- [x] Drizzle with Postgres or PGlite, migrations applied on start (§6, simplified: no `webhook_events`, the `runs` unique keys make delivery idempotent)
+- [x] `.env.example`
+- [ ] Env validation with Zod
+- [x] Vitest set up (in-memory PGlite, fake `fetch`)
 - [ ] GitHub Actions CI
 - [x] Adeli client on `@adeli/sdk` with typed error mapping (the mock was removed 2026-10-27)
 
-### M1. Login + Adeli key + Connect
-- [ ] Password login, session cookie, `proxy.ts` guard (FR-0.x)
-- [ ] Key resolver + AES-GCM encryption (`src/lib/adeli/key.ts`) with unit tests: env wins, round trip, wrong secret fails cleanly
-- [x] (UI) `/setup` screen: checklist, instructions with deep links, key form, live validation, env-managed mode, mock skip (FR-S.1 to S.5, S.9)
-- [ ] Setup guard: no key redirects to `/setup` (FR-S.1)
+### M1. Adeli key + Connect
+- [x] Key reader `src/lib/adeli/key.ts` (env only) with unit tests
+- [x] `/setup` screen: checklist, instructions with deep links, live key check (FR-S.1 to S.5)
+- [x] Setup guard: no key redirects to `/setup` (`proxy.ts`, FR-S.1)
 - [x] (UI) `/connect`: pick existing Adeli account, or connect new in poll mode, error states (FR-1.x)
-- [x] (UI) Settings: Adeli key panel (test, replace, remove, profile mismatch warning), account reconnect / disconnect, log out (FR-S.6 to S.8, FR-1.6)
+- [x] Settings: Adeli key panel (status, test connection), account reconnect / disconnect (FR-S.6, FR-S.8, FR-1.6)
 - [x] (UI) Global "key stopped working" banner (FR-S.7)
 
 ### M2. Automations list + Create modal
@@ -468,7 +453,7 @@ Not in the preview: anything in M4 (runtime), real stats, the webhook route.
 ### M4a. Runtime on today's Adeli API
 - [ ] Matcher (`match.ts`) with unit tests: contains, case, emoji, any comment, self-comments
 - [ ] Interim comment poller (FR-8.1), event dedupe, once-per-person rule (by handle until A1/A5)
-- [ ] pg-boss job: public comment reply via `POST /comments`, with retries and self-throttling
+- [ ] Public comment reply via `POST /comments`, with retries and self-throttling
 
 ### M4b. Runtime DMs (needs Track A)
 - [ ] Opening DM as private reply with button (needs A2 + A3)

@@ -7,12 +7,17 @@ import { adeliCall } from "@/lib/adeli/client";
 import { listProfiles } from "@/lib/adeli/instagram";
 import { db, schema } from "@/lib/db";
 
+const DEFAULT_APP_URL = "http://localhost:3030";
+
 export const WEBHOOK_EVENTS = ["comment.created", "message.postback"] as const;
 
+/** Where this install is reachable. Optional: defaults to the local dev server. */
+export function appUrl() {
+  return process.env.APP_URL?.trim() || DEFAULT_APP_URL;
+}
+
 export function webhookUrl() {
-  const appUrl = process.env.APP_URL?.trim();
-  if (!appUrl) throw new Error("APP_URL is not set on this server. Add it to .env.local and restart.");
-  return new URL("/api/webhooks/adeli", appUrl).toString();
+  return new URL("/api/webhooks/adeli", appUrl()).toString();
 }
 
 /**

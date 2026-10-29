@@ -4,13 +4,27 @@ Free, open-source Instagram Comment to DM automations (a ManyChat alternative), 
 
 When someone comments a keyword on your post, Adeli Chat replies to their comment and sends them a DM with your link.
 
-**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
+**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres, or in a local PGlite database if you don't set one up. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
 
-## Run with the real Adeli API
+## Run it locally
 
-Follow [docs/local-development.md](docs/local-development.md). It covers Postgres, the Adeli SDK, your `.env.local`, and running against a local Adeli dev server. Nothing is mocked, so you need an Adeli API key.
+```bash
+npm install
+cp .env.example .env.local   # then set ADELI_API_KEY (see below)
+npm run dev
+```
 
-Then open http://localhost:3030 and log in with `ADMIN_PASSWORD`. The API key stays on the server, behind an HTTP-only signed session.
+Open http://localhost:3030. Nothing is mocked, so you need an Adeli API key. Every Adeli call goes through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk).
+
+| Variable | Required | Default |
+| --- | --- | --- |
+| `ADELI_API_KEY` | Yes | |
+| `DATABASE_URL` | No | Local PGlite database in `./.data` |
+| `ADELI_API_BASE_URL` | No | `https://app.tryadeli.com` |
+
+There's no login. This is a demo of the Adeli API, so run it on your own machine. If you deploy it, anyone who can open the URL can send DMs from your Instagram account.
+
+To test the whole flow against a local Adeli dev server, with a real comment triggering a real DM, follow [docs/local-development.md](docs/local-development.md).
 
 ## Get your Adeli API key
 

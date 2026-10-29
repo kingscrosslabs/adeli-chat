@@ -27,7 +27,7 @@ function webhookAdeli() {
 
 beforeEach(async () => {
   vi.stubEnv("ADELI_API_KEY", `rk_live_${"a".repeat(43)}`);
-  vi.stubEnv("ADELI_BASE_URL", "http://localhost:3000");
+  vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000");
   vi.stubEnv("APP_URL", "http://localhost:3030");
   await resetDatabase();
   await markKeyStatus("valid", { id: "profile_1", name: "Nick" });

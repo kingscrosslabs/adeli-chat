@@ -40,51 +40,34 @@ While the Meta app is in development mode, it delivers webhooks and allows messa
 
 ## 4. Run Adeli Chat
 
-You need Node.js 22 or later and Docker.
-
-### Postgres
+You need Node.js 22 or later. Adeli Chat calls Adeli through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk), a normal dependency, so `npm install` installs it.
 
 ```bash
-docker compose up -d
-```
-
-Postgres 17 listens on `localhost:35438`, which doesn't collide with Adeli's own database on `35437`.
-
-### The Adeli SDK
-
-Adeli Chat calls Adeli through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk), a normal dependency in `package.json`. `npm install` installs it.
-
-### Environment
-
-```bash
+npm install
 cp .env.example .env.local
 ```
 
 Edit `.env.local`:
 
-| Variable | Value |
-| --- | --- |
-| `ADELI_BASE_URL` | `http://localhost:3000`. An origin only, with no `/api/v1` path. Leave it unset to use the hosted Adeli. |
-| `ADELI_API_KEY` | The key you created in step 3. |
-| `DATABASE_URL` | `postgres://adeli_chat:adeli_chat@localhost:35438/adeli_chat` |
-| `ADMIN_PASSWORD` | Any password, used to log in to Adeli Chat. |
-| `SESSION_SECRET` | At least 32 random characters. |
-| `APP_URL` | `http://localhost:3030` |
+| Variable | Required | Value |
+| --- | --- | --- |
+| `ADELI_API_KEY` | Yes | The key you created in step 3. |
+| `ADELI_API_BASE_URL` | No | `http://localhost:3000` for a local Adeli. Leave it empty to use the hosted Adeli. A trailing `/api/v1` is fine. |
+| `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `./.data`. |
 
-### Start
+Then start it:
 
 ```bash
-npm run db:migrate
 npm run dev
 ```
 
-Open http://localhost:3030 and log in with `ADMIN_PASSWORD`. If `ADELI_API_KEY` is missing, Adeli Chat shows an error naming it. Nothing is mocked: every screen reads from your local Adeli and Postgres.
+Open http://localhost:3030. There's no login: Adeli Chat is a demo of the Adeli API, so run it on your own machine. If `ADELI_API_KEY` is missing, Setup tells you how to add it. Nothing is mocked: every screen reads from Adeli and the database.
 
-On start, and again whenever Setup confirms the key, Adeli Chat registers one Adeli webhook for `APP_URL/api/webhooks/adeli`, with the `comment.created` and `message.postback` events. It stores the webhook's id and signing secret in `app_settings`, and reuses it on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel.
+On start, Adeli Chat applies any pending database migrations. It then registers one Adeli webhook for `http://localhost:3030/api/webhooks/adeli`, with the `comment.created` and `message.postback` events, and does it again whenever Setup confirms the key. It stores the webhook's id and signing secret in `app_settings`, and reuses it on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel. If Adeli Chat runs somewhere else, set `APP_URL` to its address.
 
 ### Tests
 
-`npm test` runs the unit tests. The runtime tests use a separate `adeli_chat_test` database on the same Postgres, which they create and migrate themselves, so `docker compose up -d` must be running. They never call Adeli: a fake `fetch` stands in for it.
+`npm test` runs the unit tests. Each test file gets its own in-memory PGlite database, so there's nothing to start first. The tests never call Adeli: a fake `fetch` stands in for it.
 
 Before you push, run:
 

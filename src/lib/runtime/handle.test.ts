@@ -48,7 +48,7 @@ let automationId: string;
 
 beforeEach(async () => {
   vi.stubEnv("ADELI_API_KEY", `rk_live_${"a".repeat(43)}`);
-  vi.stubEnv("ADELI_BASE_URL", "http://localhost:3000");
+  vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000");
   await resetDatabase();
   const account = await seedAccount();
   automationId = (await seedLiveAutomation(account.id)).id;
