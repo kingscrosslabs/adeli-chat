@@ -52,30 +52,7 @@ Postgres 17 listens on `localhost:35438`, which doesn't collide with Adeli's own
 
 ### The Adeli SDK
 
-Adeli Chat calls Adeli through `@adeli/sdk`. Until the SDK is published to npm, install it from a local build. It is deliberately left out of `package.json` and `package-lock.json`, so **a fresh clone won't typecheck or build until you do this.**
-
-1. In your `adeli-sdk` checkout, next to this repository, build and pack it:
-
-   ```bash
-   npm ci
-   npm run build
-   npm pack
-   ```
-
-   This writes `adeli-sdk-0.1.0.tgz` in that checkout.
-
-2. In this repository, install everything, then the SDK:
-
-   ```bash
-   npm install
-   npm run sdk:local
-   ```
-
-   `sdk:local` installs the tarball without touching `package.json` or the lockfile. It reads `../adeli-sdk/adeli-sdk-0.1.0.tgz` by default. If yours is elsewhere, such as a worktree, point at it with `ADELI_SDK_TARBALL=/path/to/adeli-sdk-0.1.0.tgz npm run sdk:local`.
-
-3. Run `npm run sdk:local` again after every `npm install` or `npm ci`, because those remove packages that aren't in the lockfile.
-
-Never commit the tarball or a `file:` reference to it. Once the SDK is published, `@adeli/sdk` becomes a normal dependency (`^0.2.0`) and this step goes away.
+Adeli Chat calls Adeli through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk), a normal dependency in `package.json`. `npm install` installs it.
 
 ### Environment
 
