@@ -105,7 +105,7 @@ Contrast (WCAG AA for small text, 4.5:1): white on `#0A807A` is about 4.8:1, `#0
 | Body, inputs | Inter | `text-sm` (inputs are `text-base` on mobile to stop iOS zoom, `md:text-sm`) |
 | Helper text, counters | Inter | `text-xs text-muted-foreground` |
 | API keys, ids, code | Geist Mono | `font-mono text-[0.82rem]` |
-| Wordmark only | Jersey 10 | Used for the "Adeli Chat" lockup on `/login` and `/setup`. Nowhere else. |
+| Wordmark only | Jersey 10 | Used for the "Adeli Chat" lockup on `/setup` and `/connect`. Nowhere else. |
 
 Jersey 10 is the pixel font from the Adeli marketing site. It is a brand accent, not a UI font: never for buttons, labels or body text.
 

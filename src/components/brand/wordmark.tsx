@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
-/** Adeli logo mark + "Adeli Chat" in Jersey 10. Used on /login and onboarding only (brand.md §4). */
+/** Adeli logo mark + "Adeli Chat" in Jersey 10. Used on onboarding only (brand.md §4). */
 export function Wordmark({ size = "lg", className }: { size?: "sm" | "lg"; className?: string }) {
   const mark = size === "lg" ? 40 : 28;
   return (

@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronRight, LogOut, Plus, Settings, Zap } from "lucide-react";
+import { ChevronRight, Plus, Settings, Zap } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { CreateAutomationDialog } from "@/components/automations/create-automation-dialog";
@@ -33,7 +33,6 @@ type AutomationLink = Pick<Automation, "id" | "name" | "status">;
 
 export function AppSidebar({ account, profileName, automations }: { account: AdeliAccount | null; profileName: string | null; automations: AutomationLink[] }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -72,16 +71,6 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
         ) : (
           <Link href="/connect" className="text-sm text-primary underline-offset-4 hover:underline">Connect Instagram</Link>
         )}
-        <Button
-          variant="ghost"
-          className="w-full justify-start"
-          onClick={async () => {
-            await fetch("/api/auth/logout", { method: "POST" });
-            router.replace("/login");
-          }}
-        >
-          <LogOut /> Log out
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );

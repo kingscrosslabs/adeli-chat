@@ -1,12 +1,9 @@
 import { adeliErrorResponse } from "@/lib/adeli/http";
 import { getConnectSession } from "@/lib/adeli/instagram";
-import { requireSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const unauthorized = requireSession(request);
-  if (unauthorized) return unauthorized;
   const query = new URL(request.url).searchParams;
   const profileId = query.get("profileId");
   const sessionId = query.get("sessionId");

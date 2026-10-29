@@ -1,12 +1,9 @@
 import { adeliErrorResponse } from "@/lib/adeli/http";
 import { listInstagramAccounts } from "@/lib/adeli/instagram";
-import { requireSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
-  const unauthorized = requireSession(request);
-  if (unauthorized) return unauthorized;
+export async function GET() {
   try {
     return Response.json({ accounts: await listInstagramAccounts() });
   } catch (error) {

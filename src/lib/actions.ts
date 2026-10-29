@@ -7,7 +7,6 @@ import { markKeyStatus, getAppSettings } from "@/lib/app-settings";
 import { listInstagramAccounts, listProfiles } from "@/lib/adeli/instagram";
 import { getAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError, adeliKeyPrefix } from "@/lib/adeli/types";
-import { isLoggedIn } from "@/lib/auth/session";
 import { defaultAutomationContent } from "@/lib/automations/defaults";
 import { automationContentSchema, type AutomationContent } from "@/lib/automations/schemas";
 import { errorCount, findConflict, validateForLive, validateLimits } from "@/lib/automations/validate";
@@ -16,8 +15,8 @@ import { db, schema } from "@/lib/db";
 import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
 
 /**
- * Every write the UI makes, as Server Actions backed by Postgres. Each one
- * checks the session itself: a Server Action is a public POST endpoint.
+ * Every write the UI makes, as Server Actions backed by the database. There
+ * is no login: Adeli Chat is a local demo of the Adeli API (PRD D2).
  */
 
 export type ActionResult<T = object> =
@@ -34,7 +33,6 @@ class ActionError extends Error {}
 
 async function guard<T>(run: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
-    if (!(await isLoggedIn())) throw new ActionError("Log in to this Adeli Chat install first.");
     return await run();
   } catch (error) {
     if (error instanceof ActionError || error instanceof AdeliError) return { ok: false, reason: "error", message: error.message };
@@ -62,7 +60,6 @@ function done<T extends object>(value: T = {} as T): ActionResult<T> {
  * and returns what Setup and Settings show.
  */
 export async function checkAdeliKey(): Promise<KeyState> {
-  if (!(await isLoggedIn())) return { configured: false, message: "Log in to this Adeli Chat install first." };
   let prefix: string;
   try {
     prefix = adeliKeyPrefix(getAdeliConfig().apiKey);
