@@ -3,11 +3,13 @@
 import { AtSign, BookOpenText, MessageCircle, MessagesSquare, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { actions, useDemoState } from "@/lib/demo/store";
+import { createAutomation } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 type Template = { id: string; title: string; description: string; icon: LucideIcon; enabled: boolean };
@@ -20,15 +22,20 @@ const TEMPLATES: Template[] = [
   { id: "story_mention", title: "Story Mention", description: "Reply automatically when someone mentions you in their story", icon: AtSign, enabled: false },
 ];
 
-export function CreateAutomationDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CreateAutomationDialog({ open, onOpenChange, connected }: { open: boolean; onOpenChange: (open: boolean) => void; connected: boolean }) {
   const router = useRouter();
-  const state = useDemoState();
-  const connected = Boolean(state?.account);
+  const [pending, startTransition] = useTransition();
 
   function create() {
-    const id = actions.createAutomation();
-    onOpenChange(false);
-    router.push(`/automations/${id}`);
+    startTransition(async () => {
+      const result = await createAutomation();
+      if (!result.ok) {
+        toast.error(result.reason === "error" ? result.message : "We couldn't create the automation. Try again.");
+        return;
+      }
+      onOpenChange(false);
+      router.push(`/automations/${result.id}`);
+    });
   }
 
   return (
@@ -45,7 +52,7 @@ export function CreateAutomationDialog({ open, onOpenChange }: { open: boolean; 
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           {TEMPLATES.map((template) => {
-            const enabled = template.enabled && connected;
+            const enabled = template.enabled && connected && !pending;
             const body = (
               <>
                 <span className={cn("grid size-9 place-items-center rounded-lg", template.enabled ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground")}>

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MEDIA_TYPE_LABEL, MediaTypeIcon, PostThumb } from "@/components/automations/post-thumb";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { adeli } from "@/lib/adeli/mock";
+import { adeli } from "@/lib/adeli/browser";
 import type { AdeliMedia } from "@/lib/adeli/types";
 import type { MediaSnapshot } from "@/lib/automations/schemas";
 import { shortDate } from "@/lib/format";

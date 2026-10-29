@@ -1,27 +1,15 @@
-"use client";
-
 import Link from "next/link";
-import { use, Suspense } from "react";
 
 import { AutomationEditor } from "@/components/editor/automation-editor";
-import { FullPageLoader, Guard } from "@/components/guard";
 import { buttonVariants } from "@/components/ui/button";
-import { useDemoState } from "@/lib/demo/store";
+import { getAutomation, requireAccount } from "@/lib/data";
 
-export default function AutomationPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  return (
-    <Guard require="ready">
-      <Suspense fallback={<FullPageLoader />}>
-        <EditorLoader id={id} />
-      </Suspense>
-    </Guard>
-  );
-}
+export const dynamic = "force-dynamic";
 
-function EditorLoader({ id }: { id: string }) {
-  const state = useDemoState();
-  const automation = state?.automations.find((item) => item.id === id);
+export default async function AutomationPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const account = await requireAccount();
+  const automation = await getAutomation(account.id, id);
   if (!automation) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
@@ -32,5 +20,5 @@ function EditorLoader({ id }: { id: string }) {
     );
   }
   // Keyed by id so switching automations resets the draft.
-  return <AutomationEditor key={automation.id} automation={automation} />;
+  return <AutomationEditor key={automation.id} automation={automation} account={account} />;
 }

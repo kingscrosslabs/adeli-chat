@@ -4,20 +4,13 @@ Free, open-source Instagram Comment to DM automations (a ManyChat alternative), 
 
 When someone comments a keyword on your post, Adeli Chat replies to their comment and sends them a DM with your link.
 
-**Status:** frontend preview. Every screen is built and clickable on mock data. The backend (database, Adeli client, webhooks, worker) is next. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
+**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
 
-## Run the frontend preview
+## Run with the real Adeli API
 
-```bash
-npm install
-npm run dev
-```
+Follow [docs/local-development.md](docs/local-development.md). It covers Postgres, the Adeli SDK, your `.env.local`, and running against a local Adeli dev server. Nothing is mocked, so you need an Adeli API key.
 
-Open http://localhost:3000. Data lives in your browser's localStorage, so nothing needs a database or an Adeli key yet.
-
-- Any password logs you in. Type `wrong` to see the error state.
-- On the setup screen, **Fill a demo key** gives you a valid-looking key. Keys containing `bad` are rejected, `offline` simulates Adeli being down, and `other` belongs to a different Adeli profile.
-- The **Demo** button (bottom right) loads sample automations, resets to a fresh install, simulates a revoked key, and switches to "key set by environment" mode.
+Then open http://localhost:3030 and log in with `ADMIN_PASSWORD`. The API key stays on the server, behind an HTTP-only signed session.
 
 ## Get your Adeli API key
 
@@ -28,7 +21,7 @@ Every install uses its own Adeli key.
 3. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**.
 4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
 
-Paste it into the Setup screen, or set `ADELI_API_KEY` on your server to skip that screen. Never commit a key.
+Set it as `ADELI_API_KEY` in your server environment (`.env.local` locally) and restart. Never commit a key.
 
 ## Notes
 

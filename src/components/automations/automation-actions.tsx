@@ -18,28 +18,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Automation } from "@/lib/automations/schemas";
-import { errorCount, findConflict, validateForLive } from "@/lib/automations/validate";
-import { actions, readDemoState } from "@/lib/demo/store";
+import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, pauseAutomation, type ActionResult } from "@/lib/actions";
+import { errorCount, validateForLive } from "@/lib/automations/validate";
 
 /**
  * Go Live from outside the editor: same validation and conflict rules as the
  * editor (FR-7.2, FR-7.3). Anything to fix sends you to the editor.
  */
-export function goLive(automation: Automation, openEditor: () => void) {
-  const errors = validateForLive(automation);
-  const count = errorCount(errors);
+export async function goLive(automation: Automation, openEditor: () => void) {
+  const count = errorCount(validateForLive(automation));
   if (count) {
     toast.error(`${count} ${count === 1 ? "thing" : "things"} to fix before going live`, { action: { label: "Open editor", onClick: openEditor } });
     return false;
   }
-  const conflict = findConflict(automation, automation.id, readDemoState().automations);
-  if (conflict) {
-    toast.error(`"${conflict.automation.name}" is already live on this post${conflict.reason === "keyword" ? ` with the keyword ${conflict.keyword?.toUpperCase()}` : " for any comment"}.`);
+  const result = await goLiveAction(automation.id);
+  if (!result.ok) {
+    if (result.reason === "invalid") toast.error(`${result.count} ${result.count === 1 ? "thing" : "things"} to fix before going live`, { action: { label: "Open editor", onClick: openEditor } });
+    else toast.error(result.message);
     return false;
   }
-  actions.setStatus(automation.id, "live");
   toast.success(`${automation.name} is live`);
   return true;
+}
+
+/** The message for a failed action, for the actions that can only fail with an error. */
+function failure(result: ActionResult) {
+  return !result.ok && result.reason !== "invalid" ? result.message : "Something went wrong. Try again.";
 }
 
 export function AutomationRowActions({ automation }: { automation: Automation }) {
@@ -56,14 +60,15 @@ export function AutomationRowActions({ automation }: { automation: Automation })
         <DropdownMenuContent>
           <DropdownMenuItem onClick={() => router.push(editHref)}><Pencil /> Edit</DropdownMenuItem>
           {automation.status === "live" ? (
-            <DropdownMenuItem onClick={() => { actions.setStatus(automation.id, "paused"); toast(`${automation.name} is paused`); }}><Pause /> Pause</DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => { const result = await pauseAutomation(automation.id); if (result.ok) toast(`${automation.name} is paused`); else toast.error(failure(result)); }}><Pause /> Pause</DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={() => goLive(automation, () => router.push(`${editHref}?validate=1`))}><Play /> Go Live</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void goLive(automation, () => router.push(`${editHref}?validate=1`))}><Play /> Go Live</DropdownMenuItem>
           )}
           <DropdownMenuItem
-            onClick={() => {
-              const copyId = actions.duplicateAutomation(automation.id);
-              if (copyId) toast.success("Duplicated as a Draft", { action: { label: "Edit", onClick: () => router.push(`/automations/${copyId}`) } });
+            onClick={async () => {
+              const result = await duplicateAutomation(automation.id);
+              if (result.ok) toast.success("Duplicated as a Draft", { action: { label: "Edit", onClick: () => router.push(`/automations/${result.id}`) } });
+              else toast.error(failure(result));
             }}
           >
             <Copy /> Duplicate
@@ -92,10 +97,13 @@ export function DeleteAutomationDialog({ automation, open, onOpenChange, onDelet
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            onClick={() => {
-              if (automation.status === "live") actions.setStatus(automation.id, "paused");
-              actions.deleteAutomation(automation.id);
+            onClick={async () => {
+              const result = await deleteAutomation(automation.id);
               onOpenChange(false);
+              if (!result.ok) {
+                toast.error(failure(result));
+                return;
+              }
               toast(`Deleted ${automation.name}`);
               onDeleted?.();
             }}
