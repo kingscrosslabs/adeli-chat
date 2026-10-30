@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Automation } from "@/lib/automations/schemas";
-import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, pauseAutomation, type ActionResult } from "@/lib/actions";
+import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, pauseAutomation, resetRuns, type ActionResult } from "@/lib/actions";
 import { errorCount, validateForLive } from "@/lib/automations/validate";
 
 /**
@@ -109,6 +109,38 @@ export function DeleteAutomationDialog({ automation, open, onOpenChange, onDelet
             }}
           >
             Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+export function ResetRunsDialog({ automation, open, onOpenChange }: { automation: Automation; open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset runs for {automation.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Each person gets this flow only once. Resetting forgets everyone it has messaged, so they can trigger it again, and sets its stats back to zero. It can&apos;t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={async () => {
+              const result = await resetRuns(automation.id);
+              onOpenChange(false);
+              if (!result.ok) {
+                toast.error(failure(result));
+                return;
+              }
+              toast(`Reset ${result.count} ${result.count === 1 ? "run" : "runs"}`);
+            }}
+          >
+            Reset runs
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

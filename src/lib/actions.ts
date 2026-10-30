@@ -237,3 +237,15 @@ export async function deleteAutomation(id: string): Promise<ActionResult> {
     return done();
   });
 }
+
+/**
+ * Forgets everyone this automation has messaged, so the same people can
+ * trigger it again. Handy when testing with one account. Clears its stats too.
+ */
+export async function resetRuns(id: string): Promise<ActionResult<{ count: number }>> {
+  return guard(async () => {
+    await loadOwn(id);
+    const deleted = await db().delete(schema.runs).where(eq(schema.runs.automationId, id)).returning({ id: schema.runs.id });
+    return done({ count: deleted.length });
+  });
+}
