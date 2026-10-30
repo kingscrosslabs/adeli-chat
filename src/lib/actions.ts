@@ -114,9 +114,15 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
       updatedAt: now,
     };
     await db().transaction(async (tx) => {
-      const [row] = await tx.insert(schema.accounts).values({ adeliAccountId, ...values })
-        .onConflictDoUpdate({ target: schema.accounts.adeliAccountId, set: values })
-        .returning({ id: schema.accounts.id });
+      // Reconnecting in Adeli gives the same Instagram account a new Adeli id. Keep its row, so its automations and runs follow.
+      const [same] = values.igUserId
+        ? await tx.select({ id: schema.accounts.id }).from(schema.accounts).where(eq(schema.accounts.igUserId, values.igUserId)).limit(1)
+        : [];
+      const [row] = same
+        ? await tx.update(schema.accounts).set({ adeliAccountId, ...values }).where(eq(schema.accounts.id, same.id)).returning({ id: schema.accounts.id })
+        : await tx.insert(schema.accounts).values({ adeliAccountId, ...values })
+          .onConflictDoUpdate({ target: schema.accounts.adeliAccountId, set: values })
+          .returning({ id: schema.accounts.id });
       // One account at a time. Live automations on the old one can't run any more.
       await tx.update(schema.accounts).set({ status: "disconnected", updatedAt: now }).where(and(ne(schema.accounts.id, row.id), eq(schema.accounts.status, "connected")));
       await tx.update(schema.automations).set({ status: "paused", updatedAt: now }).where(and(ne(schema.automations.accountId, row.id), eq(schema.automations.status, "live")));
@@ -229,5 +235,17 @@ export async function deleteAutomation(id: string): Promise<ActionResult> {
     await loadOwn(id);
     await db().delete(schema.automations).where(eq(schema.automations.id, id));
     return done();
+  });
+}
+
+/**
+ * Forgets everyone this automation has messaged, so the same people can
+ * trigger it again. Handy when testing with one account. Clears its stats too.
+ */
+export async function resetRuns(id: string): Promise<ActionResult<{ count: number }>> {
+  return guard(async () => {
+    await loadOwn(id);
+    const deleted = await db().delete(schema.runs).where(eq(schema.runs.automationId, id)).returning({ id: schema.runs.id });
+    return done({ count: deleted.length });
   });
 }

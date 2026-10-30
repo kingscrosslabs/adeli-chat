@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Loader2, MoreHorizontal, Pause, Play, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { DeleteAutomationDialog } from "@/components/automations/automation-actions";
+import { DeleteAutomationDialog, ResetRunsDialog } from "@/components/automations/automation-actions";
 import { StatusPill } from "@/components/automations/status-pill";
 import { PhonePreview } from "@/components/preview/phone-preview";
 import {
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LIMITS, type Automation, type AutomationContent } from "@/lib/automations/schemas";
 import { goLive as goLiveAction, pauseAutomation, saveAutomation, type ActionResult } from "@/lib/actions";
@@ -56,6 +56,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
   const [previewOpen, setPreviewOpen] = useState(false);
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [busy, setBusy] = useState<"save" | "live" | "pause" | null>(null);
   const [, setTick] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -208,6 +209,8 @@ export function AutomationEditor({ automation, account }: { automation: Automati
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setResetting(true)}><RotateCcw /> Reset runs</DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}><Trash2 /> Delete automation</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -254,6 +257,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
         </AlertDialogContent>
       </AlertDialog>
 
+      <ResetRunsDialog automation={automation} open={resetting} onOpenChange={setResetting} />
       <DeleteAutomationDialog automation={automation} open={deleting} onOpenChange={setDeleting} onDeleted={() => router.push("/automations")} />
     </div>
   );
