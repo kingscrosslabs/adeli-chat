@@ -1,20 +1,23 @@
 import { AlertTriangle, CheckCircle2, ChevronRight, KeyRound } from "lucide-react";
 import Link from "next/link";
 
+import { AdeliConnectionForm } from "@/components/adeli/connection-form";
 import { GetKeyInstructions } from "@/components/onboarding/get-key-instructions";
 import { OnboardingLayout } from "@/components/onboarding/onboarding-layout";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { checkAdeliKey, type KeyState } from "@/lib/actions";
+import { requireUserPage } from "@/lib/auth/session";
 import { getConnectedAccount } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Setup (FR-S.1, FR-S.5). The key is env-only, so this page checks
- * `ADELI_API_KEY` against Adeli and shows the result or the exact problem.
+ * Setup (FR-S.1, FR-S.5). Takes the Adeli API key (and, optionally, the Adeli
+ * URL), checks it against Adeli, and shows the result or the exact problem.
  */
 export default async function SetupPage() {
+  await requireUserPage();
   const [key, account] = await Promise.all([checkAdeliKey(), getConnectedAccount()]);
   return (
     <OnboardingLayout step="key">
@@ -34,11 +37,8 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <ProblemNote message={key.message} />
           <GetKeyInstructions />
-          <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-            Put the key in <code className="font-mono">ADELI_API_KEY</code> in your server environment (<code className="font-mono">.env.local</code> when running locally), then restart Adeli Chat and reload this page.
-          </p>
+          <AdeliConnectionForm hasKey={false} baseURL={key.baseURL} submitLabel="Connect to Adeli" />
         </CardContent>
       </Card>
     );
@@ -49,13 +49,12 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4 text-destructive" /> Adeli needs attention</CardTitle>
-          <CardDescription>
-            This install reads its key from <code className="font-mono">ADELI_API_KEY</code>. Fix the problem below, restart if you changed the key, then reload this page.
-          </CardDescription>
+          <CardDescription>Fix the problem below. To use a different key, paste it here.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <ProblemNote message={key.message ?? "Adeli didn't accept this key."} />
           <KeySummary prefix={key.prefix} profileName={key.profileName} />
+          <AdeliConnectionForm hasKey={key.source === "settings"} baseURL={key.baseURL} submitLabel="Save and check" />
         </CardContent>
       </Card>
     );
@@ -65,9 +64,7 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="size-4 text-primary" /> Connected to Adeli</CardTitle>
-        <CardDescription>
-          This install reads its key from <code className="font-mono">ADELI_API_KEY</code>. To change it, update the variable and restart.
-        </CardDescription>
+        <CardDescription>You can change the key any time in Settings.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <KeySummary prefix={key.prefix} profileName={key.profileName} />

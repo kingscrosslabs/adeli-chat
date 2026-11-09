@@ -17,26 +17,30 @@ export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 
+type Opened = { db: Database; migrate: () => Promise<void>; ready?: Promise<void> };
+
 /**
  * Postgres when `DATABASE_URL` is set. Otherwise PGlite, an in-process
  * Postgres stored in `./.data/pglite` (in memory under tests), so the demo
  * runs with no database to install. Both apply the same migrations.
+ * On Vercel the filesystem doesn't persist, so `DATABASE_URL` is required.
  */
-function open(): { db: Database; ready: Promise<void> } {
+function open(): Opened {
   const connectionString = process.env.DATABASE_URL?.trim();
   if (connectionString) {
-    const db = drizzlePostgres(new Pool({ connectionString }), { schema });
-    return { db, ready: migratePostgres(db, { migrationsFolder }) };
+    const db = drizzlePostgres(new Pool({ connectionString, max: 5 }), { schema });
+    return { db, migrate: () => migratePostgres(db, { migrationsFolder }) };
   }
+  if (process.env.VERCEL) throw new Error("DATABASE_URL is not set. On Vercel, add a Postgres database (for example Neon from the Vercel Marketplace) and redeploy.");
   const dataDir = process.env.NODE_ENV === "test" ? undefined : path.join(process.cwd(), ".data", "pglite");
   // PGlite creates its own folder but not the parents.
   if (dataDir) mkdirSync(path.dirname(dataDir), { recursive: true });
   const db = drizzlePglite(new PGlite(dataDir), { schema });
-  return { db, ready: migratePglite(db, { migrationsFolder }) };
+  return { db, migrate: () => migratePglite(db, { migrationsFolder }) };
 }
 
 // One database per process, kept across dev hot reloads.
-const globalForDb = globalThis as unknown as { adeliChatDb?: ReturnType<typeof open> };
+const globalForDb = globalThis as unknown as { adeliChatDb?: Opened };
 
 function instance() {
   globalForDb.adeliChatDb ??= open();
@@ -47,9 +51,15 @@ export function db(): Database {
   return instance().db;
 }
 
-/** Applies pending migrations. Awaited once at startup (`src/instrumentation.ts`). */
+/**
+ * Applies pending migrations, once per process. Awaited at startup
+ * (`src/instrumentation.ts`), except on Vercel, where `npm run db:migrate`
+ * runs them during the build.
+ */
 export function migrateDatabase(): Promise<void> {
-  return instance().ready;
+  const opened = instance();
+  opened.ready ??= opened.migrate();
+  return opened.ready;
 }
 
 export { schema };

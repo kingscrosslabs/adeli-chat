@@ -2,21 +2,28 @@
 
 import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { markKeyStatus, getAppSettings } from "@/lib/app-settings";
+import { markKeyStatus, getAppSettings, saveAdeliConnection as storeAdeliConnection } from "@/lib/app-settings";
 import { listInstagramAccounts, listProfiles } from "@/lib/adeli/instagram";
-import { getAdeliConfig } from "@/lib/adeli/key";
+import { DEFAULT_BASE_URL, findAdeliConfig, normalizeBaseURL, type KeySource } from "@/lib/adeli/key";
 import { AdeliError, adeliKeyPrefix } from "@/lib/adeli/types";
+import { authEnabled, googleCredentials } from "@/lib/auth/config";
+import { auth } from "@/lib/auth/server";
+import { isAuthorized } from "@/lib/auth/session";
 import { defaultAutomationContent } from "@/lib/automations/defaults";
 import { automationContentSchema, type AutomationContent } from "@/lib/automations/schemas";
 import { errorCount, findConflict, validateForLive, validateLimits } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
 import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
+import { sealSecret } from "@/lib/secret-box";
 
 /**
- * Every write the UI makes, as Server Actions backed by the database. There
- * is no login: Adeli Chat is a local demo of the Adeli API (PRD D2).
+ * Every write the UI makes, as Server Actions backed by the database. Server
+ * Actions are public endpoints, so each one checks the session first
+ * (`guard`, `requireSignedIn`) when Google sign-in is on.
  */
 
 export type ActionResult<T = object> =
@@ -26,13 +33,18 @@ export type ActionResult<T = object> =
   | { ok: false; reason: "conflict"; message: string; conflictId: string };
 
 export type KeyState =
-  | { configured: false; message: string }
-  | { configured: true; prefix: string; status: "valid" | "invalid" | "unchecked"; profileName: string | null; checkedAt: string | null; message: string | null };
+  | { configured: false; message: string; baseURL: string }
+  | { configured: true; prefix: string; source: KeySource; baseURL: string; status: "valid" | "invalid" | "unchecked"; profileName: string | null; checkedAt: string | null; message: string | null };
 
 class ActionError extends Error {}
 
+async function requireSignedIn() {
+  if (!(await isAuthorized())) throw new ActionError("Your session ended. Sign in again.");
+}
+
 async function guard<T>(run: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
+    await requireSignedIn();
     return await run();
   } catch (error) {
     if (error instanceof ActionError || error instanceof AdeliError) return { ok: false, reason: "error", message: error.message };
@@ -55,17 +67,36 @@ function done<T extends object>(value: T = {} as T): ActionResult<T> {
   return { ok: true, ...value };
 }
 
+/** The last recorded key check, without asking Adeli. "Test connection" asks again. */
+export async function lastKeyState(): Promise<KeyState> {
+  await requireSignedIn();
+  let config;
+  try {
+    config = await findAdeliConfig();
+  } catch (error) {
+    return { configured: false, message: error instanceof Error ? error.message : "The Adeli settings aren't valid.", baseURL: DEFAULT_BASE_URL };
+  }
+  if (!config) return { configured: false, message: "Add your Adeli API key to start.", baseURL: process.env.ADELI_API_BASE_URL?.trim() || DEFAULT_BASE_URL };
+  const settings = await getAppSettings();
+  return {
+    configured: true,
+    prefix: adeliKeyPrefix(config.apiKey),
+    source: config.source,
+    baseURL: config.baseURL,
+    status: settings.adeliKeyStatus,
+    profileName: settings.adeliProfileName,
+    checkedAt: settings.adeliKeyCheckedAt?.toISOString() ?? null,
+    message: null,
+  };
+}
+
 /**
- * Checks `ADELI_API_KEY` against Adeli with `listProfiles`, records the result,
- * and returns what Setup and Settings show.
+ * Checks the configured key against Adeli with `listProfiles`, records the
+ * result, registers the webhook, and returns what Setup and Settings show.
  */
 export async function checkAdeliKey(): Promise<KeyState> {
-  let prefix: string;
-  try {
-    prefix = adeliKeyPrefix(getAdeliConfig().apiKey);
-  } catch (error) {
-    return { configured: false, message: error instanceof Error ? error.message : "ADELI_API_KEY is not set on this server." };
-  }
+  const last = await lastKeyState();
+  if (!last.configured) return last;
   let message: string | null = null;
   try {
     const [profile] = await listProfiles();
@@ -78,15 +109,49 @@ export async function checkAdeliKey(): Promise<KeyState> {
     // `unauthorized` already marked the key invalid. A network error leaves the last result.
     message = error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute.";
   }
-  const settings = await getAppSettings();
-  return {
-    configured: true,
-    prefix,
-    status: settings.adeliKeyStatus,
-    profileName: settings.adeliProfileName,
-    checkedAt: settings.adeliKeyCheckedAt?.toISOString() ?? null,
-    message,
-  };
+  return { ...(await lastKeyState()), message } as KeyState;
+}
+
+/**
+ * Saves the Adeli key and URL entered in Setup or Settings. The key is tried
+ * against Adeli first and only stored, encrypted, when Adeli accepts it. An
+ * empty key keeps the saved one, so you can change just the URL.
+ */
+export async function saveAdeliConnection(input: { apiKey: string; baseURL: string }): Promise<ActionResult<{ key: KeyState }>> {
+  return guard(async (): Promise<ActionResult<{ key: KeyState }>> => {
+    const baseURL = normalizeBaseURL(input.baseURL.trim() || DEFAULT_BASE_URL);
+    const typed = input.apiKey.trim();
+    if (typed && !/^rk_(live|test)_[A-Za-z0-9_-]{8,}$/.test(typed)) throw new ActionError("That doesn't look like an Adeli API key. It starts with rk_live_.");
+    const current = await findAdeliConfig().catch(() => null);
+    const apiKey = typed || current?.apiKey;
+    if (!apiKey) throw new ActionError("Paste your Adeli API key.");
+
+    const profiles = await listProfiles({ baseURL, apiKey });
+    if (!profiles.length) throw new ActionError("This Adeli organization doesn't have a profile yet. Create one in Adeli.");
+    const settings = await getAppSettings();
+    await storeAdeliConnection({
+      sealedApiKey: typed ? sealSecret(typed) : undefined,
+      baseUrl: baseURL === DEFAULT_BASE_URL ? null : baseURL,
+      keepProfile: profiles.some((profile) => profile.id === settings.adeliProfileId),
+    });
+    const key = await checkAdeliKey();
+    revalidatePath("/", "layout");
+    if (!key.configured || key.message) return { ok: false, reason: "error", message: key.message ?? "Adeli didn't accept this key." };
+    return { ok: true, key };
+  });
+}
+
+/** Starts Google sign-in and sends the browser to Google. */
+export async function signInWithGoogle(): Promise<void> {
+  if (!googleCredentials()) throw new Error("Google sign-in isn't configured on this server.");
+  const result = await auth().api.signInSocial({ body: { provider: "google", callbackURL: "/automations", errorCallbackURL: "/sign-in" }, headers: await headers() });
+  if (!result.url) throw new Error("Google sign-in didn't return a URL.");
+  redirect(result.url);
+}
+
+export async function signOut(): Promise<void> {
+  if (authEnabled()) await auth().api.signOut({ headers: await headers() }).catch(() => undefined);
+  redirect("/sign-in");
 }
 
 export async function testConnection(): Promise<ActionResult<{ key: KeyState }>> {

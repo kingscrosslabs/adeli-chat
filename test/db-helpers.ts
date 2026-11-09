@@ -4,7 +4,7 @@ import { defaultAutomationContent } from "@/lib/automations/defaults";
 import { db, schema } from "@/lib/db";
 
 export async function resetDatabase() {
-  await db().execute(sql`truncate runs, automations, accounts, app_settings cascade`);
+  await db().execute(sql`truncate runs, automations, accounts, app_settings, auth_user cascade`);
 }
 
 export async function seedAccount() {

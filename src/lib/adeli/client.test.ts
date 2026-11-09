@@ -2,11 +2,18 @@ import { AdeliApiError, AuthenticationError, ConfigurationError, NetworkError, T
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adeliCall, toAdeliError } from "./client";
+import { sealSecret } from "@/lib/secret-box";
+
 import { getAdeliConfig, normalizeBaseURL } from "./key";
 import { AdeliError } from "./types";
 
 const markKeyStatus = vi.fn(async () => undefined);
-vi.mock("@/lib/app-settings", () => ({ markKeyStatus: (...args: unknown[]) => markKeyStatus(...(args as [])) }));
+// What Settings saved: an encrypted key and a base URL, or nothing.
+const stored: { adeliApiKeyEncrypted: string | null; adeliBaseUrl: string | null } = { adeliApiKeyEncrypted: null, adeliBaseUrl: null };
+vi.mock("@/lib/app-settings", () => ({
+  markKeyStatus: (...args: unknown[]) => markKeyStatus(...(args as [])),
+  getAppSettings: async () => ({ ...stored }),
+}));
 
 const KEY = `rk_live_${"a".repeat(43)}`;
 
@@ -15,6 +22,8 @@ beforeEach(() => {
   vi.stubEnv("ADELI_API_KEY", KEY);
   vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000");
   markKeyStatus.mockClear();
+  stored.adeliApiKeyEncrypted = null;
+  stored.adeliBaseUrl = null;
 });
 
 afterEach(() => {
@@ -41,20 +50,33 @@ describe("normalizeBaseURL", () => {
 });
 
 describe("getAdeliConfig", () => {
-  it("reads the key and base URL", () => {
-    expect(getAdeliConfig()).toEqual({ baseURL: "http://localhost:3000", apiKey: KEY });
+  it("falls back to the key and base URL in the environment", async () => {
+    expect(await getAdeliConfig()).toEqual({ baseURL: "http://localhost:3000", apiKey: KEY, source: "env" });
   });
 
-  it("accepts an /api/v1 base URL, and defaults to production", () => {
+  it("accepts an /api/v1 base URL, and defaults to production", async () => {
     vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000/api/v1");
-    expect(getAdeliConfig().baseURL).toBe("http://localhost:3000");
+    expect((await getAdeliConfig()).baseURL).toBe("http://localhost:3000");
     vi.stubEnv("ADELI_API_BASE_URL", "");
-    expect(getAdeliConfig().baseURL).toBe("https://app.tryadeli.com");
+    expect((await getAdeliConfig()).baseURL).toBe("https://app.tryadeli.com");
   });
 
-  it("names the missing key", () => {
+  it("prefers the key and URL saved in Settings", async () => {
+    const saved = `rk_live_${"b".repeat(43)}`;
+    stored.adeliApiKeyEncrypted = sealSecret(saved);
+    stored.adeliBaseUrl = "https://adeli.example.com";
+    expect(await getAdeliConfig()).toEqual({ baseURL: "https://adeli.example.com", apiKey: saved, source: "settings" });
+    expect(stored.adeliApiKeyEncrypted).not.toContain(saved);
+  });
+
+  it("says when the saved key can't be decrypted", async () => {
+    stored.adeliApiKeyEncrypted = "v1:not:a:secret";
+    await expect(getAdeliConfig()).rejects.toMatchObject({ code: "not_configured", message: expect.stringContaining("Enter the key again") });
+  });
+
+  it("asks for a key when there is none", async () => {
     vi.stubEnv("ADELI_API_KEY", "");
-    expect(() => getAdeliConfig()).toThrow(expect.objectContaining({ code: "not_configured", message: expect.stringContaining("ADELI_API_KEY") }));
+    await expect(getAdeliConfig()).rejects.toMatchObject({ code: "not_configured", message: expect.stringContaining("Settings") });
   });
 });
 
@@ -94,6 +116,12 @@ describe("adeliCall", () => {
     vi.stubGlobal("fetch", fetch);
     await adeliCall((client) => client.profiles.listProfiles());
     expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("http://localhost:3000/api/v1/profiles");
+    expect(markKeyStatus).not.toHaveBeenCalled();
+  });
+
+  it("tries a candidate key without touching the stored status", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "unauthorized", message: "nope" } }, { status: 401 })));
+    await expect(adeliCall((client) => client.profiles.listProfiles(), { baseURL: "http://localhost:3000", apiKey: KEY })).rejects.toMatchObject({ code: "unauthorized" });
     expect(markKeyStatus).not.toHaveBeenCalled();
   });
 
