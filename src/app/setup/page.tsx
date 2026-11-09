@@ -1,13 +1,14 @@
-import { AlertTriangle, CheckCircle2, ChevronRight, KeyRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, KeyRound, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { AdeliConnectionForm } from "@/components/adeli/connection-form";
 import { GetKeyInstructions } from "@/components/onboarding/get-key-instructions";
 import { OnboardingLayout } from "@/components/onboarding/onboarding-layout";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { checkAdeliKey, type KeyState } from "@/lib/actions";
-import { requireUserPage } from "@/lib/auth/session";
+import { checkAdeliKey, signOut, type KeyState } from "@/lib/actions";
+import { authEnabled } from "@/lib/auth/config";
+import { requireUserPage, type CurrentUser } from "@/lib/auth/session";
 import { getConnectedAccount } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function SetupPage() {
   return (
     <OnboardingLayout step="key">
       <SetupCard keyState={key} next={account ? "/automations" : "/connect"} />
+      {authEnabled() ? <SignedInAs user={user} /> : null}
     </OnboardingLayout>
   );
 }
@@ -91,5 +93,17 @@ function KeySummary({ prefix, profileName }: { prefix: string; profileName: stri
       <dt className="text-muted-foreground">Adeli profile</dt>
       <dd className="font-medium">{profileName ?? "Not checked yet"}</dd>
     </dl>
+  );
+}
+
+/** Who is setting up, with a way out (for example, to switch Google accounts). */
+function SignedInAs({ user }: { user: CurrentUser }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+      <span className="min-w-0 truncate">Signed in as <span className="font-medium text-foreground">{user.email}</span></span>
+      <form action={signOut}>
+        <Button type="submit" variant="ghost" size="sm"><LogOut /> Sign out</Button>
+      </form>
+    </div>
   );
 }
