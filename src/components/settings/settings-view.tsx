@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdeliConnectionForm } from "@/components/adeli/connection-form";
+import { McpSettings } from "@/components/settings/mcp-settings";
 import { PageHeading } from "@/components/page-heading";
 import {
   AlertDialog,
@@ -26,13 +27,14 @@ import type { AdeliAccount } from "@/lib/adeli/types";
 import type { CurrentUser } from "@/lib/auth/session";
 import { relativeTime } from "@/lib/format";
 
-export function SettingsView({ keyState, account, user, liveCount }: { keyState: KeyState; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number }) {
+export function SettingsView({ keyState, account, user, liveCount, mcp }: { keyState: KeyState; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number; mcp: React.ComponentProps<typeof McpSettings> }) {
   return (
     <div className="space-y-6 p-4 md:p-8">
-      <PageHeading title="Settings" description="Your Adeli connection and Instagram account." />
+      <PageHeading title="Settings" description="Your Adeli connection, Instagram account and Claude access." />
       <div className="grid max-w-3xl gap-4">
         <AdeliKeyCard keyState={keyState} />
         <InstagramCard account={account} liveCount={liveCount} canConnect={keyState.configured} />
+        <McpSettings {...mcp} />
         {user ? <SignedInCard user={user} /> : null}
       </div>
     </div>

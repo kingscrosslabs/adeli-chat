@@ -14,9 +14,13 @@ const ERRORS: Record<string, string> = {
   not_allowed: "This Google account isn't allowed to use this Adeli Chat.",
 };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string; error_description?: string }> }) {
-  if (!authEnabled() || (await getCurrentUser())) redirect("/automations");
-  const { error, error_description: description } = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  // Sent here by our OAuth server (an MCP client like Claude connecting): keep the signed query for after Google.
+  const oauthQuery = signedOAuthQuery(params);
+  if (!authEnabled() || (!oauthQuery && (await getCurrentUser()))) redirect("/automations");
+  const error = typeof params.error === "string" ? params.error : undefined;
+  const description = typeof params.error_description === "string" ? params.error_description : undefined;
   const problem = error ? description || ERRORS[error] || "Sign-in didn't work. Try again." : null;
   const configured = Boolean(googleCredentials());
 
@@ -27,12 +31,17 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-base">Sign in</CardTitle>
-            <CardDescription>Sign in to manage your own Comment to DM automations. Your Adeli key and automations are only visible to you.</CardDescription>
+            <CardDescription>
+              {oauthQuery
+                ? "Sign in to let an app like Claude manage your Adeli Chat automations. You'll choose what it can do next."
+                : "Sign in to manage your own Comment to DM automations. Your Adeli key and automations are only visible to you."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {problem ? <Problem message={problem} /> : null}
             {configured ? (
               <form action={signInWithGoogle}>
+                {oauthQuery ? <input type="hidden" name="oauth_query" value={oauthQuery} /> : null}
                 <Button type="submit" size="lg" className="w-full"><GoogleIcon /> Continue with Google</Button>
               </form>
             ) : (
@@ -43,6 +52,17 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       </div>
     </main>
   );
+}
+
+/** The query our OAuth server signed (it has `sig`), rebuilt in order, or null. */
+function signedOAuthQuery(params: Record<string, string | string[] | undefined>): string | null {
+  if (typeof params.sig !== "string") return null;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "error" || key === "error_description") continue;
+    for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, item);
+  }
+  return query.toString();
 }
 
 function Problem({ message }: { message: string }) {
