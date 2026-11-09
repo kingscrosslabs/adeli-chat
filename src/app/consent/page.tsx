@@ -63,7 +63,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
                 </li>
               ) : null}
             </ul>
-            <p className="text-xs text-muted-foreground">You can disconnect it any time in Settings.</p>
+            <p className="text-xs text-muted-foreground">You can disconnect it any time in MCP & APIs.</p>
             <div className="flex gap-2">
               <Button type="submit" name="decision" value="allow" className="flex-1">Allow</Button>
               <Button type="submit" name="decision" value="deny" variant="outline" className="flex-1">Deny</Button>

@@ -484,7 +484,7 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 - [x] `/mcp` with automation tools (list, get, create, update, go live, pause, duplicate, delete, reset runs, list posts, workspace)
 - [x] API tokens: create, revoke, read only, optional expiry (Settings)
 - [x] OAuth for Claude connectors: discovery, CIMD + DCR, Google sign-in continuation, consent page, connected apps
-- [x] Settings: Claude preset link, Claude Code command, manual config
+- [x] MCP & APIs page (`/mcp-apis`, top level in the sidebar): Claude preset link, Claude Code command, manual config
 - [ ] Verify the Claude connector end to end on the production domain
 
 ### M6. Open-source launch

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Plus, Settings, Zap } from "lucide-react";
+import { ChevronRight, Plug, Plus, Settings, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -41,7 +41,7 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
           <Wordmark size="sm" />
         </Link>
       </SidebarHeader>
-      {/* Settings stays put; only the automation list scrolls. */}
+      {/* Settings and MCP & APIs stay put; only the automation list scrolls. */}
       <SidebarContent className="overflow-hidden">
         <SidebarGroup className="pb-0">
           <SidebarGroupContent>
@@ -50,6 +50,12 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
                 <SidebarMenuButton render={<Link href="/settings" />} isActive={pathname.startsWith("/settings")}>
                   <Settings />
                   <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/mcp-apis" />} isActive={pathname.startsWith("/mcp-apis")}>
+                  <Plug />
+                  <span>MCP &amp; APIs</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

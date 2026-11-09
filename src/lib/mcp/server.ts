@@ -151,7 +151,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
   async function run(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
-    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access in Adeli Chat Settings, or reconnect and allow changes.");
+    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the MCP & APIs page in Adeli Chat, or reconnect and allow changes.");
     try {
       return await body();
     } catch (error) {

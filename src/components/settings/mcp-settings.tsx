@@ -42,8 +42,8 @@ export function McpSettings({ mcpUrl, oauthEnabled, tokens, apps }: { mcpUrl: st
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Claude and MCP</CardTitle>
-          <CardDescription>Let Claude, or any MCP client, list, create and manage your automations.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> MCP</CardTitle>
+          <CardDescription>Connect Claude, Claude Code, Cursor or any MCP client.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -71,8 +71,10 @@ export function McpSettings({ mcpUrl, oauthEnabled, tokens, apps }: { mcpUrl: st
                 title="Claude Code"
                 badge="Command"
                 description={newToken ? "Includes the token you just created." : "Create an API token below, then paste it into the command."}
-                action={<CopyButton value={claudeCodeCommand(mcpUrl, newToken ?? undefined)} label="Copy command" />}
-              />
+                action={<CopyButton value={claudeCodeCommand(mcpUrl, newToken ?? undefined)} label="Copy" />}
+              >
+                <code className="block rounded-md bg-muted px-3 py-2 font-mono text-[0.78rem] leading-relaxed whitespace-pre-wrap break-all">{claudeCodeCommand(mcpUrl, newToken ?? undefined)}</code>
+              </InstallTile>
             </div>
           </section>
 
@@ -92,17 +94,18 @@ export function McpSettings({ mcpUrl, oauthEnabled, tokens, apps }: { mcpUrl: st
   );
 }
 
-function InstallTile({ icon, title, badge, description, action }: { icon: React.ReactNode; title: string; badge: string; description: string; action: React.ReactNode }) {
+function InstallTile({ icon, title, badge, description, action, children }: { icon: React.ReactNode; title: string; badge: string; description: string; action: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-lg border p-4">
+    <div className="flex min-w-0 gap-3 rounded-lg border p-4">
       <div className="mt-0.5 text-primary">{icon}</div>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex items-center gap-2">
           <span className="font-medium">{title}</span>
           <Badge variant="secondary">{badge}</Badge>
-          <span className="ml-auto">{action}</span>
+          {action ? <span className="ml-auto shrink-0">{action}</span> : null}
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
+        {children}
       </div>
     </div>
   );

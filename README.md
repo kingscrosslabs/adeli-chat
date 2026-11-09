@@ -46,10 +46,10 @@ To test the whole flow against a local Adeli dev server, with a real comment tri
 
 Adeli Chat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
 
-Open **Settings, Claude and MCP** in the app. It has everything below with your URL filled in.
+Open **MCP & APIs** in the app sidebar (`/mcp-apis`). It has everything below with your URL filled in.
 
 - **Claude (claude.ai and Claude Desktop):** click **Install** to open Claude's "Add custom connector" dialog with Adeli Chat filled in. Claude then signs you in with Google and asks what it may do. Turn off "changes" for a read-only connection. Disconnect it any time under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
-- **Claude Code:** create an API token in Settings, then run
+- **Claude Code:** create an API token on the MCP & APIs page, then run
   ```bash
   claude mcp add --transport http adeli-chat https://<your-domain>/mcp --header "Authorization: Bearer <YOUR_API_TOKEN>"
   ```
