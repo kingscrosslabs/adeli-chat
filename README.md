@@ -42,6 +42,23 @@ Google sign-in only works on domains registered in the OAuth client, so preview 
 
 To test the whole flow against a local Adeli dev server, with a real comment triggering a real DM, follow [docs/local-development.md](docs/local-development.md).
 
+## Use with Claude (MCP)
+
+Adeli Chat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
+
+Open **MCP & APIs** in the app sidebar (`/mcp-apis`). It has everything below with your URL filled in.
+
+- **Claude (claude.ai and Claude Desktop):** click **Install** to open Claude's "Add custom connector" dialog with Adeli Chat filled in. Claude then signs you in with Google and asks what it may do. Turn off "changes" for a read-only connection. Disconnect it any time under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
+- **Claude Code:** create an API token on the MCP & APIs page, then run
+  ```bash
+  claude mcp add --transport http adeli-chat https://<your-domain>/mcp --header "Authorization: Bearer <YOUR_API_TOKEN>"
+  ```
+- **Cursor, Windsurf and other clients:** use the manual JSON config from Settings with an API token.
+
+API tokens start with `adc_`, are shown once, can be read only, and can expire after 30, 90 or 365 days (or never). Only a hash is stored. A token or connection only reaches your own automations.
+
+Tools: `get_workspace`, `list_automations`, `get_automation`, `list_posts`, `create_automation` (always a draft), `update_automation`, `go_live`, `pause_automation`, `duplicate_automation`, `delete_automation`, `reset_runs`. They use the same validation as the editor, so an automation Claude takes live passes the same checks.
+
 ## Get your Adeli API key
 
 Everyone who signs in uses their own Adeli key.

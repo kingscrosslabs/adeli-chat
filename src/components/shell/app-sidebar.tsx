@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Plus, Settings, Zap } from "lucide-react";
+import { ChevronRight, Plug, Plus, Settings, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -41,19 +41,28 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
           <Wordmark size="sm" />
         </Link>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
+      {/* Settings and MCP & APIs stay put; only the automation list scrolls. */}
+      <SidebarContent className="overflow-hidden">
+        <SidebarGroup className="pb-0">
           <SidebarGroupContent>
             <SidebarMenu>
-              <AutomationsNav automations={automations} connected={Boolean(account)} />
               <SidebarMenuItem>
                 <SidebarMenuButton render={<Link href="/settings" />} isActive={pathname.startsWith("/settings")}>
                   <Settings />
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/mcp-apis" />} isActive={pathname.startsWith("/mcp-apis")}>
+                  <Plug />
+                  <span>MCP &amp; APIs</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup className="min-h-0 flex-1">
+          <AutomationsNav automations={automations} connected={Boolean(account)} />
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 border-t p-4">
@@ -86,28 +95,34 @@ function AutomationsNav({ automations, connected }: { automations: AutomationLin
   const [creating, setCreating] = useState(false);
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton render={<Link href="/automations" />} isActive={pathname === "/automations"}>
-        <Zap />
-        <span>Automations</span>
-      </SidebarMenuButton>
-      <SidebarMenuAction
-        aria-label={open ? "Hide automations" : "Show automations"}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
-      </SidebarMenuAction>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton render={<Link href="/automations" />} isActive={pathname === "/automations"}>
+            <Zap />
+            <span>Automations</span>
+          </SidebarMenuButton>
+          <SidebarMenuAction
+            aria-label={open ? "Hide automations" : "Show automations"}
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
+          </SidebarMenuAction>
+        </SidebarMenuItem>
+      </SidebarMenu>
       {open ? (
-        <SidebarMenuSub>
-          {automations.length === 0 ? (
+        automations.length === 0 ? (
+          <SidebarMenuSub>
             <SidebarMenuSubItem>
               <Button variant="outline" size="sm" className="my-1 w-full justify-start bg-background" onClick={() => setCreating(true)}>
                 <Plus /> Create automation
               </Button>
             </SidebarMenuSubItem>
-          ) : (
-            <>
+          </SidebarMenuSub>
+        ) : (
+          <>
+            <SidebarMenuSub className="mt-1 min-h-0 overflow-y-auto">
               {automations.map((automation) => (
                 <SidebarMenuSubItem key={automation.id}>
                   <SidebarMenuSubButton render={<Link href={`/automations/${automation.id}`} />} isActive={pathname === `/automations/${automation.id}`}>
@@ -116,17 +131,19 @@ function AutomationsNav({ automations, connected }: { automations: AutomationLin
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
               ))}
+            </SidebarMenuSub>
+            <SidebarMenuSub className="shrink-0">
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton render={<button type="button" />} className="w-full text-muted-foreground" onClick={() => setCreating(true)}>
                   <Plus />
                   <span>New automation</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-            </>
-          )}
-        </SidebarMenuSub>
+            </SidebarMenuSub>
+          </>
+        )
       ) : null}
       <CreateAutomationDialog open={creating} onOpenChange={setCreating} connected={connected} />
-    </SidebarMenuItem>
+    </div>
   );
 }

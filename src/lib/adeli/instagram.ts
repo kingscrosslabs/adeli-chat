@@ -103,3 +103,9 @@ export async function listMedia(userId: string, accountId: string, page: number)
     hasMore: start + PAGE_SIZE < posts.length,
   };
 }
+
+/** One of the account's posts by its media id (what automations store as `trigger.mediaId`), or null. */
+export async function findMedia(userId: string, accountId: string, mediaId: string): Promise<AdeliMedia | null> {
+  const posts = await listPosts(userId, accountId);
+  return posts.map(toMedia).find((media) => media.id === mediaId) ?? null;
+}

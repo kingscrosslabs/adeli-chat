@@ -26,6 +26,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D10 | Adeli API key | **Bring your own key, entered in the app** (updated 2026-11-09). Each user brings their own organization-level Adeli key, pasted on Setup or in Settings with an optional Adeli URL. It's checked against Adeli, then stored encrypted (AES-256-GCM, keyed from `BETTER_AUTH_SECRET`) in that user's `user_settings` row. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are fallbacks only for the no-login `local` user. `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Our KCL key never ships in the repo. |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-10-27): Adeli's Facebook Login connections lack the comments permission and subscription. Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session with `authMethod: "instagram_login"`. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
 | D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
+| D13 | MCP server | `/mcp` exposes automations to Claude and other MCP clients (added 2026-11-09). Stateless Streamable HTTP via `@modelcontextprotocol/server`. Two ways in: personal API tokens (`adc_`, SHA-256 hashed, optional read only, optional expiry) for clients that send a header, and OAuth 2.1 from Better Auth's `mcp()` plugin (with CIMD and a DCR fallback) for Claude's custom connectors, which can't. Scopes `automations:read` and `automations:write`. Tools call the same service as the app. Plan: [`plans/2026-11-09-mcp.md`](../plans/2026-11-09-mcp.md). |
 
 ---
 
@@ -478,6 +479,13 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 - [ ] Stat counts on list and editor (FR-10.x)
 - [x] Mobile layout and preview drawer
 - [ ] Accessibility pass
+
+### M5b. MCP server (2026-11-09)
+- [x] `/mcp` with automation tools (list, get, create, update, go live, pause, duplicate, delete, reset runs, list posts, workspace)
+- [x] API tokens: create, revoke, read only, optional expiry (Settings)
+- [x] OAuth for Claude connectors: discovery, CIMD + DCR, Google sign-in continuation, consent page, connected apps
+- [x] MCP & APIs page (`/mcp-apis`, top level in the sidebar): Claude preset link, Claude Code command, manual config
+- [ ] Verify the Claude connector end to end on the production domain
 
 ### M6. Open-source launch
 - [ ] README with screenshots and quickstart, CONTRIBUTING, templates

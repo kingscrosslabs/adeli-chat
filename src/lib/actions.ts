@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,11 +11,13 @@ import { AdeliError, adeliKeyPrefix } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { requireUserId, SignedOutError } from "@/lib/auth/session";
-import { defaultAutomationContent } from "@/lib/automations/defaults";
-import { automationContentSchema, type AutomationContent } from "@/lib/automations/schemas";
-import { errorCount, findConflict, validateForLive, validateLimits } from "@/lib/automations/validate";
-import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
+import type { AutomationContent } from "@/lib/automations/schemas";
+import * as service from "@/lib/automations/service";
+import { pauseLive, requireAccount, ServiceError, type ActionResult } from "@/lib/automations/service";
 import { db, schema } from "@/lib/db";
+import { disconnectApp } from "@/lib/mcp/connections";
+import { submitConsent } from "@/lib/mcp/consent";
+import { createToken, revokeToken, TOKEN_EXPIRY_OPTIONS, type TokenExpiry } from "@/lib/mcp/tokens";
 import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
 import { sealSecret } from "@/lib/secret-box";
 import { getUserSettings, markKeyStatus, saveAdeliConnection as storeAdeliConnection } from "@/lib/user-settings";
@@ -27,40 +29,33 @@ import { getUserSettings, markKeyStatus, saveAdeliConnection as storeAdeliConnec
  * settings, and automations reached through their own Instagram account.
  */
 
-export type ActionResult<T = object> =
-  | ({ ok: true } & T)
-  | { ok: false; reason: "error"; message: string }
-  | { ok: false; reason: "invalid"; count: number }
-  | { ok: false; reason: "conflict"; message: string; conflictId: string };
+export type { ActionResult };
 
 export type KeyState =
   | { configured: false; message: string; baseURL: string }
   | { configured: true; prefix: string; source: KeySource; baseURL: string; status: "valid" | "invalid" | "unchecked"; profileName: string | null; checkedAt: string | null; message: string | null };
 
-class ActionError extends Error {}
+/** A problem the user can fix, shown to them as is. */
+class ActionError extends ServiceError {}
 
 async function guard<T>(run: (userId: string) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
     return await run(await requireUserId());
   } catch (error) {
-    if (error instanceof ActionError || error instanceof AdeliError || error instanceof SignedOutError) return { ok: false, reason: "error", message: error.message };
+    if (error instanceof ServiceError || error instanceof AdeliError || error instanceof SignedOutError) return { ok: false, reason: "error", message: error.message };
     throw error;
   }
-}
-
-async function requireAccount(userId: string): Promise<ConnectedAccount> {
-  const account = await getConnectedAccount(userId);
-  if (!account) throw new ActionError("Connect an Instagram account first.");
-  return account;
-}
-
-async function pauseLive(accountId: string) {
-  await db().update(schema.automations).set({ status: "paused", updatedAt: new Date() }).where(and(eq(schema.automations.accountId, accountId), eq(schema.automations.status, "live")));
 }
 
 function done<T extends object>(value: T = {} as T): ActionResult<T> {
   revalidatePath("/", "layout");
   return { ok: true, ...value };
+}
+
+/** A service result: refreshes pages when it worked. */
+function settled(result: ActionResult): ActionResult {
+  if (result.ok) revalidatePath("/", "layout");
+  return result;
 }
 
 /** The last recorded key check, without asking Adeli. "Test connection" asks again. */
@@ -138,10 +133,16 @@ export async function saveAdeliConnection(input: { apiKey: string; baseURL: stri
   });
 }
 
-/** Starts Google sign-in and sends the browser to Google. */
-export async function signInWithGoogle(): Promise<void> {
+/**
+ * Starts Google sign-in and sends the browser to Google. When sign-in is part
+ * of an OAuth request (Claude connecting to `/mcp`), the form carries the
+ * signed `oauth_query`, and Better Auth resumes that request after Google.
+ */
+export async function signInWithGoogle(form?: FormData): Promise<void> {
   if (!googleCredentials()) throw new Error("Google sign-in isn't configured on this server.");
-  const result = await auth().api.signInSocial({ body: { provider: "google", callbackURL: "/automations", errorCallbackURL: "/sign-in" }, headers: await headers() });
+  const oauthQuery = form?.get("oauth_query");
+  const body = { provider: "google", callbackURL: "/automations", errorCallbackURL: "/sign-in", ...(typeof oauthQuery === "string" && oauthQuery ? { oauth_query: oauthQuery } : {}) };
+  const result = await auth().api.signInSocial({ body, headers: await headers() });
   if (!result.url) throw new Error("Google sign-in didn't return a URL.");
   redirect(result.url);
 }
@@ -205,98 +206,33 @@ export async function disconnectAccount(): Promise<ActionResult> {
 }
 
 export async function createAutomation(): Promise<ActionResult<{ id: string }>> {
-  return guard(async (userId) => {
-    const account = await requireAccount(userId);
-    const [{ total }] = await db().select({ total: count() }).from(schema.automations).where(eq(schema.automations.accountId, account.id));
-    const [row] = await db().insert(schema.automations).values({ accountId: account.id, ...defaultAutomationContent(total) }).returning({ id: schema.automations.id });
-    return done({ id: row.id });
-  });
-}
-
-/**
- * Validation for anything that ends up live (FR-7.2, FR-7.3): every field,
- * then no overlap with another live automation on the same post.
- */
-async function checkLive(accountId: string, id: string, content: AutomationContent): Promise<ActionResult | null> {
-  const invalid = errorCount(validateForLive(content));
-  if (invalid) return { ok: false, reason: "invalid", count: invalid };
-  const conflict = findConflict(content, id, await otherLiveAutomations(accountId, id));
-  if (!conflict) return null;
-  const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : "already answers comments on this post";
-  return { ok: false, reason: "conflict", message: `"${conflict.automation.name}" is live on this post and ${detail}.`, conflictId: conflict.automation.id };
-}
-
-function parseContent(input: unknown): AutomationContent {
-  const parsed = automationContentSchema.safeParse(input);
-  if (!parsed.success) throw new ActionError("That automation doesn't look right. Reload and try again.");
-  const limits = errorCount(validateLimits(parsed.data));
-  if (limits) throw new ActionError(`${limits} ${limits === 1 ? "field is" : "fields are"} over the limit.`);
-  return parsed.data;
-}
-
-async function loadOwn(userId: string, id: string) {
-  const account = await requireAccount(userId);
-  const automation = await getAutomation(account.id, id);
-  if (!automation) throw new ActionError("This automation doesn't exist any more.");
-  return { account, automation };
+  return guard(async (userId) => done(await service.createAutomation(userId)));
 }
 
 /** Saves the editor. Saving a live automation applies at once, so it must pass Go Live checks (D4). */
 export async function saveAutomation(id: string, input: AutomationContent): Promise<ActionResult> {
-  return guard(async (userId) => {
-    const content = parseContent(input);
-    const { account, automation } = await loadOwn(userId, id);
-    if (automation.status === "live") {
-      const rejected = await checkLive(account.id, id, content);
-      if (rejected) return rejected;
-    }
-    await db().update(schema.automations).set({ ...content, updatedAt: new Date() }).where(eq(schema.automations.id, id));
-    return done();
-  });
+  return guard(async (userId) => settled(await service.saveAutomation(userId, id, input)));
 }
 
 /** Saves `input` when given (the editor), then goes live. */
 export async function goLive(id: string, input?: AutomationContent): Promise<ActionResult> {
-  return guard(async (userId) => {
-    const { account, automation } = await loadOwn(userId, id);
-    const content = input ? parseContent(input) : automation;
-    const rejected = await checkLive(account.id, id, content);
-    if (rejected) return rejected;
-    const now = new Date();
-    const { name, trigger, commentReply, openingDm, finalDm } = content;
-    await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
-    return done();
-  });
+  return guard(async (userId) => settled(await service.goLive(userId, id, input)));
 }
 
 export async function pauseAutomation(id: string): Promise<ActionResult> {
   return guard(async (userId) => {
-    await loadOwn(userId, id);
-    await db().update(schema.automations).set({ status: "paused", updatedAt: new Date() }).where(eq(schema.automations.id, id));
+    await service.pauseAutomation(userId, id);
     return done();
   });
 }
 
 export async function duplicateAutomation(id: string): Promise<ActionResult<{ id: string }>> {
-  return guard(async (userId) => {
-    const { account, automation } = await loadOwn(userId, id);
-    const { trigger, commentReply, openingDm, finalDm } = automation;
-    const [row] = await db().insert(schema.automations).values({
-      accountId: account.id,
-      name: `${automation.name} (copy)`.slice(0, 80),
-      trigger,
-      commentReply,
-      openingDm,
-      finalDm,
-    }).returning({ id: schema.automations.id });
-    return done({ id: row.id });
-  });
+  return guard(async (userId) => done(await service.duplicateAutomation(userId, id)));
 }
 
 export async function deleteAutomation(id: string): Promise<ActionResult> {
   return guard(async (userId) => {
-    await loadOwn(userId, id);
-    await db().delete(schema.automations).where(eq(schema.automations.id, id));
+    await service.deleteAutomation(userId, id);
     return done();
   });
 }
@@ -306,9 +242,49 @@ export async function deleteAutomation(id: string): Promise<ActionResult> {
  * trigger it again. Handy when testing with one account. Clears its stats too.
  */
 export async function resetRuns(id: string): Promise<ActionResult<{ count: number }>> {
+  return guard(async (userId) => done(await service.resetRuns(userId, id)));
+}
+
+/**
+ * The consent page's answer for an OAuth request (Claude connecting to
+ * `/mcp`). Without "Allow changes", the write scope is left out, so the
+ * connection is read only. Better Auth then sends the browser back to the app.
+ */
+export async function answerConsent(form: FormData): Promise<void> {
+  if (!authEnabled()) redirect("/automations");
+  const oauthQuery = form.get("oauth_query");
+  const requested = form.get("scope");
+  if (typeof oauthQuery !== "string" || typeof requested !== "string") throw new Error("This sign-in request is incomplete. Start again from the app you were connecting.");
+  const url = await submitConsent({
+    cookie: (await headers()).get("cookie") ?? "",
+    oauthQuery,
+    requestedScope: requested,
+    accept: form.get("decision") === "allow",
+    allowWrite: form.get("allow_write") === "on",
+  });
+  redirect(url);
+}
+
+/** Creates an MCP API token. The full token is in the result and is never shown again. */
+export async function createApiToken(input: { name: string; readOnly: boolean; expiry: TokenExpiry }): Promise<ActionResult<{ token: string }>> {
   return guard(async (userId) => {
-    await loadOwn(userId, id);
-    const deleted = await db().delete(schema.runs).where(eq(schema.runs.automationId, id)).returning({ id: schema.runs.id });
-    return done({ count: deleted.length });
+    if (!TOKEN_EXPIRY_OPTIONS.includes(input.expiry)) throw new ActionError("Pick when the token expires.");
+    const { token } = await createToken(userId, { name: input.name, readOnly: Boolean(input.readOnly), expiry: input.expiry });
+    return done({ token });
+  });
+}
+
+export async function revokeApiToken(id: string): Promise<ActionResult> {
+  return guard(async (userId) => {
+    if (!(await revokeToken(userId, id))) throw new ActionError("This token was already revoked.");
+    return done();
+  });
+}
+
+/** Disconnects an app connected through OAuth (like Claude), so it has to ask again. */
+export async function disconnectMcpApp(clientId: string): Promise<ActionResult> {
+  return guard(async (userId) => {
+    await disconnectApp(userId, clientId);
+    return done();
   });
 }
