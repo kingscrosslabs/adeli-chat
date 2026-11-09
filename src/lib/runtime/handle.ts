@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { CommentCreatedEvent, MessagePostbackEvent, WebhookEvent } from "@adeli/sdk/helpers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { adeliCall } from "@/lib/adeli/client";
 import { AdeliError } from "@/lib/adeli/types";
@@ -11,12 +11,15 @@ import { db, schema } from "@/lib/db";
 import { matchComment } from "./match";
 
 /**
- * The Comment to DM runtime (PRD §5.8). Each step records its outcome on the
- * run. Nothing is retried: a failed step records the error and stops.
+ * The Comment to DM runtime (PRD §5.8), for one user: the one whose webhook
+ * secret signed the delivery. It only reads that user's accounts and
+ * automations and only calls Adeli with that user's key. Each step records
+ * its outcome on the run. Nothing is retried: a failed step records the
+ * error and stops.
  */
-export async function handleEvent(event: WebhookEvent) {
-  if (event.type === "comment.created") return handleComment(event);
-  if (event.type === "message.postback") return handlePostback(event);
+export async function handleEvent(userId: string, event: WebhookEvent) {
+  if (event.type === "comment.created") return handleComment(userId, event);
+  if (event.type === "message.postback") return handlePostback(userId, event);
 }
 
 function errorText(error: unknown) {
@@ -28,18 +31,18 @@ function pick<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-async function connectedAccount(adeliAccountId: string) {
+async function connectedAccount(userId: string, adeliAccountId: string) {
   const [account] = await db().select().from(schema.accounts)
-    .where(and(eq(schema.accounts.adeliAccountId, adeliAccountId), eq(schema.accounts.status, "connected")))
+    .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.adeliAccountId, adeliAccountId), eq(schema.accounts.status, "connected")))
     .limit(1);
   return account ?? null;
 }
 
-async function handleComment(event: CommentCreatedEvent) {
+async function handleComment(userId: string, event: CommentCreatedEvent) {
   const { data } = event;
   // Without the commenter's id there's no way to DM them or to send the flow only once (D3).
   if (!data.from.id) return;
-  const account = await connectedAccount(event.accountId);
+  const account = await connectedAccount(userId, event.accountId);
   if (!account) return;
 
   const live = await db().select().from(schema.automations)
@@ -60,7 +63,7 @@ async function handleComment(event: CommentCreatedEvent) {
   const variants = automation.commentReply.variants.filter((variant) => variant.trim());
   if (automation.commentReply.enabled && variants.length) {
     try {
-      await adeliCall((client) => client.comments.createComment({
+      await adeliCall(userId, (client) => client.comments.createComment({
         body: { platform: "instagram", accountId: account.adeliAccountId, parentId: data.commentId, message: pick(variants) },
       }));
       await updateRun(run.id, { commentReplyState: "sent" });
@@ -73,7 +76,7 @@ async function handleComment(event: CommentCreatedEvent) {
   }
 
   try {
-    await adeliCall((client) => client.messages.sendInstagramMessage({
+    await adeliCall(userId, (client) => client.messages.sendInstagramMessage({
       body: {
         accountId: account.adeliAccountId,
         recipient: { commentId: data.commentId },
@@ -87,12 +90,16 @@ async function handleComment(event: CommentCreatedEvent) {
   }
 }
 
-async function handlePostback(event: MessagePostbackEvent) {
+async function handlePostback(userId: string, event: MessagePostbackEvent) {
   const now = new Date();
+  // Only this user's runs. Another user's webhook can see the same tap when both use the same Adeli profile.
+  const ownAutomations = db().select({ id: schema.automations.id }).from(schema.automations)
+    .innerJoin(schema.accounts, eq(schema.accounts.id, schema.automations.accountId))
+    .where(eq(schema.accounts.userId, userId));
   // The claim: Postgres serializes this update, so only one delivery of a tap gets the row back.
   const [run] = await db().update(schema.runs)
     .set({ state: "final_sending", tappedAt: now, updatedAt: now })
-    .where(and(eq(schema.runs.id, event.data.payload), eq(schema.runs.state, "opening_sent")))
+    .where(and(eq(schema.runs.id, event.data.payload), eq(schema.runs.state, "opening_sent"), inArray(schema.runs.automationId, ownAutomations)))
     .returning({ id: schema.runs.id, automationId: schema.runs.automationId });
   if (!run) return;
 
@@ -109,7 +116,7 @@ async function handlePostback(event: MessagePostbackEvent) {
 
   const { finalDm } = row.automation;
   try {
-    await adeliCall((client) => client.messages.sendInstagramMessage({
+    await adeliCall(userId, (client) => client.messages.sendInstagramMessage({
       body: {
         accountId: row.account.adeliAccountId,
         recipient: { id: event.data.senderId },

@@ -2,15 +2,15 @@ import "server-only";
 
 import { Adeli, AdeliApiError, AuthenticationError, ConfigurationError, NetworkError, TimeoutError } from "@adeli/sdk";
 
-import { markKeyStatus } from "@/lib/app-settings";
+import { markKeyStatus } from "@/lib/user-settings";
 
 import { getAdeliConfig, type AdeliConfig } from "./key";
 import { AdeliError } from "./types";
 
-/** A client for this install's key. Throws `not_configured` without one. */
-export async function adeli(): Promise<Adeli> {
+/** A client for this user's key. Throws `not_configured` without one. */
+export async function adeli(userId: string): Promise<Adeli> {
   try {
-    const { baseURL, apiKey } = await getAdeliConfig();
+    const { baseURL, apiKey } = await getAdeliConfig(userId);
     return new Adeli({ baseURL, apiKey });
   } catch (error) {
     throw toAdeliError(error);
@@ -18,19 +18,20 @@ export async function adeli(): Promise<Adeli> {
 }
 
 /**
- * Runs one Adeli call and maps SDK errors to Adeli Chat's `AdeliError`. A
- * rejected key also marks the key invalid, which shows the key banner.
+ * Runs one Adeli call with `userId`'s key and maps SDK errors to Adeli Chat's
+ * `AdeliError`. A rejected key also marks that user's key invalid, which
+ * shows the key banner.
  *
  * `candidate` tries a key before Settings saves it. It never touches the
  * stored key status.
  */
-export async function adeliCall<T>(fn: (client: Adeli) => Promise<T>, candidate?: AdeliConfig): Promise<T> {
+export async function adeliCall<T>(userId: string, fn: (client: Adeli) => Promise<T>, candidate?: AdeliConfig): Promise<T> {
   try {
-    const client = candidate ? new Adeli(candidate) : await adeli();
+    const client = candidate ? new Adeli(candidate) : await adeli(userId);
     return await fn(client);
   } catch (error) {
     const mapped = toAdeliError(error);
-    if (mapped.code === "unauthorized" && !candidate) await markKeyStatus("invalid").catch(() => undefined);
+    if (mapped.code === "unauthorized" && !candidate) await markKeyStatus(userId, "invalid").catch(() => undefined);
     throw mapped;
   }
 }

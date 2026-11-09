@@ -27,7 +27,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-base">Sign in</CardTitle>
-            <CardDescription>Adeli Chat sends DMs from your Instagram account, so only its owner can open it.</CardDescription>
+            <CardDescription>Sign in to manage your own Comment to DM automations. Your Adeli key and automations are only visible to you.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {problem ? <Problem message={problem} /> : null}

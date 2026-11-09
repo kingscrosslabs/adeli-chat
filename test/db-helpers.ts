@@ -2,13 +2,24 @@ import { sql } from "drizzle-orm";
 
 import { defaultAutomationContent } from "@/lib/automations/defaults";
 import { db, schema } from "@/lib/db";
+import { sealSecret } from "@/lib/secret-box";
+
+export const TEST_KEY = `rk_live_${"a".repeat(43)}`;
 
 export async function resetDatabase() {
-  await db().execute(sql`truncate runs, automations, accounts, app_settings, auth_user cascade`);
+  await db().execute(sql`truncate runs, automations, accounts, user_settings, auth_user cascade`);
 }
 
-export async function seedAccount() {
+/** A signed-in user with their own Adeli key, saved the way Settings saves it, pointing at the fake Adeli. */
+export async function seedUser(id = "user_1", apiKey = TEST_KEY) {
+  await db().insert(schema.authUser).values({ id, name: id, email: `${id}@example.com` });
+  await db().insert(schema.userSettings).values({ userId: id, adeliApiKeyEncrypted: sealSecret(apiKey), adeliBaseUrl: "http://localhost:3000", adeliProfileId: "profile_1", adeliProfileName: "Nick", adeliKeyStatus: "valid" });
+  return id;
+}
+
+export async function seedAccount(userId = "user_1") {
   const [account] = await db().insert(schema.accounts).values({
+    userId,
     adeliAccountId: "acc_1",
     adeliProfileId: "profile_1",
     igUserId: "ig_self",

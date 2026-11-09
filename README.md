@@ -23,8 +23,8 @@ Locally no environment variables are needed: the database is PGlite in `./.data`
 2. **Add Postgres.** In the project's Storage tab, add Neon from the Marketplace and connect it. It sets `DATABASE_URL`.
 3. **Create a Google OAuth client** in Google Cloud Console (APIs & Services, Credentials, OAuth client ID, type "Web application"). Add the authorized redirect URI `https://<your-domain>/api/auth/callback/google`.
 4. **Set the environment variables** below, then redeploy.
-5. **Sign in with Google.** Without `ALLOWED_EMAILS`, the first account to sign in owns the install, so sign in right after deploying.
-6. **Paste your Adeli API key** on the Setup page. It's checked against Adeli, stored encrypted, and Adeli Chat registers its webhook.
+5. **Sign in with Google.** Everyone who signs in gets their own workspace: their own Adeli key and URL, Instagram account and automations. Nobody sees anyone else's. Set `ALLOWED_EMAILS` to limit who can sign in.
+6. **Paste your Adeli API key** on the Setup page. It's checked against Adeli, stored encrypted for your user only, and Adeli Chat registers a webhook just for you.
 7. **Allowlist the connect redirect.** In Adeli, under Settings, OAuth, add `https://<your-domain>/connect` so you can connect Instagram from Adeli Chat.
 
 | Variable | Required | Notes |
@@ -33,10 +33,10 @@ Locally no environment variables are needed: the database is PGlite in `./.data`
 | `BETTER_AUTH_SECRET` | Yes | Random, at least 32 characters: `openssl rand -base64 32`. Also encrypts the saved Adeli key, so keep it stable. |
 | `GOOGLE_CLIENT_ID` | Yes | From the Google OAuth client. |
 | `GOOGLE_CLIENT_SECRET` | Yes | From the Google OAuth client. |
-| `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: first sign-in owns the install. |
+| `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: anyone with Google can sign in. |
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
 
-The Adeli API key and URL aren't environment variables: you enter them in the app, in Setup or Settings. `ADELI_API_KEY` and `ADELI_API_BASE_URL` still work as fallbacks, which is handy locally.
+The Adeli API key and URL aren't environment variables: each user enters their own in Setup or Settings. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are fallbacks only in local no-login mode, so a signed-in user never gets the server's key.
 
 Google sign-in only works on domains registered in the OAuth client, so preview deployments with random URLs can't sign in unless you add them.
 
@@ -44,7 +44,7 @@ To test the whole flow against a local Adeli dev server, with a real comment tri
 
 ## Get your Adeli API key
 
-Every install uses its own Adeli key.
+Everyone who signs in uses their own Adeli key.
 
 1. **Create an Adeli account.** Go to [app.tryadeli.com](https://app.tryadeli.com/sign-in) and sign in with Google. Your first sign-in creates your account and a default profile.
 2. **(Optional) Connect Instagram in Adeli.** Open **Accounts** and connect your Instagram Business or Creator account. You can also do this from Adeli Chat.

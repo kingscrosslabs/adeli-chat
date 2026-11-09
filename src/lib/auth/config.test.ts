@@ -5,19 +5,17 @@ import { authEnabled, signInRefusal } from "./config";
 afterEach(() => vi.unstubAllEnvs());
 
 describe("signInRefusal", () => {
-  it("lets the first Google account in, then nobody new", () => {
+  it("lets anyone with Google in when ALLOWED_EMAILS is empty", () => {
     vi.stubEnv("ALLOWED_EMAILS", "");
-    expect(signInRefusal({ email: "owner@example.com", creatingUser: true, existingUsers: 0 })).toBeNull();
-    expect(signInRefusal({ email: "owner@example.com", creatingUser: false, existingUsers: 0 })).toBeNull();
-    expect(signInRefusal({ email: "someone@example.com", creatingUser: true, existingUsers: 1 })).toMatch(/already has an owner/);
+    expect(signInRefusal("owner@example.com")).toBeNull();
+    expect(signInRefusal("someone@example.com")).toBeNull();
   });
 
   it("only lets ALLOWED_EMAILS in when it's set, ignoring case", () => {
     vi.stubEnv("ALLOWED_EMAILS", "Owner@Example.com, teammate@example.com");
-    expect(signInRefusal({ email: "owner@example.com", creatingUser: true, existingUsers: 3 })).toBeNull();
-    expect(signInRefusal({ email: "TEAMMATE@example.com", creatingUser: false, existingUsers: 3 })).toBeNull();
-    expect(signInRefusal({ email: "stranger@example.com", creatingUser: true, existingUsers: 0 })).toMatch(/isn't allowed/);
-    expect(signInRefusal({ email: "stranger@example.com", creatingUser: false, existingUsers: 3 })).toMatch(/isn't allowed/);
+    expect(signInRefusal("owner@example.com")).toBeNull();
+    expect(signInRefusal("TEAMMATE@example.com")).toBeNull();
+    expect(signInRefusal("stranger@example.com")).toMatch(/isn't allowed/);
   });
 });
 

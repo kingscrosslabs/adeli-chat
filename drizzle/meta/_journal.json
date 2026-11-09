@@ -22,6 +22,20 @@
       "when": 1794243613007,
       "tag": "0002_auth_and_adeli_connection",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794248461231,
+      "tag": "0003_per_user_workspaces",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794248461591,
+      "tag": "0004_drop_app_settings",
+      "breakpoints": true
     }
   ]
 }

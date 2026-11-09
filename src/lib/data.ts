@@ -45,14 +45,17 @@ export function toAutomation(row: AutomationRow, stats: AutomationStats = NO_STA
   };
 }
 
-export async function getConnectedAccount(): Promise<ConnectedAccount | null> {
-  const [row] = await db().select().from(schema.accounts).where(eq(schema.accounts.status, "connected")).limit(1);
+/** The user's connected Instagram account. Everything else hangs off it, so this is the ownership check. */
+export async function getConnectedAccount(userId: string): Promise<ConnectedAccount | null> {
+  const [row] = await db().select().from(schema.accounts)
+    .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.status, "connected")))
+    .limit(1);
   return row ? toAccount(row) : null;
 }
 
 /** For pages that need an Instagram account: sends you to `/connect` without one. */
-export async function requireAccount(): Promise<ConnectedAccount> {
-  const account = await getConnectedAccount();
+export async function requireAccount(userId: string): Promise<ConnectedAccount> {
+  const account = await getConnectedAccount(userId);
   if (!account) redirect("/connect");
   return account;
 }

@@ -168,7 +168,7 @@ function SignedInCard({ user }: { user: CurrentUser }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><UserRound className="size-4 text-primary" /> Signed in</CardTitle>
-        <CardDescription>You signed in to Adeli Chat with Google.</CardDescription>
+        <CardDescription>Your Adeli key, Instagram account and automations belong to this Google account. Nobody else can see them.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
         <Avatar>

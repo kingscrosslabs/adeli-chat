@@ -3,7 +3,6 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { count } from "drizzle-orm";
 
 import { appUrl } from "@/lib/app-url";
 import { db, schema } from "@/lib/db";
@@ -11,10 +10,8 @@ import { db, schema } from "@/lib/db";
 import { googleCredentials, signInRefusal } from "./config";
 
 /**
- * Better Auth with Google as the only sign-in method. Who may sign in:
- * - `ALLOWED_EMAILS` set: only those addresses.
- * - Not set: the first Google account to sign in owns the install, and
- *   nobody else can create an account after that.
+ * Better Auth with Google as the only sign-in method. Anyone with Google can
+ * sign in and gets their own workspace, unless `ALLOWED_EMAILS` limits it.
  */
 function create() {
   const google = googleCredentials();
@@ -27,10 +24,8 @@ function create() {
     }),
     socialProviders: google ? { google: { clientId: google.clientId, clientSecret: google.clientSecret, prompt: "select_account" } } : {},
     user: {
-      async validateUserInfo({ user, source }) {
-        const creatingUser = source.action === "create-user";
-        const existingUsers = creatingUser ? (await db().select({ total: count() }).from(schema.authUser))[0].total : 0;
-        const refusal = signInRefusal({ email: typeof user.email === "string" ? user.email : "", creatingUser, existingUsers });
+      validateUserInfo({ user }) {
+        const refusal = signInRefusal(typeof user.email === "string" ? user.email : "");
         return refusal ? { error: "not_allowed", errorDescription: refusal } : undefined;
       },
     },

@@ -19,7 +19,10 @@ export function authEnabled(): boolean {
   return Boolean(googleCredentials()) || isDeployed();
 }
 
-/** `ALLOWED_EMAILS`, lowercased. Empty means "the first person to sign in owns this install". */
+/** In local no-login mode everything belongs to this user. */
+export const LOCAL_USER = { id: "local", name: "Local", email: "local@adeli-chat.invalid" } as const;
+
+/** `ALLOWED_EMAILS`, lowercased. Empty means anyone with a Google account can sign in. */
 export function allowedEmails(): string[] {
   return (process.env.ALLOWED_EMAILS ?? "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
 }
@@ -30,12 +33,9 @@ export function isAllowedEmail(email: string): boolean {
 }
 
 /**
- * Who may sign in. With `ALLOWED_EMAILS`, only those addresses. Without it,
- * the first Google account creates the owner and nobody else can join.
- * Returns a reason when the sign-in is refused.
+ * Who may sign in: anyone with Google, each in their own workspace, unless
+ * `ALLOWED_EMAILS` limits it. Returns a reason when the sign-in is refused.
  */
-export function signInRefusal(input: { email: string; creatingUser: boolean; existingUsers: number }): string | null {
-  if (allowedEmails().length) return isAllowedEmail(input.email) ? null : "This Google account isn't allowed to use this Adeli Chat.";
-  if (!input.creatingUser || input.existingUsers === 0) return null;
-  return "This Adeli Chat already has an owner. Ask them to add your email to ALLOWED_EMAILS.";
+export function signInRefusal(email: string): string | null {
+  return isAllowedEmail(email) ? null : "This Google account isn't allowed to use this Adeli Chat.";
 }
