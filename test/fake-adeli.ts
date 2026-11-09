@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-export type Sent = { method: string; path: string; body: Record<string, unknown> | null };
+export type Sent = { method: string; path: string; body: Record<string, unknown> | null; authorization: string | null };
 
 type Reply = { status: number; body?: unknown };
 type Route = (sent: Sent) => Reply | undefined;
@@ -15,7 +15,7 @@ export function fakeAdeli(routes: Route[] = [], options: { delayMs?: number } = 
   const fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init);
     const text = await request.text();
-    const entry: Sent = { method: request.method, path: new URL(request.url).pathname.replace(/^\/api\/v1/, ""), body: text ? JSON.parse(text) : null };
+    const entry: Sent = { method: request.method, path: new URL(request.url).pathname.replace(/^\/api\/v1/, ""), body: text ? JSON.parse(text) : null, authorization: request.headers.get("authorization") };
     sent.push(entry);
     if (options.delayMs) await new Promise((resolve) => setTimeout(resolve, options.delayMs));
     for (const route of routes) {

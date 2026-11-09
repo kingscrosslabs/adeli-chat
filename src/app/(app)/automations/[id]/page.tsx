@@ -2,13 +2,16 @@ import Link from "next/link";
 
 import { AutomationEditor } from "@/components/editor/automation-editor";
 import { buttonVariants } from "@/components/ui/button";
+import { requireUserPage } from "@/lib/auth/session";
 import { getAutomation, requireAccount } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AutomationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const account = await requireAccount();
+  const user = await requireUserPage();
+  // Your own account, so `getAutomation` only finds your automations.
+  const account = await requireAccount(user.id);
   const automation = await getAutomation(account.id, id);
   if (!automation) {
     return (

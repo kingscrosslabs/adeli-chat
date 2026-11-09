@@ -8,11 +8,14 @@ export async function register() {
   const { migrateDatabase } = await import("@/lib/db");
   await migrateDatabase();
   const { ensureAdeliWebhook } = await import("@/lib/runtime/webhook-registration");
-  try {
-    const webhook = await ensureAdeliWebhook();
-    console.info(`Adeli webhook ${webhook.created ? "created" : "reused"}: ${webhook.id}`);
-  } catch (error) {
-    // Setup retries this once the key works, so a bad key or a down Adeli doesn't stop the app starting.
-    console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`);
+  const { allSettingsUsers } = await import("@/lib/user-settings");
+  for (const userId of await allSettingsUsers()) {
+    try {
+      const webhook = await ensureAdeliWebhook(userId);
+      console.info(`Adeli webhook for ${userId} ${webhook.created ? "created" : "reused"}: ${webhook.id}`);
+    } catch (error) {
+      // Setup retries this once the key works, so a bad key or a down Adeli doesn't stop the app starting.
+      console.warn(`Couldn't register the Adeli webhook for ${userId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }

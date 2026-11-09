@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getAppSettings } from "@/lib/app-settings";
+import { LOCAL_USER } from "@/lib/auth/config";
+import { getUserSettings } from "@/lib/user-settings";
 import { openSecret } from "@/lib/secret-box";
 
 import { AdeliError } from "./types";
@@ -15,27 +16,29 @@ export type KeySource = "settings" | "env";
 /**
  * The only place server code reads the Adeli base URL and API key.
  *
- * The key and base URL entered in Settings (stored in `app_settings`, the key
- * encrypted) win. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are optional
- * fallbacks, handy for local development. A missing key throws
- * `not_configured`. The key is never returned to the browser.
+ * Each user's key and base URL come from Setup or Settings (stored in
+ * `user_settings`, the key encrypted). `ADELI_API_KEY` and
+ * `ADELI_API_BASE_URL` are fallbacks only for the `local` user (no-login
+ * mode), so a signed-in user never gets the server's key. A missing key
+ * throws `not_configured`. The key is never returned to the browser.
  */
-export async function getAdeliConfig(): Promise<AdeliConfig & { source: KeySource }> {
-  const settings = await getAppSettings();
+export async function getAdeliConfig(userId: string): Promise<AdeliConfig & { source: KeySource }> {
+  const settings = await getUserSettings(userId);
+  const isLocal = userId === LOCAL_USER.id;
   const stored = settings.adeliApiKeyEncrypted ? openSecret(settings.adeliApiKeyEncrypted) : null;
   if (settings.adeliApiKeyEncrypted && !stored) {
     throw notConfigured("The saved Adeli key can't be read. BETTER_AUTH_SECRET may have changed. Enter the key again in Settings.");
   }
-  const apiKey = stored ?? process.env.ADELI_API_KEY?.trim();
+  const apiKey = stored ?? (isLocal ? process.env.ADELI_API_KEY?.trim() : undefined);
   if (!apiKey) throw notConfigured("Add your Adeli API key in Settings.");
-  const rawBase = settings.adeliBaseUrl ?? process.env.ADELI_API_BASE_URL?.trim();
+  const rawBase = settings.adeliBaseUrl ?? (isLocal ? process.env.ADELI_API_BASE_URL?.trim() : undefined);
   return { baseURL: rawBase ? normalizeBaseURL(rawBase) : DEFAULT_BASE_URL, apiKey, source: stored ? "settings" : "env" };
 }
 
 /** Like `getAdeliConfig`, but null instead of throwing `not_configured`. */
-export async function findAdeliConfig() {
+export async function findAdeliConfig(userId: string) {
   try {
-    return await getAdeliConfig();
+    return await getAdeliConfig(userId);
   } catch (error) {
     if (error instanceof AdeliError && error.code === "not_configured") return null;
     throw error;

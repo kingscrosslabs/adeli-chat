@@ -15,7 +15,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | # | Question | Decision |
 |---|---|---|
 | D1 | Stack | Next.js (App Router) + TypeScript + Drizzle ORM. Postgres if `DATABASE_URL` is set, otherwise PGlite (in-process Postgres in `./.data`). Migrations apply on start. No job queue: webhook events are handled in `after()` and failures are recorded, not retried. (Updated 2026-10-29.) |
-| D2 | Who logs in | The install's owner, with Google (Better Auth). Login is required when deployed and off locally without Google env vars. `ALLOWED_EMAILS` lists who may sign in; without it the first Google account owns the install. (Changed 2026-11-09, for Vercel deploys.) |
+| D2 | Who logs in | Anyone with Google (Better Auth), each in their own workspace: their own Adeli key and URL, Instagram account, automations, runs and webhook. Nobody sees another user's data. Login is required when deployed and off locally without Google env vars (everything then belongs to the `local` user). `ALLOWED_EMAILS` optionally limits who may sign in. (Changed 2026-11-09.) |
 | D3 | Repeat commenters | A person gets the DM flow **once per automation**. Later comments from them are ignored by that automation. |
 | D4 | Editing a Live automation | **Save applies immediately** (after validation passes). |
 | D5 | Any comment | Yes. Trigger can be **Specific keywords** or **Any comment**. |
@@ -23,7 +23,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
 | D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
 | D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
-| D10 | Adeli API key | **Bring your own key, entered in the app** (updated 2026-11-09). Each install uses its owner's organization-level Adeli key, pasted on Setup or in Settings with an optional Adeli URL. It's checked against Adeli, then stored encrypted (AES-256-GCM, keyed from `BETTER_AUTH_SECRET`) in `app_settings`. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are local fallbacks. `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Our KCL key never ships in the repo. |
+| D10 | Adeli API key | **Bring your own key, entered in the app** (updated 2026-11-09). Each user brings their own organization-level Adeli key, pasted on Setup or in Settings with an optional Adeli URL. It's checked against Adeli, then stored encrypted (AES-256-GCM, keyed from `BETTER_AUTH_SECRET`) in that user's `user_settings` row. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are fallbacks only for the no-login `local` user. `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Our KCL key never ships in the repo. |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-10-27): Adeli's Facebook Login connections lack the comments permission and subscription. Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session with `authMethod: "instagram_login"`. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
 | D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
 
@@ -108,7 +108,7 @@ Consequences:
   (modal)               Template picker
 /automations/[id]       Split-screen editor
 /settings               Adeli key (masked, test connection), connected account, reconnect, disconnect
-/api/webhooks/adeli     Incoming events from Adeli (comments, button taps), once Adeli ships them (§12A)
+/api/webhooks/adeli/[userId]  Incoming events from Adeli (comments, button taps), one webhook per user
 ```
 
 Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adeli key · 2. Instagram account · 3. First automation.** Each step shows done / current / next, so a new user always knows where they are.
@@ -367,7 +367,7 @@ DATABASE_URL=           # required on Vercel. Empty locally means PGlite in ./.d
 BETTER_AUTH_SECRET=     # required when deployed. Signs sessions and encrypts the saved Adeli key
 GOOGLE_CLIENT_ID=       # required when deployed. Locally, leave empty for no login
 GOOGLE_CLIENT_SECRET=   # required when deployed
-ALLOWED_EMAILS=         # optional. Empty means the first Google account to sign in owns the install
+ALLOWED_EMAILS=         # optional. Empty means anyone with Google can sign in, each with their own workspace
 APP_URL=                # optional. Defaults to the Vercel production domain, else http://localhost:3030
 ADELI_API_KEY=          # optional fallback; the key is normally entered in the app
 ADELI_API_BASE_URL=     # optional fallback. Defaults to https://app.tryadeli.com

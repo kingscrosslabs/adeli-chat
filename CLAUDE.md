@@ -6,7 +6,8 @@ Open-source ManyChat alternative (Instagram Comment to DM) built on the Adeli AP
 - **Design and copy:** `docs/brand.md`. Use its tokens and Adeli's copied `components/ui`; no ad hoc colors.
 - **Adeli API:** endpoint map in PRD §5.11, missing pieces in §12A. Source of truth is the local `adeli` repo
   (`docs/public-api.md`, `apps/web/app/docs/`).
-- **Adeli API key:** never commit one. It's entered in the app and stored encrypted in `app_settings` (`src/lib/secret-box.ts`), with `ADELI_API_KEY` as a local fallback. Read it only through `src/lib/adeli/key.ts`; never send it to the browser.
+- **Adeli API key:** never commit one. Each user enters their own in the app; it's stored encrypted in `user_settings` (`src/lib/secret-box.ts`). `ADELI_API_KEY` is a fallback only for the no-login `local` user. Read it only through `src/lib/adeli/key.ts`; never send it to the browser.
+- **Every user has their own workspace:** Adeli key and URL, Instagram account, automations, runs and webhook (`/api/webhooks/adeli/<userId>`). Server code gets the user from `src/lib/auth/session.ts` and passes `userId` down; `adeliCall(userId, ...)` always uses that user's key. Reach automations only through the user's own account (`getConnectedAccount(userId)`).
 - **Deploys to Vercel:** Google sign-in via Better Auth (`src/lib/auth/`), required when deployed, off locally without Google env vars. `DATABASE_URL` is required on Vercel and optional locally (falls back to PGlite in `./.data`). See `.env.example` and README "Deploy to Vercel".
 - **Copy rule:** no em dashes anywhere (UI text, defaults, docs, commit messages).
 - All Instagram calls go through `@adeli/sdk`, wrapped in `src/lib/adeli/`. Nothing else calls Adeli directly.

@@ -53,20 +53,20 @@ function toMedia(post: ApiPost): AdeliMedia {
   };
 }
 
-async function listPosts(accountId: string) {
-  const result = await adeliCall((client) => client.posts.listPosts({ query: { platform: "instagram", accountId } }));
+async function listPosts(userId: string, accountId: string) {
+  const result = await adeliCall(userId, (client) => client.posts.listPosts({ query: { platform: "instagram", accountId } }));
   return result.data.posts;
 }
 
-export async function listProfiles(candidate?: AdeliConfig): Promise<AdeliProfile[]> {
-  const result = await adeliCall((client) => client.profiles.listProfiles(), candidate);
+export async function listProfiles(userId: string, candidate?: AdeliConfig): Promise<AdeliProfile[]> {
+  const result = await adeliCall(userId, (client) => client.profiles.listProfiles(), candidate);
   return result.data.profiles.map((profile) => ({ id: profile.id, name: profile.name }));
 }
 
-export async function listInstagramAccounts(): Promise<AdeliAccount[]> {
-  const profiles = await listProfiles();
+export async function listInstagramAccounts(userId: string): Promise<AdeliAccount[]> {
+  const profiles = await listProfiles(userId);
   const results = await Promise.all(profiles.map(async (profile) => {
-    const result = await adeliCall((client) => client.accounts.listAccounts({ query: { platform: "instagram", profileId: profile.id } }));
+    const result = await adeliCall(userId, (client) => client.accounts.listAccounts({ query: { platform: "instagram", profileId: profile.id } }));
     return result.data.accounts.map((account): AdeliAccount => ({
       accountId: account.accountId,
       profileId: account.profileId ?? profile.id,
@@ -82,21 +82,21 @@ export async function listInstagramAccounts(): Promise<AdeliAccount[]> {
 }
 
 /** Instagram Login only: Facebook Login connections can't read comments for Comment to DM. */
-export async function startConnect(profileId: string, redirectUrl: string): Promise<ConnectSession> {
-  const result = await adeliCall((client) => client.profiles.startConnection({
+export async function startConnect(userId: string, profileId: string, redirectUrl: string): Promise<ConnectSession> {
+  const result = await adeliCall(userId, (client) => client.profiles.startConnection({
     path: { profileId },
     body: { platform: "instagram", authMethod: "instagram_login", redirectUrl },
   }));
   return toConnectSession(result.data);
 }
 
-export async function getConnectSession(profileId: string, sessionId: string): Promise<ConnectSession> {
-  const result = await adeliCall((client) => client.profiles.getConnection({ path: { profileId, connectionSessionId: sessionId } }));
+export async function getConnectSession(userId: string, profileId: string, sessionId: string): Promise<ConnectSession> {
+  const result = await adeliCall(userId, (client) => client.profiles.getConnection({ path: { profileId, connectionSessionId: sessionId } }));
   return toConnectSession(result.data);
 }
 
-export async function listMedia(accountId: string, page: number): Promise<{ media: AdeliMedia[]; hasMore: boolean }> {
-  const posts = await listPosts(accountId);
+export async function listMedia(userId: string, accountId: string, page: number): Promise<{ media: AdeliMedia[]; hasMore: boolean }> {
+  const posts = await listPosts(userId, accountId);
   const start = page * PAGE_SIZE;
   return {
     media: posts.slice(start, start + PAGE_SIZE).map(toMedia),

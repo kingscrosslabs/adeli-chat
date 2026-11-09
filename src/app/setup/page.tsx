@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic";
  * URL), checks it against Adeli, and shows the result or the exact problem.
  */
 export default async function SetupPage() {
-  await requireUserPage();
-  const [key, account] = await Promise.all([checkAdeliKey(), getConnectedAccount()]);
+  const user = await requireUserPage();
+  const [key, account] = await Promise.all([checkAdeliKey(), getConnectedAccount(user.id)]);
   return (
     <OnboardingLayout step="key">
       <SetupCard keyState={key} next={account ? "/automations" : "/connect"} />
@@ -33,7 +33,7 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="size-4 text-primary" /> Add your Adeli API key</CardTitle>
           <CardDescription>
-            Adeli Chat sends comments and DMs through Adeli, so it needs an API key from your Adeli account. Every install uses its own key.
+            Adeli Chat sends comments and DMs through Adeli, so it needs an API key from your Adeli account. Each person who signs in uses their own key, and only they can see it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
