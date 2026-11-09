@@ -1,11 +1,11 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, ServerCog, AtSign, XCircle } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, ExternalLink, KeyRound, Loader2, LogOut, RefreshCw, ServerCog, AtSign, UserRound, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdeliConnectionForm } from "@/components/adeli/connection-form";
 import { PageHeading } from "@/components/page-heading";
 import {
   AlertDialog,
@@ -21,17 +21,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { disconnectAccount, testConnection, type KeyState } from "@/lib/actions";
+import { disconnectAccount, signOut, testConnection, type KeyState } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
+import type { CurrentUser } from "@/lib/auth/session";
 import { relativeTime } from "@/lib/format";
 
-export function SettingsView({ keyState, account, liveCount }: { keyState: KeyState; account: AdeliAccount | null; liveCount: number }) {
+export function SettingsView({ keyState, account, user, liveCount }: { keyState: KeyState; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number }) {
   return (
     <div className="space-y-6 p-4 md:p-8">
       <PageHeading title="Settings" description="Your Adeli connection and Instagram account." />
       <div className="grid max-w-3xl gap-4">
         <AdeliKeyCard keyState={keyState} />
         <InstagramCard account={account} liveCount={liveCount} canConnect={keyState.configured} />
+        {user ? <SignedInCard user={user} /> : null}
       </div>
     </div>
   );
@@ -39,6 +41,7 @@ export function SettingsView({ keyState, account, liveCount }: { keyState: KeySt
 
 function AdeliKeyCard({ keyState: key }: { keyState: KeyState }) {
   const [testing, setTesting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function test() {
     setTesting(true);
@@ -70,25 +73,28 @@ function AdeliKeyCard({ keyState: key }: { keyState: KeyState }) {
               </dd>
               <dt className="text-muted-foreground">Key</dt>
               <dd className="font-mono text-[0.82rem]">{key.prefix}</dd>
+              <dt className="text-muted-foreground">Adeli URL</dt>
+              <dd className="font-mono text-[0.82rem]">{key.baseURL}</dd>
               <dt className="text-muted-foreground">Adeli profile</dt>
               <dd className="font-medium">{key.profileName ?? "Not checked yet"}</dd>
               <dt className="text-muted-foreground">Last checked</dt>
               <dd>{key.checkedAt ? relativeTime(key.checkedAt) : "Never"}</dd>
             </dl>
-            <p className="flex gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-              <ServerCog className="mt-px size-3.5 shrink-0" />
-              <span>Managed by your server environment (<code className="font-mono">ADELI_API_KEY</code>). To change it, update the variable and restart.</span>
-            </p>
+            {key.source === "env" ? (
+              <p className="flex gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                <ServerCog className="mt-px size-3.5 shrink-0" />
+                <span>Read from <code className="font-mono">ADELI_API_KEY</code> on the server. A key saved below takes its place.</span>
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => void test()} disabled={testing}>{testing ? <Loader2 className="animate-spin" /> : <RefreshCw />} Test connection</Button>
+              <Button variant="outline" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Change key or URL"}</Button>
               <a href="https://app.tryadeli.com/settings/api-keys" target="_blank" rel="noreferrer" className={buttonVariants({ variant: "link" })}>Manage keys in Adeli <ExternalLink /></a>
             </div>
+            {editing ? <AdeliConnectionForm hasKey={key.source === "settings"} baseURL={key.baseURL} onSaved={() => setEditing(false)} /> : null}
           </>
         ) : (
-          <div className="flex gap-2 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>{key.message} <Link href="/setup" className="font-semibold underline underline-offset-4">How to get a key</Link></span>
-          </div>
+          <AdeliConnectionForm hasKey={false} baseURL={key.baseURL} submitLabel="Connect to Adeli" />
         )}
       </CardContent>
 
@@ -153,6 +159,30 @@ function InstagramCard({ account, liveCount, canConnect }: { account: AdeliAccou
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </Card>
+  );
+}
+
+function SignedInCard({ user }: { user: CurrentUser }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><UserRound className="size-4 text-primary" /> Signed in</CardTitle>
+        <CardDescription>You signed in to Adeli Chat with Google.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-3">
+        <Avatar>
+          {user.image ? <AvatarImage src={user.image} alt="" /> : null}
+          <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{user.name}</p>
+          <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+        </div>
+        <form action={signOut} className="ml-auto">
+          <Button type="submit" variant="outline"><LogOut /> Sign out</Button>
+        </form>
+      </CardContent>
     </Card>
   );
 }

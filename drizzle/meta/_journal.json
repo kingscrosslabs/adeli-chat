@@ -15,6 +15,13 @@
       "when": 1793138199711,
       "tag": "0001_run_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794243613007,
+      "tag": "0002_auth_and_adeli_connection",
+      "breakpoints": true
     }
   ]
 }

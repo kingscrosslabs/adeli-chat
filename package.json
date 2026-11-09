@@ -8,16 +8,19 @@
   "scripts": {
     "dev": "next dev -p 3030",
     "build": "next build",
+    "vercel-build": "npm run db:migrate && next build",
     "start": "next start -p 3030",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
     "@adeli/sdk": "^0.1.1",
     "@base-ui/react": "^1.7.0",
     "@electric-sql/pglite": "^0.5.13",
+    "better-auth": "^1.7.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",

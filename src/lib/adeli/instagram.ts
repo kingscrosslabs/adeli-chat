@@ -5,6 +5,7 @@ import type { Account, ConnectionSession } from "@adeli/sdk";
 import type { MediaType } from "@/lib/automations/schemas";
 
 import { adeliCall } from "./client";
+import type { AdeliConfig } from "./key";
 import type { AdeliAccount, AdeliMedia, AdeliProfile, ConnectSession, ConnectSessionStatus } from "./types";
 
 const PAGE_SIZE = 9;
@@ -57,8 +58,8 @@ async function listPosts(accountId: string) {
   return result.data.posts;
 }
 
-export async function listProfiles(): Promise<AdeliProfile[]> {
-  const result = await adeliCall((client) => client.profiles.listProfiles());
+export async function listProfiles(candidate?: AdeliConfig): Promise<AdeliProfile[]> {
+  const result = await adeliCall((client) => client.profiles.listProfiles(), candidate);
   return result.data.profiles.map((profile) => ({ id: profile.id, name: profile.name }));
 }
 

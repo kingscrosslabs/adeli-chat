@@ -2,19 +2,13 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
+import { appUrl } from "@/lib/app-url";
 import { getAppSettings } from "@/lib/app-settings";
 import { adeliCall } from "@/lib/adeli/client";
 import { listProfiles } from "@/lib/adeli/instagram";
 import { db, schema } from "@/lib/db";
 
-const DEFAULT_APP_URL = "http://localhost:3030";
-
 export const WEBHOOK_EVENTS = ["comment.created", "message.postback"] as const;
-
-/** Where this install is reachable. Optional: defaults to the local dev server. */
-export function appUrl() {
-  return process.env.APP_URL?.trim() || DEFAULT_APP_URL;
-}
 
 export function webhookUrl() {
   return new URL("/api/webhooks/adeli", appUrl()).toString();

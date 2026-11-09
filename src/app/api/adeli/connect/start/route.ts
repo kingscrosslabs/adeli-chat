@@ -1,9 +1,12 @@
 import { adeliErrorResponse } from "@/lib/adeli/http";
+import { unauthorizedResponse } from "@/lib/auth/session";
 import { startConnect } from "@/lib/adeli/instagram";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const denied = await unauthorizedResponse();
+  if (denied) return denied;
   try {
     const body = await request.json() as { profileId?: unknown };
     if (typeof body.profileId !== "string" || !body.profileId) {

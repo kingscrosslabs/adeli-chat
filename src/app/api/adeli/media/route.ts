@@ -1,9 +1,12 @@
 import { adeliErrorResponse } from "@/lib/adeli/http";
+import { unauthorizedResponse } from "@/lib/auth/session";
 import { listMedia } from "@/lib/adeli/instagram";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const denied = await unauthorizedResponse();
+  if (denied) return denied;
   const query = new URL(request.url).searchParams;
   const accountId = query.get("accountId");
   const page = Number(query.get("page") ?? "0");

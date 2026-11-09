@@ -15,7 +15,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | # | Question | Decision |
 |---|---|---|
 | D1 | Stack | Next.js (App Router) + TypeScript + Drizzle ORM. Postgres if `DATABASE_URL` is set, otherwise PGlite (in-process Postgres in `./.data`). Migrations apply on start. No job queue: webhook events are handled in `after()` and failures are recorded, not retried. (Updated 2026-10-29.) |
-| D2 | Who logs in | Nobody. No login: Adeli Chat is a demo of the Adeli API meant to run locally. The README warns not to deploy it publicly without adding auth. (Changed 2026-10-29.) |
+| D2 | Who logs in | The install's owner, with Google (Better Auth). Login is required when deployed and off locally without Google env vars. `ALLOWED_EMAILS` lists who may sign in; without it the first Google account owns the install. (Changed 2026-11-09, for Vercel deploys.) |
 | D3 | Repeat commenters | A person gets the DM flow **once per automation**. Later comments from them are ignored by that automation. |
 | D4 | Editing a Live automation | **Save applies immediately** (after validation passes). |
 | D5 | Any comment | Yes. Trigger can be **Specific keywords** or **Any comment**. |
@@ -23,7 +23,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
 | D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
 | D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
-| D10 | Adeli API key | **Bring your own key, env only** (updated 2026-10-27). Each install uses its owner's organization-level Adeli key, set as `ADELI_API_KEY`. There is no paste-a-key form and no key in the database: `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Setup checks the key live and records its status and default profile in `app_settings`. Our KCL key never ships in the repo. |
+| D10 | Adeli API key | **Bring your own key, entered in the app** (updated 2026-11-09). Each install uses its owner's organization-level Adeli key, pasted on Setup or in Settings with an optional Adeli URL. It's checked against Adeli, then stored encrypted (AES-256-GCM, keyed from `BETTER_AUTH_SECRET`) in `app_settings`. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are local fallbacks. `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Our KCL key never ships in the repo. |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-10-27): Adeli's Facebook Login connections lack the comments permission and subscription. Two paths on `/connect`: (1) **pick an account already connected in any profile available to the Adeli organization key** (default, no OAuth on our side), or (2) **connect a new one** to the selected profile through Adeli's connect session with `authMethod: "instagram_login"`. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
 | D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
 
@@ -118,7 +118,7 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
 ## 5. Functional requirements
 
 ### 5.0b Setup: Adeli API key
-- **FR-S.1** The key comes only from the `ADELI_API_KEY` env var. Without it, every app page except `/setup` and `/settings` redirects to `/setup`.
+- **FR-S.1** The key is entered in the app (falling back to `ADELI_API_KEY`). Without one, `/connect` and the automations pages lead to `/setup`, and the other app pages show the key banner.
 - **FR-S.2** `/setup` layout: Adeli Chat wordmark, the 3-step checklist, then a card titled **"Connect your Adeli account"** with:
   - One line of why: "Adeli Chat sends comments and DMs through Adeli, so it needs an API key from your Adeli account. It's free to create one."
   - Numbered instructions, each with a deep link that opens in a new tab:
@@ -126,16 +126,16 @@ Onboarding is a three-step checklist shown on `/setup` and `/connect`: **1. Adel
     2. **(Optional) Connect Instagram in Adeli.** Open **Connections** and connect your Instagram Business or Creator account. You can also do this from Adeli Chat in the next step.
     3. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**.
     4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
-  - Where to put it: `ADELI_API_KEY` in `.env.local`, then restart. There is no paste field.
-- **FR-S.3** Validation: Setup calls `GET /api/v1/profiles` (`client.profiles.listProfiles()`) with `ADELI_API_KEY`.
+  - A paste field for the key, and a collapsed "Use a different Adeli URL" field.
+- **FR-S.3** Validation: saving calls `GET /api/v1/profiles` (`client.profiles.listProfiles()`) with the new key and URL, and stores them only if Adeli accepts them.
   - `200`: record the key as `valid` with the first returned profile as the default connect target, show "Connected to Adeli" with the profile name, and continue to `/connect`.
-  - `401`: record the key as `invalid` and show "Adeli didn't accept the key in ADELI_API_KEY."
+  - `401`: don't save it, and show "Adeli didn't accept this API key."
   - Network error or `5xx`: "We couldn't reach Adeli. Try again in a minute." The last recorded status stays.
-  - Missing variable: show the exact configuration error, naming `ADELI_API_KEY`. There is no demo fallback.
-- **FR-S.4** Storage: the key lives only in the server environment. `app_settings` keeps its status, last check time, and default profile id and name. The key is never returned to the browser, logged, or put in a URL; Adeli Chat shows only its first 12 characters (e.g. `rk_live_Ab3d…`).
-- **FR-S.5** `/setup` and Settings always say "Managed by your server environment (`ADELI_API_KEY`)" with the masked prefix and default profile name. To change the key, update the variable and restart.
-- **FR-S.6** Settings > Adeli: status, masked prefix, profile name, "Last checked" time, and **Test connection**, which calls `listProfiles` for real. There are no Replace or Remove controls.
-- **FR-S.7** Key revoked later (any Adeli call returns `401`): mark the key `invalid` and show a global banner: "Adeli stopped accepting the key in ADELI_API_KEY. Set a new one and restart to resume your automations." linking to Settings.
+  - No key yet: show the paste form. There is no demo fallback.
+- **FR-S.4** Storage: the key is stored encrypted in `app_settings`, next to the Adeli URL. `app_settings` keeps its status, last check time, and default profile id and name. The key is never returned to the browser, logged, or put in a URL; Adeli Chat shows only its first 12 characters (e.g. `rk_live_Ab3d…`).
+- **FR-S.5** `/setup` and Settings show the masked prefix and default profile name. When the key comes from `ADELI_API_KEY`, Settings says so.
+- **FR-S.6** Settings > Adeli: status, masked prefix, Adeli URL, profile name, "Last checked" time, **Test connection** (calls `listProfiles` for real), and **Change key or URL**. A new key that reaches a different organization forgets the stored profile and webhook, so a new webhook is registered.
+- **FR-S.7** Key revoked later (any Adeli call returns `401`): mark the key `invalid` and show a global banner: "Adeli stopped accepting your API key. Enter a new one in Settings to resume your automations." linking to Settings.
 - **FR-S.8** Access mismatch guard: choosing an account on `/connect` checks the current key can still reach it. Switching to another account pauses the old account's Live automations.
 - **FR-S.9** No mock mode. Contributors run against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Unit tests inject a fake `fetch` instead.
 
@@ -329,7 +329,7 @@ Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adel
 - **Adeli client:** `@adeli/sdk`, used only in `src/lib/adeli/`. Nothing else talks to Adeli directly. `client.ts` builds the client from `getAdeliConfig()` (`src/lib/adeli/key.ts`, env only), maps SDK errors (`AuthenticationError`, `NetworkError`, `TimeoutError`, `ConfigurationError`, other `AdeliApiError` codes) to typed errors, and marks the key `invalid` on any `401` (FR-S.7). Server-only (`import "server-only"`).
 - **Channel adapter:** `src/lib/channels/types.ts` defines `listMedia`, `replyToComment`, `sendPrivateReply`, `sendMessage`, `parseWebhook`. `instagram.ts` implements it via the Adeli client. Facebook and TikTok add files here later.
 - **No mock mode:** the app runs against a real Adeli, locally a dev server ([`docs/local-development.md`](local-development.md)). Tests inject a fake `fetch`.
-- **Deploy target (v1):** your own machine, next to a local or hosted Adeli. There's no login, so don't expose it publicly.
+- **Deploy target (v1):** Vercel with Neon Postgres, or your own machine next to a local or hosted Adeli. The Adeli key and URL are entered in the app, not the environment.
 
 ### Proposed folder structure
 ```
@@ -363,20 +363,24 @@ drizzle/                    migrations
 
 ### Environment variables
 ```
-ADELI_API_KEY=          # required
-DATABASE_URL=           # optional. Empty means PGlite in ./.data
-ADELI_API_BASE_URL=     # optional. Defaults to https://app.tryadeli.com; http://localhost:3000 for a local Adeli
-APP_URL=                # optional, not in .env.example. Defaults to http://localhost:3030; set it if Adeli must reach this install elsewhere
+DATABASE_URL=           # required on Vercel. Empty locally means PGlite in ./.data
+BETTER_AUTH_SECRET=     # required when deployed. Signs sessions and encrypts the saved Adeli key
+GOOGLE_CLIENT_ID=       # required when deployed. Locally, leave empty for no login
+GOOGLE_CLIENT_SECRET=   # required when deployed
+ALLOWED_EMAILS=         # optional. Empty means the first Google account to sign in owns the install
+APP_URL=                # optional. Defaults to the Vercel production domain, else http://localhost:3030
+ADELI_API_KEY=          # optional fallback; the key is normally entered in the app
+ADELI_API_BASE_URL=     # optional fallback. Defaults to https://app.tryadeli.com
 ```
 
-**Our own key (KCL):** for our hosted instance and local dev, put the KCL key in `.env.local` / the host's secret store as `ADELI_API_KEY`. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
+**Our own key (KCL):** for our hosted instance, paste it in Settings. For local dev, `.env.local` as `ADELI_API_KEY` works too. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
 
 ---
 
 ## 8. Non-functional requirements
 - **Speed:** comment to Opening DM in under 10s at p95 (excluding Meta delays).
 - **Reliability:** never two DM flows for the same person on the same automation. Webhook handler answers within 1s.
-- **Security:** webhook signature check, only store what's needed (IG user id, username, comment text). The Adeli key lives only in the env, is server-only, never sent to the browser, never logged (redact `rk_live_*`). No login, so the README says to run it locally.
+- **Security:** webhook signature check, only store what's needed (IG user id, username, comment text). The Adeli key is stored encrypted, is server-only, never sent to the browser, never logged (redact `rk_live_*`). Deployed installs require Google sign-in; every page, Server Action and `/api/adeli/*` route checks the session.
 - **Accessibility:** keyboard-friendly editor, labelled inputs, WCAG AA contrast.
 - **Responsive:** usable down to 375px wide.
 - **Compliance:** README reminds users to follow Meta Platform Terms and Instagram messaging policies.

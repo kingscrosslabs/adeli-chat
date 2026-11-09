@@ -1,24 +1,21 @@
+import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getAdeliConfig } from "@/lib/adeli/key";
+import { authEnabled } from "@/lib/auth/config";
 
 /**
- * Optimistic onboarding redirect (PRD FR-S.1): pages need a configured Adeli
- * key. The Instagram account check needs the database, so the automations
- * pages do it themselves (`requireAccount`).
+ * Optimistic sign-in redirect: pages need a session cookie when login is on.
+ * The cookie is only a hint; pages, Server Actions and API routes check the
+ * session for real (`src/lib/auth/session.ts`). The Adeli key check needs the
+ * database, so `(app)/layout.tsx` sends you to `/setup` instead.
  */
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (pathname === "/setup" || pathname.startsWith("/settings")) return NextResponse.next();
-  try {
-    getAdeliConfig();
-  } catch {
-    return NextResponse.redirect(new URL("/setup", request.url));
-  }
+  if (request.nextUrl.pathname === "/sign-in" || !authEnabled()) return NextResponse.next();
+  if (!getSessionCookie(request)) return NextResponse.redirect(new URL("/sign-in", request.url));
   return NextResponse.next();
 }
 
 export const config = {
-  // Pages only: API routes answer errors themselves, and static files need no key.
+  // Pages only: API routes answer errors themselves, and static files need no session.
   matcher: ["/((?!api/|_next/|brand/|icon.png|apple-icon.png|favicon.ico).*)"],
 };

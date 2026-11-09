@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 
 import type { CommentReply, FinalDm, OpeningDm, Trigger } from "@/lib/automations/schemas";
 
@@ -12,9 +12,14 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 };
 
-/** Single row, `id = 1`. The API key itself lives only in `ADELI_API_KEY`. */
+/**
+ * Single row, `id = 1`. The Adeli key entered in Settings is stored encrypted
+ * (`src/lib/secret-box.ts`); `ADELI_API_KEY` is the fallback when it's empty.
+ */
 export const appSettings = pgTable("app_settings", {
   id: integer("id").primaryKey().default(1),
+  adeliApiKeyEncrypted: text("adeli_api_key_encrypted"),
+  adeliBaseUrl: text("adeli_base_url"),
   adeliKeyStatus: text("adeli_key_status", { enum: ["valid", "invalid", "unchecked"] }).notNull().default("unchecked"),
   adeliKeyCheckedAt: timestamp("adeli_key_checked_at", { withTimezone: true }),
   adeliProfileId: text("adeli_profile_id"),
@@ -70,3 +75,49 @@ export const runs = pgTable("runs", {
   tappedAt: timestamp("tapped_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [unique("runs_automation_user").on(table.automationId, table.igUserId)]);
+
+/**
+ * Better Auth tables (Google sign-in). Prefixed so `auth_account` doesn't
+ * clash with the Instagram `accounts` table. See `src/lib/auth/server.ts`.
+ */
+export const authUser = pgTable("auth_user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  ...timestamps,
+});
+
+export const authSession = pgTable("auth_session", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  ...timestamps,
+});
+
+export const authAccount = pgTable("auth_account", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
+  password: text("password"),
+  ...timestamps,
+});
+
+export const authVerification = pgTable("auth_verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ...timestamps,
+});

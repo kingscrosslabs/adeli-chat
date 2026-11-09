@@ -1,6 +1,10 @@
-/** Runs once when the server starts (Next.js instrumentation). */
+/**
+ * Runs once when the server starts (Next.js instrumentation). On Vercel every
+ * cold start is a "start", so it does nothing there: the build applies
+ * migrations, and saving or testing the Adeli key registers the webhook.
+ */
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build") return;
+  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NEXT_PHASE === "phase-production-build" || process.env.VERCEL) return;
   const { migrateDatabase } = await import("@/lib/db");
   await migrateDatabase();
   const { ensureAdeliWebhook } = await import("@/lib/runtime/webhook-registration");

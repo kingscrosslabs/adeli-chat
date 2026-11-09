@@ -4,13 +4,14 @@ import { Adeli, AdeliApiError, AuthenticationError, ConfigurationError, NetworkE
 
 import { markKeyStatus } from "@/lib/app-settings";
 
-import { getAdeliConfig } from "./key";
+import { getAdeliConfig, type AdeliConfig } from "./key";
 import { AdeliError } from "./types";
 
 /** A client for this install's key. Throws `not_configured` without one. */
-export function adeli(): Adeli {
+export async function adeli(): Promise<Adeli> {
   try {
-    return new Adeli(getAdeliConfig());
+    const { baseURL, apiKey } = await getAdeliConfig();
+    return new Adeli({ baseURL, apiKey });
   } catch (error) {
     throw toAdeliError(error);
   }
@@ -19,13 +20,17 @@ export function adeli(): Adeli {
 /**
  * Runs one Adeli call and maps SDK errors to Adeli Chat's `AdeliError`. A
  * rejected key also marks the key invalid, which shows the key banner.
+ *
+ * `candidate` tries a key before Settings saves it. It never touches the
+ * stored key status.
  */
-export async function adeliCall<T>(fn: (client: Adeli) => Promise<T>): Promise<T> {
+export async function adeliCall<T>(fn: (client: Adeli) => Promise<T>, candidate?: AdeliConfig): Promise<T> {
   try {
-    return await fn(adeli());
+    const client = candidate ? new Adeli(candidate) : await adeli();
+    return await fn(client);
   } catch (error) {
     const mapped = toAdeliError(error);
-    if (mapped.code === "unauthorized") await markKeyStatus("invalid").catch(() => undefined);
+    if (mapped.code === "unauthorized" && !candidate) await markKeyStatus("invalid").catch(() => undefined);
     throw mapped;
   }
 }
@@ -33,7 +38,7 @@ export async function adeliCall<T>(fn: (client: Adeli) => Promise<T>): Promise<T
 export function toAdeliError(error: unknown): AdeliError {
   if (error instanceof AdeliError) return error;
   if (error instanceof AuthenticationError) {
-    return new AdeliError("unauthorized", "Adeli didn't accept the key in ADELI_API_KEY. Create a new one in Adeli and restart.", 401);
+    return new AdeliError("unauthorized", "Adeli didn't accept this API key. Create a new one in Adeli and enter it in Settings.", 401);
   }
   if (error instanceof NetworkError || error instanceof TimeoutError) {
     return new AdeliError("network", "We couldn't reach Adeli. Try again in a minute.", 502);

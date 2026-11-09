@@ -51,7 +51,7 @@ Edit `.env.local`:
 
 | Variable | Required | Value |
 | --- | --- | --- |
-| `ADELI_API_KEY` | Yes | The key you created in step 3. |
+| `ADELI_API_KEY` | No | The key you created in step 3. You can paste it on the Setup page instead. |
 | `ADELI_API_BASE_URL` | No | `http://localhost:3000` for a local Adeli. Leave it empty to use the hosted Adeli. A trailing `/api/v1` is fine. |
 | `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `./.data`. |
 
@@ -61,9 +61,9 @@ Then start it:
 npm run dev
 ```
 
-Open http://localhost:3030. There's no login: Adeli Chat is a demo of the Adeli API, so run it on your own machine. If `ADELI_API_KEY` is missing, Setup tells you how to add it. Nothing is mocked: every screen reads from Adeli and the database.
+Open http://localhost:3030. Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` there's no login locally. Set them (plus `BETTER_AUTH_SECRET`, and `http://localhost:3030/api/auth/callback/google` as a redirect URI in the Google OAuth client) to try sign-in. If there's no key yet, Setup asks you to paste one; a key in `ADELI_API_KEY` works too. Nothing is mocked: every screen reads from Adeli and the database.
 
-On start, Adeli Chat applies any pending database migrations. It then registers one Adeli webhook for `http://localhost:3030/api/webhooks/adeli`, with the `comment.created` and `message.postback` events, and does it again whenever Setup confirms the key. It stores the webhook's id and signing secret in `app_settings`, and reuses it on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel. If Adeli Chat runs somewhere else, set `APP_URL` to its address.
+On start, Adeli Chat applies any pending database migrations. It then registers one Adeli webhook for `http://localhost:3030/api/webhooks/adeli`, with the `comment.created` and `message.postback` events, and does it again whenever Setup confirms the key or you save a key in Settings. On Vercel there's no "start", so only Setup and Settings register it, and the `vercel-build` script applies migrations. It stores the webhook's id and signing secret in `app_settings`, and reuses it on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel. If Adeli Chat runs somewhere else, set `APP_URL` to its address.
 
 ### Tests
 
