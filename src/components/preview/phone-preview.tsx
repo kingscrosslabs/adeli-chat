@@ -21,11 +21,26 @@ const TABS: Array<{ id: PreviewTab; label: string }> = [
   { id: "dm", label: "DM" },
 ];
 
-export function PhonePreview({ content, account, tab, onTabChange }: { content: AutomationContent; account: AdeliAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void }) {
+/** A story reply has no comments: the Post tab shows the story they reply to. */
+const STORY_TABS: Array<{ id: PreviewTab; label: string }> = [
+  { id: "post", label: "Story" },
+  { id: "dm", label: "DM" },
+];
+
+/** What the sample person writes, as a comment or a story reply. */
+function sampleText(content: AutomationContent) {
+  if (content.trigger.match === "any") return content.type === "story_reply" ? "Obsessed with this 🔥" : "Love this!";
+  return `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
+}
+
+export function PhonePreview({ content, account, tab: requested, onTabChange }: { content: AutomationContent; account: AdeliAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void }) {
+  const story = content.type === "story_reply";
+  const tabs = story ? STORY_TABS : TABS;
+  const tab = tabs.some((item) => item.id === requested) ? requested : "post";
   return (
     <div className="flex flex-col items-center gap-4">
       <div role="tablist" aria-label="Preview" className="inline-flex rounded-lg bg-muted p-1">
-        {TABS.map((item) => (
+        {tabs.map((item) => (
           <button
             key={item.id}
             role="tab"
@@ -41,8 +56,8 @@ export function PhonePreview({ content, account, tab, onTabChange }: { content: 
       <div className="phone-preview w-[300px] shrink-0 rounded-[2.75rem] bg-[var(--pv-frame)] p-2.5 shadow-xl">
         <div className="relative flex h-[600px] flex-col overflow-hidden rounded-[2.2rem] bg-[var(--pv-bg)] text-[var(--pv-text)]">
           <StatusBar />
-          <div role="tabpanel" aria-label={`${TABS.find((item) => item.id === tab)?.label} preview`} className="flex min-h-0 flex-1 flex-col">
-            {tab === "post" ? <PostView content={content} account={account} /> : null}
+          <div role="tabpanel" aria-label={`${tabs.find((item) => item.id === tab)?.label} preview`} className="flex min-h-0 flex-1 flex-col">
+            {tab === "post" ? story ? <StoryView content={content} account={account} /> : <PostView content={content} account={account} /> : null}
             {tab === "comments" ? <CommentsView content={content} account={account} /> : null}
             {tab === "dm" ? <DmView content={content} account={account} /> : null}
           </div>
@@ -125,8 +140,31 @@ function PostView({ content, account }: { content: AutomationContent; account: A
   );
 }
 
+function StoryView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+  return (
+    <div className="relative mx-1.5 mb-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-[#52525B] to-[#18181B] text-white">
+      <div className="flex gap-1 px-3 pt-2.5" aria-hidden>
+        <span className="h-0.5 flex-1 rounded-full bg-white" /><span className="h-0.5 flex-1 rounded-full bg-white/40" />
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2 text-[0.75rem]">
+        <MiniAvatar account={account} size="size-6" />
+        <span className="truncate font-semibold"><Handle account={account} /></span>
+        <span className="text-white/70">2h</span>
+        <MoreHorizontal className="ml-auto size-4" />
+      </div>
+      <div className="grid flex-1 place-items-center px-8 text-center text-xs text-white/80">
+        <span className="flex flex-col items-center gap-2"><ImageOff className="size-6" /> Any of your stories</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 pb-3 text-[0.75rem]">
+        <span className="flex-1 truncate rounded-full border border-white/70 px-3 py-2">{sampleText(content)}</span>
+        <Heart className="size-5 shrink-0" /><Send className="size-5 shrink-0" />
+      </div>
+    </div>
+  );
+}
+
 function CommentsView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
-  const comment = content.trigger.match === "any" ? "Love this!" : `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
+  const comment = sampleText(content);
   const reply = content.commentReply.enabled ? content.commentReply.variants.find((variant) => variant.trim()) : null;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -197,7 +235,14 @@ function DmView({ content, account }: { content: AutomationContent; account: Ade
         </div>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 text-[0.75rem]">
-        <p className="pb-1 text-center text-[0.62rem] text-[var(--pv-subtle)]">Replied to your comment</p>
+        {content.type === "story_reply" ? (
+          <>
+            <p className="pb-1 text-center text-[0.62rem] text-[var(--pv-subtle)]">You replied to their story</p>
+            <OutgoingBubble text={sampleText(content)} />
+          </>
+        ) : (
+          <p className="pb-1 text-center text-[0.62rem] text-[var(--pv-subtle)]">Replied to your comment</p>
+        )}
         <IncomingBubble account={account} text={content.openingDm.text || "Your opening message"} button={content.openingDm.buttonLabel || "Button"} />
         <OutgoingBubble text={content.openingDm.buttonLabel || "Button"} />
         {email.enabled ? (

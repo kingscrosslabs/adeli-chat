@@ -31,8 +31,8 @@ import type { PreviewTab } from "./fields";
 import { EmailSection, FinalDmSection, FollowSection, OpeningDmSection, PostSection, ReplySection, TriggerSection } from "./sections";
 
 function contentOf(automation: Automation): AutomationContent {
-  const { name, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
-  return structuredClone({ name, trigger, commentReply, openingDm, emailCapture, finalDm });
+  const { type, name, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
+  return structuredClone({ type, name, trigger, commentReply, openingDm, emailCapture, finalDm });
 }
 
 /** JSON with object keys sorted. Postgres jsonb reorders keys, so plain JSON.stringify would see a saved draft as changed. */
@@ -40,6 +40,11 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value, (_key, item: unknown) => item && typeof item === "object" && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
     : item);
+}
+
+function liveMessage(draft: AutomationContent) {
+  if (draft.type === "story_reply") return "New replies to your stories will get a DM.";
+  return draft.trigger.postScope === "next" ? "It starts on the next post or reel you publish." : "New comments will get a reply and a DM.";
 }
 
 function scrollToField(errors: FieldErrors) {
@@ -139,7 +144,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
     setBusy(null);
     if (rejected(result)) return;
     setValidating(false);
-    toast.success("You're live!", { description: draft.trigger.postScope === "next" ? "It starts on the next post or reel you publish." : "New comments will get a reply and a DM." });
+    toast.success("You're live!", { description: liveMessage(draft) });
   }
 
   async function pause() {
@@ -278,7 +283,7 @@ function StatsRow({ automation }: { automation: Automation }) {
   const { stats } = automation;
   const items = [
     { label: "Triggered", value: stats.triggered },
-    { label: "Comment replies", value: stats.commentReplies },
+    ...(automation.type === "story_reply" ? [] : [{ label: "Comment replies", value: stats.commentReplies }]),
     { label: "Opening DMs", value: stats.openingDms },
     { label: "Button taps", value: stats.buttonTaps },
     ...(emailCaptureOf(automation).enabled || stats.emails ? [{ label: "Emails", value: stats.emails }] : []),

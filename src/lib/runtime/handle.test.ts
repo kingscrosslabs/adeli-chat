@@ -2,6 +2,7 @@ import type { CommentCreatedEvent, MessageCreatedEvent, MessagePostbackEvent } f
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defaultAutomationContent } from "@/lib/automations/defaults";
 import { statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
@@ -40,7 +41,7 @@ function postbackEvent(payload: string): MessagePostbackEvent {
   };
 }
 
-function messageEvent(text: string | null, senderId = "ig_fan"): MessageCreatedEvent {
+function messageEvent(text: string | null, senderId = "ig_fan", story: MessageCreatedEvent["data"]["story"] = null): MessageCreatedEvent {
   eventCount += 1;
   return {
     id: `evt_${eventCount}`,
@@ -50,7 +51,7 @@ function messageEvent(text: string | null, senderId = "ig_fan"): MessageCreatedE
     createdAt: new Date().toISOString(),
     profileId: "profile_1",
     accountId: "acc_1",
-    data: { messageId: `mid_${eventCount}`, conversationKey: `instagram:${senderId}`, from: { id: senderId, username: null }, text, attachments: [], replyTo: null, isEcho: false },
+    data: { messageId: `mid_${eventCount}`, conversationKey: `instagram:${senderId}`, from: { id: senderId, username: null }, text, attachments: [], replyTo: null, story, isEcho: false },
   };
 }
 
@@ -199,6 +200,82 @@ describe("message.postback", () => {
     const adeli = fakeAdeli();
     await handleEvent(USER, postbackEvent("not-a-run"));
     expect(adeli.sent).toHaveLength(0);
+  });
+});
+
+describe("story replies", () => {
+  const STORY = { type: "reply" as const, id: "story_1", url: null };
+  let storyAutomationId: string;
+
+  beforeEach(async () => {
+    const [account] = await db().select().from(schema.accounts);
+    const { type, trigger, commentReply } = defaultAutomationContent(1, "story_reply");
+    storyAutomationId = (await seedLiveAutomation(account.id, { type, name: "Story guide", trigger: { ...trigger, keywords: ["guide"] }, commentReply })).id;
+  });
+
+  it("sends the opening DM straight to whoever replied, with no public reply", async () => {
+    const adeli = fakeAdeli();
+    const event = messageEvent("GUIDE please", "ig_fan", STORY);
+    await handleEvent(USER, event);
+    const run = await onlyRun();
+
+    expect(adeli.comments()).toHaveLength(0);
+    expect(adeli.messages()).toHaveLength(1);
+    expect(adeli.messages()[0].body).toEqual({
+      accountId: "acc_1",
+      recipient: { id: "ig_fan" },
+      text: "Hey there! Click below and I'll send you the link in a second.",
+      buttons: [{ type: "postback", title: "Yes please", payload: run.id }],
+    });
+    expect(run).toMatchObject({ automationId: storyAutomationId, igUserId: "ig_fan", igSenderId: "ig_fan", commentId: event.data.messageId, commentText: "GUIDE please", state: "opening_sent", commentReplyState: "skipped" });
+  });
+
+  it("finishes the flow on a tap, like a comment run", async () => {
+    fakeAdeli();
+    await handleEvent(USER, messageEvent("guide", "ig_fan", STORY));
+    const run = await onlyRun();
+    const adeli = fakeAdeli();
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.messages()[0].body).toMatchObject({ recipient: { id: "ig_fan" }, text: "Here it is!" });
+    expect((await onlyRun()).state).toBe("final_sent");
+  });
+
+  it("sends the flow once per person and once per redelivery", async () => {
+    const adeli = fakeAdeli();
+    const event = messageEvent("guide", "ig_fan", STORY);
+    await handleEvent(USER, event);
+    await handleEvent(USER, event);
+    await handleEvent(USER, messageEvent("guide again", "ig_fan", STORY));
+    await onlyRun();
+    expect(adeli.messages()).toHaveLength(1);
+  });
+
+  it("ignores plain DMs, story mentions, replies without the keyword, and our own replies", async () => {
+    const adeli = fakeAdeli();
+    await handleEvent(USER, messageEvent("guide"));
+    await handleEvent(USER, messageEvent("guide", "ig_fan", { type: "mention", id: null, url: null }));
+    await handleEvent(USER, messageEvent("so pretty", "ig_fan", STORY));
+    await handleEvent(USER, messageEvent(null, "ig_fan", STORY));
+    await handleEvent(USER, messageEvent("guide", "ig_self", STORY));
+    expect(await db().select().from(schema.runs)).toHaveLength(0);
+    expect(adeli.sent).toHaveLength(0);
+  });
+
+  it("matches any reply, even one with no text, when set to Any reply", async () => {
+    const [row] = await db().select().from(schema.automations).where(eq(schema.automations.id, storyAutomationId));
+    await db().update(schema.automations).set({ trigger: { ...row.trigger, match: "any" } }).where(eq(schema.automations.id, storyAutomationId));
+    const adeli = fakeAdeli();
+    await handleEvent(USER, messageEvent(null, "ig_fan", STORY));
+    await onlyRun();
+    expect(adeli.messages()).toHaveLength(1);
+  });
+
+  it("doesn't fire Comment to DM automations, or story automations on comments", async () => {
+    const adeli = fakeAdeli();
+    await handleEvent(USER, commentEvent({ commentId: "c1" }));
+    const run = await onlyRun();
+    expect(run.automationId).toBe(automationId);
+    expect(adeli.messages()[0].body).toMatchObject({ recipient: { commentId: "c1" } });
   });
 });
 

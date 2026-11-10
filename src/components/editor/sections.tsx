@@ -25,6 +25,11 @@ export type SectionProps = {
   onFocusTab: (tab: PreviewTab) => void;
 };
 
+/** A Story Reply has no public reply section, so every later step moves up one. */
+function stepOf(draft: AutomationContent, step: number) {
+  return draft.type === "story_reply" && step > 3 ? step - 1 : step;
+}
+
 const soon = <Badge variant="outline" className="font-medium text-muted-foreground">Coming soon</Badge>;
 
 const SCOPES: Array<{ id: PostScope; title: string; description: string }> = [
@@ -36,6 +41,16 @@ const SCOPES: Array<{ id: PostScope; title: string; description: string }> = [
 /** B. When someone (FR-5.2 to FR-5.6). */
 export function PostSection({ draft, patch, errors, onFocusTab, accountId }: SectionProps & { accountId: string }) {
   const errorId = useId();
+  if (draft.type === "story_reply") {
+    return (
+      <Section step={1} title="When someone" info="Replies to any of your stories start this automation, while the story is up. Each person gets the flow once." tab="post" onFocusTab={onFocusTab}>
+        <div className="grid gap-2">
+          <ChoiceRow name="story-scope" checked onSelect={() => {}} title="Replies to any of your stories" info="Every story you post. Replies are DMs, so there's no public reply." />
+          <ChoiceRow name="story-scope" checked={false} disabled title="Replies to a specific story" badge={soon} />
+        </div>
+      </Section>
+    );
+  }
   const scope = draft.trigger.postScope;
   const setScope = (postScope: PostScope) => patch((current) => ({
     ...current,
@@ -70,17 +85,18 @@ export function TriggerSection({ draft, patch, errors, onFocusTab }: SectionProp
   const errorId = useId();
   const match = draft.trigger.match;
   const setMatch = (value: "keywords" | "any") => patch((current) => ({ ...current, trigger: { ...current.trigger, match: value } }));
+  const noun = draft.type === "story_reply" ? "reply" : "comment";
   return (
     <Section
       step={2}
-      title="And this comment has"
-      info={<>A specific keyword: only comments containing one of your words, not case-sensitive. Press Enter or comma to add each one.<br /><br />Any comment: everyone who comments gets your DM. Either way, each person gets it once.</>}
-      tab="comments"
+      title={`And this ${noun} has`}
+      info={<>A specific keyword: only {noun === "reply" ? "replies" : "comments"} containing one of your words, not case-sensitive. Press Enter or comma to add each one.<br /><br />Any {noun}: everyone who {noun === "reply" ? "replies" : "comments"} gets your DM. Either way, each person gets it once.</>}
+      tab={noun === "reply" ? "post" : "comments"}
       onFocusTab={onFocusTab}
     >
       <div className="grid gap-2 sm:grid-cols-2">
         <ChoiceRow name="match" checked={match === "keywords"} onSelect={() => setMatch("keywords")} title="A specific keyword" />
-        <ChoiceRow name="match" checked={match === "any"} onSelect={() => setMatch("any")} title="Any comment" />
+        <ChoiceRow name="match" checked={match === "any"} onSelect={() => setMatch("any")} title={`Any ${noun}`} />
       </div>
       {match === "keywords" ? (
         <div className="space-y-1.5" data-field="trigger.keywords">
@@ -105,6 +121,7 @@ export function TriggerSection({ draft, patch, errors, onFocusTab }: SectionProp
 export function ReplySection({ draft, patch, errors, onFocusTab }: SectionProps) {
   const switchId = useId();
   const errorId = useId();
+  if (draft.type === "story_reply") return null;
   const { enabled, variants } = draft.commentReply;
   const setVariants = (next: string[]) => patch((current) => ({ ...current, commentReply: { ...current.commentReply, variants: next } }));
   return (
@@ -160,7 +177,7 @@ export function ReplySection({ draft, patch, errors, onFocusTab }: SectionProps)
 export function OpeningDmSection({ draft, patch, errors, onFocusTab }: SectionProps) {
   return (
     <Section
-      step={4}
+      step={stepOf(draft, 4)}
       title="Opening DM"
       info="The first message they get, and it needs a button. Instagram only lets you send one message until the person taps. The button opens the conversation so we can send your link."
       tab="dm"
@@ -173,11 +190,11 @@ export function OpeningDmSection({ draft, patch, errors, onFocusTab }: SectionPr
 }
 
 /** Follow gate. Needs a follow check in the Adeli API first, so it can't be turned on yet. */
-export function FollowSection({ onFocusTab }: SectionProps) {
+export function FollowSection({ draft, onFocusTab }: SectionProps) {
   const switchId = useId();
   return (
     <Section
-      step={5}
+      step={stepOf(draft, 5)}
       title="Ask them to follow you"
       info="Before sending the link, ask them to follow your account and check that they did."
       tab="dm"
@@ -201,7 +218,7 @@ export function EmailSection({ draft, patch, errors, onFocusTab }: SectionProps)
   const setEmail = (next: Partial<typeof email>) => patch((current) => ({ ...current, emailCapture: { ...emailCaptureOf(current), ...next } }));
   return (
     <Section
-      step={6}
+      step={stepOf(draft, 6)}
       title="Ask for their email"
       info="After they tap, we ask for their email. Your link goes out once they reply with one, and it's saved to your leads. Export them from the menu at the top."
       tab="dm"
@@ -240,7 +257,7 @@ export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProp
     finalDm: { ...current.finalDm, buttons: [{ ...button, ...next }, ...current.finalDm.buttons.slice(1)] },
   }));
   return (
-    <Section step={7} title="Final DM" info="Sent when they tap the button, or once they send their email. This is where your link goes." tab="dm" onFocusTab={onFocusTab}>
+    <Section step={stepOf(draft, 7)} title="Final DM" info="Sent when they tap the button, or once they send their email. This is where your link goes." tab="dm" onFocusTab={onFocusTab}>
       <div className="space-y-1.5">
         <Label>DM type</Label>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="DM type">

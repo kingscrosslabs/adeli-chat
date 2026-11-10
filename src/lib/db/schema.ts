@@ -317,7 +317,7 @@ export const automations = pgTable("automations", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   accountId: text("account_id").notNull().references(() => accounts.id),
   name: text("name").notNull(),
-  type: text("type", { enum: ["comment_to_dm"] }).notNull().default("comment_to_dm"),
+  type: text("type", { enum: ["comment_to_dm", "story_reply"] }).notNull().default("comment_to_dm"),
   status: text("status", { enum: ["draft", "live", "paused"] }).notNull().default("draft"),
   trigger: jsonb("trigger").$type<Trigger>().notNull(),
   commentReply: jsonb("comment_reply").$type<CommentReply>().notNull(),
@@ -329,7 +329,9 @@ export const automations = pgTable("automations", {
 });
 
 /**
- * One Comment to DM conversation. `ig_user_id` is Adeli's `Comment.authorId`.
+ * One automation conversation. `ig_user_id` is Adeli's `Comment.authorId`, or the
+ * sender of a story reply. For a Story Reply run, `comment_id` and
+ * `comment_text` hold the reply message's id and text.
  * The unique keys make webhook delivery idempotent: a repeat commenter (D3)
  * or a redelivered comment fails the insert.
  */

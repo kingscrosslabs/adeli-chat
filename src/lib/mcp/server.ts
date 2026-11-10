@@ -9,7 +9,7 @@ import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+import { LIMITS, automationTypeSchema, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
@@ -26,11 +26,14 @@ import { MCP_DISPLAY_NAME, MCP_SERVER_NAME } from "./config";
 
 export type McpPrincipal = { userId: string; canWrite: boolean };
 
-const INSTRUCTIONS = `Adeli Chat runs Instagram Comment to DM automations for the signed-in user's connected Instagram account.
+const INSTRUCTIONS = `Adeli Chat runs Instagram Comment to DM and Story Reply automations for the signed-in user's connected Instagram account.
 
 How an automation works:
-1. Someone comments (trigger). postScope says where: "specific" (one post, set postId), "next" (the first post published after it goes live) or "any" (every post; a post with its own automation uses that one first). It matches either specific keywords (case-insensitive) or any comment.
-2. Optionally, a public reply is posted under their comment (one variant is picked at random).
+1. Something starts it (trigger). The type, chosen at create_automation and fixed after, says what:
+   - "comment_to_dm" (default): someone comments. postScope says where: "specific" (one post, set postId), "next" (the first post published after it goes live) or "any" (every post; a post with its own automation uses that one first).
+   - "story_reply": someone replies to any of the account's stories. There's no postScope, postId or public reply.
+   It matches either specific keywords (case-insensitive) or any comment or reply.
+2. Comment to DM only, optionally: a public reply is posted under their comment (one variant is picked at random).
 3. They get an Opening DM: a message with one button. Instagram only allows this one message until they tap.
 4. Optionally, after the tap we ask for their email (emailCaptureEnabled). The Final DM waits until they reply with a valid email, which is saved as a lead the user can export in the app.
 5. They get the Final DM: a message with a link button (https only).
@@ -38,7 +41,7 @@ Each person gets the flow once per automation.
 
 Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, replies ${LIMITS.replyVariant} chars each, DM text ${LIMITS.dmText} chars, button labels ${LIMITS.buttonLabel} chars.
 
-Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation with the same scope (and, for "specific", the same post) shares a keyword (or uses any comment).
+Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation of the same type and scope (and, for "specific", the same post) shares a keyword (or matches anything).
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -57,6 +60,7 @@ function automationUrl(id: string) {
 function summary(automation: Automation) {
   return {
     id: automation.id,
+    type: automation.type,
     name: automation.name,
     status: automation.status,
     trigger: triggerSummary(automation),
@@ -74,6 +78,7 @@ function detail(automation: Automation) {
   const button = automation.finalDm.buttons[0];
   return {
     id: automation.id,
+    type: automation.type,
     name: automation.name,
     status: automation.status,
     url: automationUrl(automation.id),
@@ -124,6 +129,9 @@ type Fields = z.infer<typeof fieldsObject>;
 async function applyFields(userId: string, account: ConnectedAccount, content: AutomationContent, fields: Fields): Promise<AutomationContent> {
   const next: AutomationContent = structuredClone(content);
   if (fields.name !== undefined) next.name = fields.name;
+  if (content.type === "story_reply" && (fields.postId !== undefined || fields.postScope !== undefined || fields.commentReplyEnabled || fields.commentReplies !== undefined)) {
+    throw new service.ServiceError("A Story Reply automation watches every story and has no public reply, so postScope, postId and comment replies don't apply.");
+  }
   if (fields.postId !== undefined && fields.postId !== content.trigger.mediaId) {
     const media = await findMedia(userId, account.accountId, fields.postId);
     if (!media) throw new service.ServiceError(`There's no post with id ${fields.postId} on @${account.displayIdentifier}. Use list_posts to find one.`);
@@ -246,11 +254,11 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   server.registerTool("create_automation", {
     title: "Create automation",
     description: "Creates a draft automation. Any field you leave out gets the app's default (friendly replies and DMs, a placeholder link). It doesn't run until you call go_live.",
-    inputSchema: fieldsObject,
+    inputSchema: fieldsObject.extend({ type: automationTypeSchema.optional().describe("comment_to_dm (default): someone comments on a post. story_reply: someone replies to one of your stories. Can't be changed later.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, (fields) => run(true, async () => {
+  }, ({ type, ...fields }) => run(true, async () => {
     const connected = await account();
-    const { id } = await service.createAutomation(userId);
+    const { id } = await service.createAutomation(userId, {}, type);
     const created = await getAutomation(connected.id, id);
     if (!created) throw new service.ServiceError("The automation couldn't be created. Try again.");
     try {

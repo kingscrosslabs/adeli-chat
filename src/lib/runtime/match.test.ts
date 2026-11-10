@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { newDraftAutomation } from "@/lib/automations/defaults";
 import type { Automation } from "@/lib/automations/schemas";
 
-import { matchComment, matchesKeywords, nextPostAfter } from "./match";
+import { matchComment, matchesKeywords, matchStoryReply, nextPostAfter } from "./match";
 
 function automation(overrides: Partial<Automation["trigger"]> = {}, status: Automation["status"] = "live"): Automation {
   const base = newDraftAutomation("auto_1", 0);
@@ -95,5 +95,35 @@ describe("nextPostAfter", () => {
   it("is null before any post or without a live time", () => {
     expect(nextPostAfter(media, "2026-11-11T00:00:00.000Z")).toBeNull();
     expect(nextPostAfter(media, null)).toBeNull();
+  });
+});
+
+describe("matchStoryReply", () => {
+  function story(overrides: Partial<Automation["trigger"]> = {}, status: Automation["status"] = "live"): Automation {
+    const base = newDraftAutomation("story_1", 0);
+    return { ...base, type: "story_reply", status, trigger: { ...base.trigger, postScope: "any", match: "keywords", keywords: ["guide"], ...overrides } };
+  }
+
+  it("matches a reply with the keyword", () => {
+    expect(matchStoryReply({ text: "GUIDE pls", fromId: "ig_fan" }, "ig_self", [story()])?.id).toBe("story_1");
+  });
+
+  it("ignores Comment to DM automations, paused ones, and our own account", () => {
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan" }, "ig_self", [automation({ postScope: "any" })])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan" }, "ig_self", [story({}, "paused")])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_self" }, "ig_self", [story()])).toBeNull();
+  });
+
+  it("only matches a reply with no text on Any reply", () => {
+    expect(matchStoryReply({ text: null, fromId: "ig_fan" }, "ig_self", [story()])).toBeNull();
+    expect(matchStoryReply({ text: null, fromId: "ig_fan" }, "ig_self", [story({ match: "any" })])?.id).toBe("story_1");
+  });
+});
+
+describe("matchComment and story replies", () => {
+  it("never sends a comment to a Story Reply automation", () => {
+    const base = newDraftAutomation("story_1", 0);
+    const storyReply: Automation = { ...base, type: "story_reply", status: "live", trigger: { ...base.trigger, postScope: "any", match: "any" } };
+    expect(matchComment(comment, "ig_self", [storyReply])).toBeNull();
   });
 });
