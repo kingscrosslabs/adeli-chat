@@ -43,7 +43,7 @@ export function OnboardingChecklist({ current }: { current: OnboardingStep }) {
 
 export function OnboardingLayout({ step, children }: { step: OnboardingStep; children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-brand-fog/60 px-4 py-8 sm:py-14">
+    <main className="min-h-screen bg-muted px-4 py-8 sm:py-14">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
         <div className="flex flex-col items-start gap-5 md:flex-row md:items-center md:justify-between">
           <Wordmark />

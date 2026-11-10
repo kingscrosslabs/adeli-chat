@@ -42,7 +42,7 @@ describe("ensureAdeliWebhook", () => {
     const adeli = webhookAdeli();
     expect(await ensureAdeliWebhook(USER)).toEqual({ id: "wh_1", created: true });
     const created = adeli.sent.find((item) => item.method === "POST");
-    expect(created?.body).toEqual({ profileId: "profile_1", url: URL_, events: ["comment.created", "message.postback"] });
+    expect(created?.body).toEqual({ profileId: "profile_1", url: URL_, events: ["comment.created", "message.postback", "message.created"] });
     expect(await getUserSettings(USER)).toMatchObject({ adeliWebhookId: "wh_1", adeliWebhookSecret: "whsec_wh_1" });
 
     expect(await ensureAdeliWebhook(USER)).toEqual({ id: "wh_1", created: false });
@@ -55,6 +55,19 @@ describe("ensureAdeliWebhook", () => {
     vi.stubEnv("APP_URL", "https://chat.example.com");
     expect(await ensureAdeliWebhook(USER)).toEqual({ id: "wh_2", created: true });
     expect(adeli.sent.some((item) => item.method === "DELETE" && item.path === "/webhooks/wh_1")).toBe(true);
+  });
+
+  it("replaces a webhook from before message.created, so the email step gets replies", async () => {
+    webhookAdeli();
+    await ensureAdeliWebhook(USER);
+    // Adeli still lists wh_1 with the old events.
+    const legacy = fakeAdeli([(sent) => {
+      if (sent.path === "/webhooks" && sent.method === "GET") return { status: 200, body: { webhooks: [{ id: "wh_1", profileId: "profile_1", url: URL_, events: ["comment.created", "message.postback"], status: "active", createdAt: new Date().toISOString() }] } };
+      if (sent.path === "/webhooks" && sent.method === "POST") return { status: 201, body: { webhook: { id: "wh_2", profileId: "profile_1", url: URL_, events: sent.body?.events, status: "active", createdAt: new Date().toISOString() }, secret: "whsec_wh_2" } };
+      return undefined;
+    }]);
+    expect(await ensureAdeliWebhook(USER)).toEqual({ id: "wh_2", created: true });
+    expect(legacy.sent.some((item) => item.method === "DELETE" && item.path === "/webhooks/wh_1")).toBe(true);
   });
 
   it("gives each user their own webhook URL and secret", async () => {

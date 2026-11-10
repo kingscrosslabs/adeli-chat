@@ -33,7 +33,7 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="size-4 text-primary" /> Add your Adeli API key</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><KeyRound className="size-4 text-link" /> Add your Adeli API key</CardTitle>
           <CardDescription>
             Adeli Chat sends comments and DMs through Adeli, so it needs an API key from your Adeli account. Each person who signs in uses their own key, and only they can see it.
           </CardDescription>
@@ -65,7 +65,7 @@ function SetupCard({ keyState: key, next }: { keyState: KeyState; next: string }
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="size-4 text-primary" /> Connected to Adeli</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="size-4 text-link" /> Connected to Adeli</CardTitle>
         <CardDescription>You can change the key any time in Settings.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

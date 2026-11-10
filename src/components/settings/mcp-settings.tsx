@@ -1,6 +1,6 @@
 "use client";
 
-import { Asterisk, Check, Copy, ExternalLink, KeyRound, Loader2, Plug, Plus, Sparkles, Terminal, Unplug } from "lucide-react";
+import { Check, Copy, KeyRound, Loader2, Plug, Plus, Sparkles, Unplug } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -14,8 +14,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConnectToAgent } from "@/components/settings/agent-connect";
+import { maskToken, RevealableToken, useTokenSecret } from "@/components/settings/revealable-token";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -25,124 +27,50 @@ import { Switch } from "@/components/ui/switch";
 import { createApiToken, disconnectMcpApp, revokeApiToken } from "@/lib/actions";
 import { relativeTime, shortDate } from "@/lib/format";
 import type { ConnectedApp } from "@/lib/mcp/connections";
-import { claudeCodeCommand, claudeConnectorLink, manualConfig } from "@/lib/mcp/install-links";
 import type { ApiToken, TokenExpiry } from "@/lib/mcp/tokens";
 import { cn } from "@/lib/utils";
 
 /**
- * Settings for the MCP endpoint, laid out like Twenty's "MCP & APIs" page:
- * quick install (Claude connector link, Claude Code command), the manual JSON
- * config, API tokens, and apps connected through OAuth.
+ * Settings for the MCP endpoint: the server URL, a setup guide per agent
+ * (Claude, ChatGPT, Cursor, Perplexity, any MCP client), API tokens, and apps
+ * connected through OAuth.
  */
-export function McpSettings({ mcpUrl, oauthEnabled, tokens, apps }: { mcpUrl: string; oauthEnabled: boolean; tokens: ApiToken[]; apps: ConnectedApp[] }) {
-  // A token just created, shown once and filled into the snippets until the page is left.
-  const [newToken, setNewToken] = useState<string | null>(null);
-
+export function McpSettings({ mcpUrl, oauthEnabled, defaultToken, tokens, apps }: { mcpUrl: string; oauthEnabled: boolean; defaultToken: ApiToken; tokens: ApiToken[]; apps: ConnectedApp[] }) {
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> MCP</CardTitle>
-          <CardDescription>Connect Claude, Claude Code, Cursor or any MCP client.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-link" /> Connect to Agent</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Server URL</Label>
             <CopyField value={mcpUrl} />
+            <p className="text-sm text-muted-foreground">Install this MCP to connect Adeli Chat to Claude, ChatGPT, Cursor or Perplexity.</p>
           </div>
-
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-sm font-medium">Quick install</h3>
-              <p className="text-sm text-muted-foreground">Open Claude with Adeli Chat filled in, or add it to Claude Code.</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InstallTile
-                icon={<Asterisk className="size-5" />}
-                title="Claude"
-                badge="Preset link"
-                description={oauthEnabled ? "Adds Adeli Chat as a custom connector. You'll sign in with Google and choose what Claude can do." : "Needs Google sign-in, which is off on this install. Use an API token below instead."}
-                action={oauthEnabled ? (
-                  <a href={claudeConnectorLink(mcpUrl)} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline", size: "sm" })}><ExternalLink /> Install</a>
-                ) : null}
-              />
-              <InstallTile
-                icon={<Terminal className="size-5" />}
-                title="Claude Code"
-                badge="Command"
-                description={newToken ? "Includes the token you just created." : "Create an API token below, then paste it into the command."}
-                action={<CopyButton value={claudeCodeCommand(mcpUrl, newToken ?? undefined)} label="Copy" />}
-              >
-                <code className="block rounded-md bg-muted px-3 py-2 font-mono text-[0.78rem] leading-relaxed whitespace-pre-wrap break-all">{claudeCodeCommand(mcpUrl, newToken ?? undefined)}</code>
-              </InstallTile>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-sm font-medium">Manual configuration</h3>
-              <p className="text-sm text-muted-foreground">For Cursor, Claude Desktop, Windsurf and other clients that take an <code className="font-mono text-[0.82rem]">mcpServers</code> config. Use an API token from below.</p>
-            </div>
-            <CodeBlock title="MCP client configuration" code={manualConfig(mcpUrl, newToken ?? undefined)} />
-          </section>
+          <ConnectToAgent mcpUrl={mcpUrl} oauthEnabled={oauthEnabled} apps={apps} defaultToken={defaultToken} />
         </CardContent>
       </Card>
 
-      <TokensCard tokens={tokens} newToken={newToken} onCreated={setNewToken} />
+      <TokensCard tokens={tokens} />
       {oauthEnabled || apps.length ? <ConnectedAppsCard apps={apps} /> : null}
     </>
   );
 }
 
-function InstallTile({ icon, title, badge, description, action, children }: { icon: React.ReactNode; title: string; badge: string; description: string; action: React.ReactNode; children?: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 gap-3 rounded-lg border p-4">
-      <div className="mt-0.5 text-primary">{icon}</div>
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{title}</span>
-          <Badge variant="secondary">{badge}</Badge>
-          {action ? <span className="ml-auto shrink-0">{action}</span> : null}
-        </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function TokensCard({ tokens, newToken, onCreated }: { tokens: ApiToken[]; newToken: string | null; onCreated: (token: string) => void }) {
+function TokensCard({ tokens }: { tokens: ApiToken[] }) {
   const [creating, setCreating] = useState(false);
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
 
   return (
-    <Card>
+    <Card id="api-tokens" className="scroll-mt-6">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-primary" /> API tokens</CardTitle>
-        <CardDescription>For clients that send an Authorization header. A token reaches only your automations.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-link" /> API tokens</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {newToken ? (
-          <div className="space-y-2 rounded-lg bg-secondary p-4 text-secondary-foreground">
-            <p className="text-sm font-medium">Copy your new token now. You won&apos;t see it again.</p>
-            <CopyField value={newToken} />
-          </div>
-        ) : null}
-
         {tokens.length ? (
           <ul className="divide-y rounded-lg border">
-            {tokens.map((token) => (
-                <li key={token.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
-                  <span className="font-medium">{token.name}</span>
-                  <code className="font-mono text-[0.82rem] text-muted-foreground">{token.prefix}…</code>
-                  {token.readOnly ? <Badge variant="outline">Read only</Badge> : null}
-                  {token.expired ? <Badge className="bg-destructive/10 text-destructive">Expired</Badge> : null}
-                  <span className="basis-full text-xs text-muted-foreground sm:basis-auto">
-                    Created {shortDate(token.createdAt)} · {token.lastUsedAt ? `Used ${relativeTime(token.lastUsedAt)}` : "Never used"} · {expiryText(token)}
-                  </span>
-                  <Button variant="ghost" size="sm" className="ml-auto text-destructive" onClick={() => setRevoking(token)}>Revoke</Button>
-                </li>
-            ))}
+            {tokens.map((token) => <TokenRow key={token.id} token={token} onRevoke={() => setRevoking(token)} />)}
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">No tokens yet.</p>
@@ -150,7 +78,7 @@ function TokensCard({ tokens, newToken, onCreated }: { tokens: ApiToken[]; newTo
         <Button variant="outline" onClick={() => setCreating(true)}><Plus /> Create token</Button>
       </CardContent>
 
-      <CreateTokenDialog open={creating} onOpenChange={setCreating} onCreated={onCreated} />
+      <CreateTokenDialog open={creating} onOpenChange={setCreating} />
 
       <AlertDialog open={revoking !== null} onOpenChange={(open) => !open && setRevoking(null)}>
         <AlertDialogContent>
@@ -174,6 +102,35 @@ function TokensCard({ tokens, newToken, onCreated }: { tokens: ApiToken[]; newTo
   );
 }
 
+function TokenRow({ token, onRevoke }: { token: ApiToken; onRevoke: () => void }) {
+  const tokenSecret = useTokenSecret(token.revealable ? token.id : null);
+  return (
+    <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 px-4 py-3 text-sm">
+      <div className="min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{token.name}</span>
+          {token.readOnly ? <Badge variant="outline">Read only</Badge> : null}
+          {token.expired ? <Badge className="bg-destructive/10 text-destructive">Expired</Badge> : null}
+        </div>
+        {token.revealable ? (
+          <RevealableToken prefix={token.prefix} tokenSecret={tokenSecret} />
+        ) : (
+          <>
+            <code className="block font-mono text-[0.82rem] text-muted-foreground">{maskToken(token.prefix)}</code>
+            <p className="text-xs text-muted-foreground">Created before tokens could be revealed. Create a new one to get one you can reveal.</p>
+          </>
+        )}
+      </div>
+      <div className="flex flex-col items-end gap-1 text-right">
+        <Button variant="ghost" size="sm" className="text-destructive" onClick={onRevoke}>Revoke</Button>
+        <p className="text-xs text-muted-foreground">Created {shortDate(token.createdAt)}</p>
+        {token.lastUsedAt ? <p className="text-xs text-muted-foreground">Used {relativeTime(token.lastUsedAt)}</p> : null}
+        {token.expiresAt ? <p className="text-xs text-muted-foreground">{expiryText(token)}</p> : null}
+      </div>
+    </li>
+  );
+}
+
 const EXPIRY_LABELS: Record<TokenExpiry, string> = { never: "Never", "30d": "30 days", "90d": "90 days", "365d": "1 year" };
 
 function expiryText(token: ApiToken) {
@@ -182,7 +139,7 @@ function expiryText(token: ApiToken) {
   return `Expires in ${token.daysLeft} ${token.daysLeft === 1 ? "day" : "days"}`;
 }
 
-function CreateTokenDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (token: string) => void }) {
+function CreateTokenDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [name, setName] = useState("Claude Code");
   const [readOnly, setReadOnly] = useState(false);
   const [expiry, setExpiry] = useState<TokenExpiry>("never");
@@ -196,7 +153,7 @@ function CreateTokenDialog({ open, onOpenChange, onCreated }: { open: boolean; o
         toast.error(result.reason === "error" ? result.message : "We couldn't create the token. Try again.");
         return;
       }
-      onCreated(result.token);
+      toast.success("Token created", { description: "Reveal or copy it from the list." });
       onOpenChange(false);
       setName("Claude Code");
       setReadOnly(false);
@@ -210,7 +167,7 @@ function CreateTokenDialog({ open, onOpenChange, onCreated }: { open: boolean; o
         <form onSubmit={create} className="space-y-5">
           <DialogHeader>
             <DialogTitle>Create API token</DialogTitle>
-            <DialogDescription>Use it as a Bearer token for {"/mcp"}. You&apos;ll see it once.</DialogDescription>
+            <DialogDescription>Use it as a Bearer token for {"/mcp"}. You can reveal it again from the list.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="token-name">Name</Label>
@@ -247,9 +204,9 @@ function ConnectedAppsCard({ apps }: { apps: ConnectedApp[] }) {
   const [disconnecting, setDisconnecting] = useState<ConnectedApp | null>(null);
 
   return (
-    <Card>
+    <Card id="connected-apps" className="scroll-mt-6">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Plug className="size-4 text-primary" /> Connected apps</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Plug className="size-4 text-link" /> Connected apps</CardTitle>
         <CardDescription>Apps you allowed through sign-in, like Claude&apos;s Adeli Chat connector.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -265,7 +222,7 @@ function ConnectedAppsCard({ apps }: { apps: ConnectedApp[] }) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Nothing connected yet. Use the Claude install link above.</p>
+          <p className="text-sm text-muted-foreground">Nothing connected yet. Pick your agent above to connect it.</p>
         )}
       </CardContent>
 
@@ -305,34 +262,12 @@ function useCopy() {
   return { copied, copy };
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
-  const { copied, copy } = useCopy();
-  return (
-    <Button variant="outline" size="sm" onClick={() => void copy(value)}>
-      {copied ? <Check /> : <Copy />} {copied ? "Copied" : label}
-    </Button>
-  );
-}
-
 function CopyField({ value }: { value: string }) {
   const { copied, copy } = useCopy();
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-background px-3 py-2">
       <code className="min-w-0 flex-1 truncate font-mono text-[0.82rem]">{value}</code>
       <Button variant="ghost" size="icon-sm" aria-label="Copy" onClick={() => void copy(value)}>{copied ? <Check /> : <Copy />}</Button>
-    </div>
-  );
-}
-
-function CodeBlock({ title, code }: { title: string; code: string }) {
-  const { copied, copy } = useCopy();
-  return (
-    <div className="overflow-hidden rounded-lg border">
-      <div className="flex items-center justify-between border-b bg-muted px-3 py-2 text-xs text-muted-foreground">
-        <span>{title}</span>
-        <Button variant="ghost" size="icon-sm" aria-label="Copy configuration" onClick={() => void copy(code)}>{copied ? <Check /> : <Copy />}</Button>
-      </div>
-      <pre className="overflow-x-auto bg-background p-4 font-mono text-[0.82rem] leading-relaxed"><code>{code}</code></pre>
     </div>
   );
 }

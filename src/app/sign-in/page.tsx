@@ -25,7 +25,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const configured = Boolean(googleCredentials());
 
   return (
-    <main className="grid min-h-screen place-items-center bg-brand-fog/60 px-4 py-8">
+    <main className="grid min-h-screen place-items-center bg-muted px-4 py-8">
       <div className="flex w-full max-w-sm flex-col items-center gap-6">
         <Wordmark />
         <Card className="w-full">

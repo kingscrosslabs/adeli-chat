@@ -83,7 +83,7 @@ export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
           </p>
           <p className="line-clamp-2 text-sm">{snapshot.caption || "No caption"}</p>
           {snapshot.permalink ? (
-            <a href={snapshot.permalink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline">View on Instagram <ExternalLink className="size-3" /></a>
+            <a href={snapshot.permalink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-link underline-offset-4 hover:underline">View on Instagram <ExternalLink className="size-3" /></a>
           ) : null}
         </div>
         <Button variant="outline" size="sm" onClick={browse}>Change</Button>

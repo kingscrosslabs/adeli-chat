@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { claudeCodeCommand, claudeConnectorLink, manualConfig } from "./install-links";
+import { claudeCodeCommand, claudeConnectorLink, codexCommands, cursorConfig, cursorInstallLink } from "./install-links";
 
 const URL_ = "https://chat.tryadeli.com/mcp";
 
@@ -13,9 +13,17 @@ describe("install links", () => {
     expect(link.searchParams.get("connectorUrl")).toBe(URL_);
   });
 
-  it("builds the Claude Code command and manual config, with a placeholder or a real token", () => {
+  it("builds the Claude Code command with a placeholder, a real token, or none for sign-in", () => {
     expect(claudeCodeCommand(URL_)).toBe(`claude mcp add --transport http adeli-chat ${URL_} --header "Authorization: Bearer <YOUR_API_TOKEN>"`);
     expect(claudeCodeCommand(URL_, "adc_123")).toContain("Bearer adc_123");
-    expect(JSON.parse(manualConfig(URL_, "adc_123"))).toEqual({ mcpServers: { "adeli-chat": { url: URL_, headers: { Authorization: "Bearer adc_123" } } } });
+    expect(claudeCodeCommand(URL_, null)).toBe(`claude mcp add --transport http adeli-chat ${URL_}`);
+  });
+
+  it("builds the Codex commands and Cursor config and deeplink", () => {
+    expect(codexCommands(URL_)).toEqual({ add: `codex mcp add adeli-chat --url ${URL_}`, login: "codex mcp login adeli-chat" });
+    expect(JSON.parse(cursorConfig(URL_))).toEqual({ mcpServers: { "adeli-chat": { url: URL_ } } });
+    const link = new URL(cursorInstallLink(URL_));
+    expect(link.searchParams.get("name")).toBe("adeli-chat");
+    expect(JSON.parse(atob(link.searchParams.get("config") ?? ""))).toEqual({ url: URL_ });
   });
 });

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { newDraftAutomation } from "@/lib/automations/defaults";
 import type { Automation } from "@/lib/automations/schemas";
 
-import { matchComment, matchesKeywords } from "./match";
+import { matchComment, matchesKeywords, nextPostAfter } from "./match";
 
 function automation(overrides: Partial<Automation["trigger"]> = {}, status: Automation["status"] = "live"): Automation {
   const base = newDraftAutomation("auto_1", 0);
@@ -56,5 +56,44 @@ describe("matchComment", () => {
 
   it("ignores comments without a keyword", () => {
     expect(matchComment({ ...comment, text: "love this" }, "ig_self", [automation()])).toBeNull();
+  });
+
+  it("matches any post with an Any post automation", () => {
+    const live = automation({ postScope: "any", mediaId: null });
+    expect(matchComment({ ...comment, mediaId: "media_9" }, "ig_self", [live])).toBe(live);
+  });
+
+  it("matches a Next post automation only once it has its post", () => {
+    const waiting = automation({ postScope: "next", mediaId: null });
+    expect(matchComment(comment, "ig_self", [waiting])).toBeNull();
+    const bound = automation({ postScope: "next", mediaId: "media_1" });
+    expect(matchComment(comment, "ig_self", [bound])).toBe(bound);
+  });
+
+  it("prefers the post's own automation, then Next post, then Any post", () => {
+    const any = { ...automation({ postScope: "any", mediaId: null }), id: "any" };
+    const next = { ...automation({ postScope: "next", mediaId: "media_1" }), id: "next" };
+    const specific = { ...automation(), id: "specific" };
+    expect(matchComment(comment, "ig_self", [any, next, specific])?.id).toBe("specific");
+    expect(matchComment(comment, "ig_self", [any, next])?.id).toBe("next");
+    // The specific one doesn't match this comment's text, so a broader one can.
+    expect(matchComment({ ...comment, text: "hi" }, "ig_self", [specific, { ...any, trigger: { ...any.trigger, match: "any" } }])?.id).toBe("any");
+  });
+});
+
+describe("nextPostAfter", () => {
+  const media = [
+    { id: "new", publishedAt: "2026-11-10T12:00:00.000Z" },
+    { id: "first", publishedAt: "2026-11-10T09:00:00.000Z" },
+    { id: "old", publishedAt: "2026-11-01T09:00:00.000Z" },
+  ];
+
+  it("picks the earliest post published after going live", () => {
+    expect(nextPostAfter(media, "2026-11-09T00:00:00.000Z")?.id).toBe("first");
+  });
+
+  it("is null before any post or without a live time", () => {
+    expect(nextPostAfter(media, "2026-11-11T00:00:00.000Z")).toBeNull();
+    expect(nextPostAfter(media, null)).toBeNull();
   });
 });

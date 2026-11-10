@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+import { Check } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -54,6 +55,17 @@ function DropdownMenuItem({
   )
 }
 
+function DropdownMenuCheckboxItem({ className, children, ...props }: MenuPrimitive.CheckboxItem.Props) {
+  return (
+    <MenuPrimitive.CheckboxItem data-slot="dropdown-menu-checkbox-item" className={cn(itemClassName, className)} {...props}>
+      <span className="grid size-4 shrink-0 place-items-center rounded-sm border border-input" aria-hidden="true">
+        <MenuPrimitive.CheckboxItemIndicator><Check className="size-3" /></MenuPrimitive.CheckboxItemIndicator>
+      </span>
+      {children}
+    </MenuPrimitive.CheckboxItem>
+  )
+}
+
 function DropdownMenuLinkItem({ className, ...props }: MenuPrimitive.LinkItem.Props) {
   return <MenuPrimitive.LinkItem data-slot="dropdown-menu-link-item" className={cn(itemClassName, className)} {...props} />
 }
@@ -67,6 +79,7 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuLinkItem,
   DropdownMenuSeparator,
 }

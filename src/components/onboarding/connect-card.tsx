@@ -131,7 +131,7 @@ export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><AtSign className="size-4 text-primary" /> Choose your Instagram account</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><AtSign className="size-4 text-link" /> Choose your Instagram account</CardTitle>
         <CardDescription>
           Pick an account you&apos;ve connected in Adeli, or connect a new one. It needs to be an Instagram Business or Creator account.
         </CardDescription>
@@ -211,7 +211,7 @@ function ConnectNew({ flow, primary, onStart, onCancel }: { flow: Flow; primary:
           {flow.processing ? "Almost there. Adeli is saving your connection." : "Finish logging in to Instagram in the tab we opened. This page updates by itself."}
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <a href={flow.authUrl || "https://www.instagram.com/"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline">Open Instagram login again <ExternalLink className="size-3" /></a>
+          <a href={flow.authUrl || "https://www.instagram.com/"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-link underline-offset-4 hover:underline">Open Instagram login again <ExternalLink className="size-3" /></a>
           <button type="button" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={onCancel}>Cancel</button>
         </div>
       </div>

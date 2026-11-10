@@ -5,7 +5,8 @@ import { adeliCall } from "@/lib/adeli/client";
 import { listProfiles } from "@/lib/adeli/instagram";
 import { getUserSettings, saveWebhook } from "@/lib/user-settings";
 
-export const WEBHOOK_EVENTS = ["comment.created", "message.postback"] as const;
+/** `message.created` carries the email people type in reply to the email step. */
+export const WEBHOOK_EVENTS = ["comment.created", "message.postback", "message.created"] as const;
 
 /** Each user has their own webhook URL, so a delivery is checked with, and handled for, that user only. */
 export function webhookUrl(userId: string) {
@@ -25,7 +26,9 @@ export async function ensureAdeliWebhook(userId: string): Promise<{ id: string; 
 
   const { data } = await adeliCall(userId, (client) => client.webhooks.listWebhooks({ query: { profileId } }));
   const existing = data.webhooks.find((webhook) => webhook.id === settings.adeliWebhookId);
-  if (existing && existing.url === url && existing.status === "active" && settings.adeliWebhookSecret) {
+  // A webhook from before an event was added gets replaced, so it starts delivering that event too.
+  const hasEvents = existing && WEBHOOK_EVENTS.every((event) => (existing.events as readonly string[]).includes(event));
+  if (existing && hasEvents && existing.url === url && existing.status === "active" && settings.adeliWebhookSecret) {
     return { id: existing.id, created: false };
   }
 

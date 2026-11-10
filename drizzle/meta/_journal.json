@@ -43,6 +43,20 @@
       "when": 1794256033966,
       "tag": "0005_mcp_oauth_and_api_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794272774308,
+      "tag": "0006_leads_and_email_capture",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794274959975,
+      "tag": "0007_revealable_api_tokens",
+      "breakpoints": true
     }
   ]
 }

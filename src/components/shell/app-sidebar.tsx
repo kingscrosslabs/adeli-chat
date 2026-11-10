@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Plug, Plus, Settings, Zap } from "lucide-react";
+import { ChevronRight, Plug, Plus, Settings, Star, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -41,28 +41,34 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
           <Wordmark size="sm" />
         </Link>
       </SidebarHeader>
-      {/* Settings and MCP & APIs stay put; only the automation list scrolls. */}
+      {/* Automations, then Connect to AI Agent, Star on GitHub and Settings. Only the automation list scrolls. */}
       <SidebarContent className="overflow-hidden">
-        <SidebarGroup className="pb-0">
+        <SidebarGroup className="min-h-0 flex-1 pb-0">
+          <AutomationsNav automations={automations} connected={Boolean(account)} />
+        </SidebarGroup>
+        <SidebarGroup className="shrink-0">
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/mcp-apis" />} isActive={pathname.startsWith("/mcp-apis")}>
+                  <Plug />
+                  <span>Connect to AI Agent</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<a href="https://github.com/kingscrosslabs/adeli-chat" target="_blank" rel="noreferrer" />}>
+                  <Star />
+                  <span>Star on GitHub</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton render={<Link href="/settings" />} isActive={pathname.startsWith("/settings")}>
                   <Settings />
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton render={<Link href="/mcp-apis" />} isActive={pathname.startsWith("/mcp-apis")}>
-                  <Plug />
-                  <span>MCP &amp; APIs</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup className="min-h-0 flex-1">
-          <AutomationsNav automations={automations} connected={Boolean(account)} />
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-3 border-t p-4">
@@ -78,7 +84,7 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
             </span>
           </Link>
         ) : (
-          <Link href="/connect" className="text-sm text-primary underline-offset-4 hover:underline">Connect Instagram</Link>
+          <Link href="/connect" className="text-sm text-link underline-offset-4 hover:underline">Connect Instagram</Link>
         )}
       </SidebarFooter>
     </Sidebar>

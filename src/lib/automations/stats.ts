@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 
 import type { AutomationStats } from "./schemas";
 
-export const NO_STATS: AutomationStats = { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, finalDms: 0 };
+export const NO_STATS: AutomationStats = { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, emails: 0, finalDms: 0 };
 
 /** FR-10.1 counts per automation, from `runs`. */
 export async function statsFor(automationIds: string[]): Promise<Map<string, AutomationStats>> {
@@ -19,6 +19,7 @@ export async function statsFor(automationIds: string[]): Promise<Map<string, Aut
     commentReplies: count(sql`case when ${runs.commentReplyState} = 'sent' then 1 end`),
     openingDms: count(runs.openingSentAt),
     buttonTaps: count(runs.tappedAt),
+    emails: count(runs.emailAt),
     finalDms: count(sql`case when ${runs.state} = 'final_sent' then 1 end`),
   }).from(runs).where(inArray(runs.automationId, automationIds)).groupBy(runs.automationId);
   for (const { automationId, ...counts } of rows) stats.set(automationId, counts);
