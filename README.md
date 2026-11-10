@@ -10,33 +10,41 @@ When someone comments a keyword on your post, Adeli Chat replies to their commen
 
 ```bash
 npm install
+cp .env.example .env.local   # then set ADELI_API_KEY (see "Get your Adeli API key")
 npm run dev
 ```
 
-Open http://localhost:3030 and paste your Adeli API key on the Setup page (see below). Nothing is mocked. Every Adeli call goes through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk).
+Open http://localhost:3030 and click **Connect Instagram**. Nothing is mocked. Every Adeli call goes through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk).
 
-Locally no environment variables are needed: the database is PGlite in `./.data`, and without Google variables there's no login. `.env.example` lists the optional ones.
+Locally `ADELI_API_KEY` is the only variable you need: the database is PGlite in `./.data`, and without Google variables there's no login. `.env.example` lists the optional ones.
+
+## How it uses Adeli
+
+One Adeli Chat install uses one Adeli organization, through the API key in `ADELI_API_KEY`. Every person who signs in gets their own [profile](https://www.tryadeli.com/docs/api/profiles/create-profile) in that organization, created when they sign up and named after them (their Google name and email). Their Instagram account, posts and webhook all live on that profile, and Adeli Chat only ever reads or writes the signed-in person's own profile. People never need an Adeli account of their own: **Connect Instagram** runs Instagram Login through Adeli.
 
 ## Deploy to Vercel
 
 1. **Import the repo** in Vercel. The defaults work: the `vercel-build` script applies database migrations, then runs `next build`.
 2. **Add Postgres.** In the project's Storage tab, add Neon from the Marketplace and connect it. It sets `DATABASE_URL`.
 3. **Create a Google OAuth client** in Google Cloud Console (APIs & Services, Credentials, OAuth client ID, type "Web application"). Add the authorized redirect URI `https://<your-domain>/api/auth/callback/google`.
-4. **Set the environment variables** below, then redeploy.
-5. **Sign in with Google.** Everyone who signs in gets their own workspace: their own Adeli key and URL, Instagram account and automations. Nobody sees anyone else's. Set `ALLOWED_EMAILS` to limit who can sign in.
-6. **Paste your Adeli API key** on the Setup page. It's checked against Adeli, stored encrypted for your user only, and Adeli Chat registers a webhook just for you.
-7. **Allowlist the connect redirect.** In Adeli, under Settings, OAuth, add `https://<your-domain>/connect` so you can connect Instagram from Adeli Chat.
+4. **Get an Adeli API key** (see "Get your Adeli API key" below).
+5. **Set the environment variables** below, then redeploy.
+6. **Allowlist the connect redirect.** In Adeli, under Settings, OAuth, add `https://<your-domain>/connect` so people can connect Instagram from Adeli Chat.
+7. **Sign in with Google.** Everyone who signs in gets their own workspace: their own Adeli profile, Instagram account, automations and webhook. Nobody sees anyone else's. Set `ALLOWED_EMAILS` to limit who can sign in.
+8. **Click Connect Instagram.** Adeli runs Instagram Login for your profile, then Adeli Chat registers a webhook just for you.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
+| `ADELI_API_KEY` | Yes | Your Adeli API key, `rk_live_...`. Every user's profile is created in its organization. |
+| `ADELI_API_BASE_URL` | No | Leave empty for the hosted Adeli. Set it only if you run your own Adeli. |
 | `DATABASE_URL` | Yes | Set by the Neon integration. Use the pooled connection string. |
-| `BETTER_AUTH_SECRET` | Yes | Random, at least 32 characters: `openssl rand -base64 32`. Also encrypts the saved Adeli key, so keep it stable. |
+| `BETTER_AUTH_SECRET` | Yes | Random, at least 32 characters: `openssl rand -base64 32`. Also encrypts MCP API tokens, so keep it stable. |
 | `GOOGLE_CLIENT_ID` | Yes | From the Google OAuth client. |
 | `GOOGLE_CLIENT_SECRET` | Yes | From the Google OAuth client. |
 | `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: anyone with Google can sign in. |
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
 
-The Adeli API key and URL aren't environment variables: each user enters their own in Setup or Settings. `ADELI_API_KEY` and `ADELI_API_BASE_URL` are fallbacks only in local no-login mode, so a signed-in user never gets the server's key.
+The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
 
 Google sign-in only works on domains registered in the OAuth client, so preview deployments with random URLs can't sign in unless you add them.
 
@@ -62,14 +70,14 @@ Tools: `get_workspace`, `list_automations`, `get_automation`, `list_posts`, `cre
 
 ## Get your Adeli API key
 
-Everyone who signs in uses their own Adeli key.
+Whoever runs the install needs one Adeli API key. The people who sign in to Adeli Chat don't.
 
-1. **Create an Adeli account.** Go to [app.tryadeli.com](https://app.tryadeli.com/sign-in) and sign in with Google. Your first sign-in creates your account and a default profile.
-2. **(Optional) Connect Instagram in Adeli.** Open **Accounts** and connect your Instagram Business or Creator account. You can also do this from Adeli Chat.
-3. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**.
-4. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
+1. **Create an Adeli account.** Go to [app.tryadeli.com](https://app.tryadeli.com/sign-in) and sign in with Google. Your first sign-in creates your organization.
+2. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**. It needs to be able to create profiles, connect accounts, read posts, reply to comments, send messages and manage webhooks.
+3. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
+4. **Set it as `ADELI_API_KEY`:** in `.env.local` for local development, or in the Vercel project's environment variables. Restart or redeploy afterwards.
 
-Paste it on the Setup page, or later in Settings. Never commit a key.
+Never commit a key. If Adeli stops accepting it, Adeli Chat shows a banner on every page until you replace it.
 
 ## Notes
 

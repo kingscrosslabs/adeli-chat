@@ -4,14 +4,13 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { id: "key", label: "Adeli key" },
   { id: "account", label: "Instagram account" },
   { id: "automation", label: "First automation" },
 ] as const;
 
 export type OnboardingStep = (typeof STEPS)[number]["id"];
 
-/** The 3-step checklist shown on /setup and /connect (PRD §4). */
+/** The onboarding checklist shown on /connect (PRD §4). */
 export function OnboardingChecklist({ current }: { current: OnboardingStep }) {
   const currentIndex = STEPS.findIndex((step) => step.id === current);
   return (

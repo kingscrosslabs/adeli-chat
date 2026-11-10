@@ -6,7 +6,7 @@ import { statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
 import { apiError, fakeAdeli } from "../../../test/fake-adeli";
-import { resetDatabase, seedAccount, seedLiveAutomation, seedUser, TEST_KEY as TEST_KEY_1 } from "../../../test/db-helpers";
+import { resetDatabase, seedAccount, seedLiveAutomation, seedUser, TEST_KEY } from "../../../test/db-helpers";
 
 import { findEmail, handleEvent } from "./handle";
 
@@ -314,10 +314,9 @@ describe("stats", () => {
 
 describe("separate users", () => {
   const OTHER = "user_2";
-  const OTHER_KEY = `rk_live_${"b".repeat(43)}`;
 
   it("only runs the automations of the user whose webhook received the comment", async () => {
-    await seedUser(OTHER, OTHER_KEY);
+    await seedUser(OTHER, { profileId: "profile_2" });
     const adeli = fakeAdeli();
     // user_2's webhook sees a comment on acc_1, which only user_1 has connected.
     await handleEvent(OTHER, commentEvent());
@@ -325,22 +324,22 @@ describe("separate users", () => {
     expect(await db().select().from(schema.runs)).toHaveLength(0);
   });
 
-  it("uses each user's own Adeli key", async () => {
-    await seedUser(OTHER, OTHER_KEY);
+  it("uses the server's Adeli key for every user", async () => {
+    await seedUser(OTHER, { profileId: "profile_2" });
     const otherAccount = await seedAccount(OTHER);
     await seedLiveAutomation(otherAccount.id);
     const adeli = fakeAdeli();
     await handleEvent(USER, commentEvent({ commentId: "c_shared" }));
     await handleEvent(OTHER, commentEvent({ commentId: "c_shared" }));
     const keys = adeli.sent.map((sent) => sent.authorization);
-    expect(keys.filter((key) => key === `Bearer ${TEST_KEY_1}`)).toHaveLength(2);
-    expect(keys.filter((key) => key === `Bearer ${OTHER_KEY}`)).toHaveLength(2);
+    expect(keys).toHaveLength(4);
+    expect(keys.every((key) => key === `Bearer ${TEST_KEY}`)).toBe(true);
     // Same comment, two users' automations: one run each.
     expect(await db().select().from(schema.runs)).toHaveLength(2);
   });
 
   it("doesn't let another user's webhook claim a tap", async () => {
-    await seedUser(OTHER, OTHER_KEY);
+    await seedUser(OTHER, { profileId: "profile_2" });
     fakeAdeli();
     await handleEvent(USER, commentEvent());
     const run = await onlyRun();

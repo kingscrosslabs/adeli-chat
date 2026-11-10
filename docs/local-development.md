@@ -34,9 +34,10 @@ While the Meta app is in development mode, it delivers webhooks and allows messa
 
 ## 3. Set up local Adeli
 
-1. Connect the business account with **Instagram Login**. Facebook Login connections lack the comments permission and subscription, so they don't work for Comment to DM.
-2. Create an API key at `/settings/api-keys`.
-3. Register `http://localhost:3030/connect` as a redirect URL under **Settings → OAuth**.
+1. Create an API key at `/settings/api-keys`.
+2. Register `http://localhost:3030/connect` as a redirect URL under **Settings → OAuth**.
+
+You don't connect Instagram in Adeli itself. Adeli Chat creates a profile for each of its users in this organization, and you connect the business account from Adeli Chat (step 4) with **Instagram Login**. Facebook Login connections lack the comments permission and subscription, so they don't work for Comment to DM.
 
 ## 4. Run Adeli Chat
 
@@ -51,7 +52,7 @@ Edit `.env.local`:
 
 | Variable | Required | Value |
 | --- | --- | --- |
-| `ADELI_API_KEY` | No | The key you created in step 3. You can paste it on the Setup page instead. |
+| `ADELI_API_KEY` | Yes | The key you created in step 3. |
 | `ADELI_API_BASE_URL` | No | `http://localhost:3000` for a local Adeli. Leave it empty to use the hosted Adeli. A trailing `/api/v1` is fine. |
 | `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `./.data`. |
 
@@ -61,9 +62,9 @@ Then start it:
 npm run dev
 ```
 
-Open http://localhost:3030. Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` there's no login locally. Set them (plus `BETTER_AUTH_SECRET`, and `http://localhost:3030/api/auth/callback/google` as a redirect URI in the Google OAuth client) to try sign-in. If there's no key yet, Setup asks you to paste one; a key in `ADELI_API_KEY` works too. Nothing is mocked: every screen reads from Adeli and the database.
+Open http://localhost:3030 and click **Connect Instagram**. Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` there's no login locally, and the one user is `local`. Set them (plus `BETTER_AUTH_SECRET`, and `http://localhost:3030/api/auth/callback/google` as a redirect URI in the Google OAuth client) to try sign-in. Each Google user gets their own Adeli profile when they sign up, named after their Google name and email; the `local` user gets one the first time it opens `/connect`. Nothing is mocked: every screen reads from Adeli and the database.
 
-On start, Adeli Chat applies any pending database migrations. It then registers an Adeli webhook for each user, at `http://localhost:3030/api/webhooks/adeli/<userId>`, with the `comment.created` and `message.postback` events, and does it again whenever Setup confirms a key or someone saves a key in Settings. Without login the user is `local`. On Vercel there's no "start", so only Setup and Settings register it, and the `vercel-build` script applies migrations. Each webhook's id and signing secret are stored in that user's `user_settings` row and reused on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel. If Adeli Chat runs somewhere else, set `APP_URL` to its address.
+On start, Adeli Chat applies any pending database migrations. It then registers an Adeli webhook on each user's profile, at `http://localhost:3030/api/webhooks/adeli/<userId>`, with the `comment.created`, `message.postback` and `message.created` events, and does it again whenever someone connects Instagram or clicks **Check connection** in Settings. On Vercel there's no "start", so only those register it, and the `vercel-build` script applies migrations. Each webhook's id and signing secret are stored in that user's `user_settings` row and reused on later starts. Adeli accepts `http://localhost` webhook URLs, so a local Adeli can deliver to a local Adeli Chat without a tunnel. If Adeli Chat runs somewhere else, set `APP_URL` to its address.
 
 ### Tests
 

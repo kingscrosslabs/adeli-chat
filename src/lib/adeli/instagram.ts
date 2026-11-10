@@ -1,12 +1,21 @@
 import "server-only";
 
 import type { Account, ConnectionSession } from "@adeli/sdk";
+import { and, eq } from "drizzle-orm";
 
 import type { MediaType } from "@/lib/automations/schemas";
+import { db, schema } from "@/lib/db";
 
 import { adeliCall } from "./client";
-import type { AdeliConfig } from "./key";
-import type { AdeliAccount, AdeliMedia, AdeliProfile, ConnectSession, ConnectSessionStatus } from "./types";
+import { ensureUserProfile } from "./profile";
+import { AdeliError, type AdeliAccount, type AdeliMedia, type ConnectSession, type ConnectSessionStatus } from "./types";
+
+/*
+ * Every user shares the server's key, which reaches every user's profile.
+ * So each function here works only inside the signed-in user's own profile
+ * (`ensureUserProfile`) and the Instagram accounts they connected, never a
+ * profile or account id taken from the browser on trust.
+ */
 
 const PAGE_SIZE = 9;
 
@@ -53,23 +62,25 @@ function toMedia(post: ApiPost): AdeliMedia {
   };
 }
 
+/** Posts of one of the user's own Instagram accounts. Any other account id is refused. */
 async function listPosts(userId: string, accountId: string) {
-  const result = await adeliCall(userId, (client) => client.posts.listPosts({ query: { platform: "instagram", accountId } }));
+  const [owned] = await db().select({ id: schema.accounts.id }).from(schema.accounts)
+    .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.adeliAccountId, accountId))).limit(1);
+  if (!owned) throw new AdeliError("not_found", "That Instagram account isn't connected to your Adeli Chat.", 404);
+  const result = await adeliCall((client) => client.posts.listPosts({ query: { platform: "instagram", accountId } }));
   return result.data.posts;
 }
 
-export async function listProfiles(userId: string, candidate?: AdeliConfig): Promise<AdeliProfile[]> {
-  const result = await adeliCall(userId, (client) => client.profiles.listProfiles(), candidate);
-  return result.data.profiles.map((profile) => ({ id: profile.id, name: profile.name }));
-}
-
+/** The Instagram accounts connected to the user's own profile. */
 export async function listInstagramAccounts(userId: string): Promise<AdeliAccount[]> {
-  const profiles = await listProfiles(userId);
-  const results = await Promise.all(profiles.map(async (profile) => {
-    const result = await adeliCall(userId, (client) => client.accounts.listAccounts({ query: { platform: "instagram", profileId: profile.id } }));
-    return result.data.accounts.map((account): AdeliAccount => ({
+  const profile = await ensureUserProfile(userId);
+  const result = await adeliCall((client) => client.accounts.listAccounts({ query: { platform: "instagram", profileId: profile.id } }));
+  return result.data.accounts
+    // The query is scoped already. This keeps another profile's account out even if Adeli ignored the filter.
+    .filter((account) => !account.profileId || account.profileId === profile.id)
+    .map((account): AdeliAccount => ({
       accountId: account.accountId,
-      profileId: account.profileId ?? profile.id,
+      profileId: profile.id,
       profileName: profile.name,
       providerId: account.providerId ?? "",
       displayName: account.displayName ?? account.displayIdentifier ?? "Instagram account",
@@ -77,21 +88,22 @@ export async function listInstagramAccounts(userId: string): Promise<AdeliAccoun
       avatarUrl: null,
       connectionStatus: connectionStatus(account.connectionStatus),
     }));
-  }));
-  return results.flat();
 }
 
-/** Instagram Login only: Facebook Login connections can't read comments for Comment to DM. */
-export async function startConnect(userId: string, profileId: string, redirectUrl: string): Promise<ConnectSession> {
-  const result = await adeliCall(userId, (client) => client.profiles.startConnection({
-    path: { profileId },
+/** Starts Instagram Login on the user's own profile. Instagram Login only: Facebook Login connections can't read comments for Comment to DM. */
+export async function startConnect(userId: string, redirectUrl: string): Promise<ConnectSession> {
+  const profile = await ensureUserProfile(userId);
+  const result = await adeliCall((client) => client.profiles.startConnection({
+    path: { profileId: profile.id },
     body: { platform: "instagram", authMethod: "instagram_login", redirectUrl },
   }));
   return toConnectSession(result.data);
 }
 
-export async function getConnectSession(userId: string, profileId: string, sessionId: string): Promise<ConnectSession> {
-  const result = await adeliCall(userId, (client) => client.profiles.getConnection({ path: { profileId, connectionSessionId: sessionId } }));
+/** A connection session on the user's own profile. */
+export async function getConnectSession(userId: string, sessionId: string): Promise<ConnectSession> {
+  const profile = await ensureUserProfile(userId);
+  const result = await adeliCall((client) => client.profiles.getConnection({ path: { profileId: profile.id, connectionSessionId: sessionId } }));
   return toConnectSession(result.data);
 }
 

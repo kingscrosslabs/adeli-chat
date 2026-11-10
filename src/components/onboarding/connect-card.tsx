@@ -18,14 +18,17 @@ import { cn } from "@/lib/utils";
 type Flow =
   | { kind: "idle" }
   | { kind: "starting" }
-  | { kind: "waiting"; sessionId: string; profileId: string; authUrl: string; processing: boolean }
+  | { kind: "waiting"; sessionId: string; authUrl: string; processing: boolean }
+  | { kind: "saving" }
   | { kind: "failed"; message: string };
 
 /**
- * Pick an Instagram account already connected in Adeli, or connect a new one
- * with Instagram Login (D11). `profileId` is the key's default profile.
+ * Connect Instagram with Instagram Login (D11) on the user's own Adeli
+ * profile. Adeli runs the login; once it finishes, the new account is saved
+ * and you go to your automations. Accounts already on the profile (say you
+ * connected before) are listed too, so you can pick one instead.
  */
-export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: { profileId: string | null; currentAccountId: string | null }) {
+export function ConnectCard({ currentAccountId }: { currentAccountId: string | null }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<AdeliAccount[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -68,30 +71,20 @@ export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: {
   }
 
   async function startConnect() {
-    const profileId = accounts?.find((account) => account.accountId === selected)?.profileId ?? defaultProfileId;
-    if (!profileId) {
-      setFlow({ kind: "failed", message: "Choose an Adeli profile before connecting Instagram." });
-      return;
-    }
     setFlow({ kind: "starting" });
     const authWindow = window.open("about:blank", "_blank");
     try {
-      const session = await adeli.startConnect(profileId);
+      const session = await adeli.startConnect();
       if (authWindow) authWindow.location.href = session.authUrl;
-      setFlow({ kind: "waiting", sessionId: session.id, profileId, authUrl: session.authUrl, processing: false });
+      setFlow({ kind: "waiting", sessionId: session.id, authUrl: session.authUrl, processing: false });
       stopPolling();
       pollTimer.current = setInterval(async () => {
         try {
-          const next = await adeli.getConnectSession(profileId, session.id);
-          if (next.status === "processing") setFlow({ kind: "waiting", sessionId: session.id, profileId, authUrl: session.authUrl, processing: true });
-          if (next.status === "connected") {
+          const next = await adeli.getConnectSession(session.id);
+          if (next.status === "processing") setFlow({ kind: "waiting", sessionId: session.id, authUrl: session.authUrl, processing: true });
+          if (next.status === "connected" && next.accountId) {
             stopPolling();
-            const refreshed = await adeli.listInstagramAccounts();
-            const account = refreshed.find((item) => item.accountId === next.accountId);
-            setAccounts(refreshed);
-            setSelected(next.accountId);
-            setFlow({ kind: "idle" });
-            toast.success(account ? `Connected @${account.displayIdentifier}` : "Instagram connected");
+            await saveConnected(next.accountId);
           }
           if (next.status === "failed" || next.status === "expired") {
             stopPolling();
@@ -106,6 +99,19 @@ export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: {
       authWindow?.close();
       setFlow({ kind: "failed", message: error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute." });
     }
+  }
+
+  /** Saves the account Instagram Login just connected and moves on. */
+  async function saveConnected(accountId: string) {
+    setFlow({ kind: "saving" });
+    const result = await connectAccount(accountId);
+    if (!result.ok) {
+      setFlow({ kind: "failed", message: result.reason === "error" ? result.message : "We couldn't save that account. Try again." });
+      void loadAccounts();
+      return;
+    }
+    toast.success(`Connected @${result.handle}`);
+    router.push("/automations");
   }
 
   function cancel() {
@@ -131,15 +137,15 @@ export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><AtSign className="size-4 text-link" /> Choose your Instagram account</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base"><AtSign className="size-4 text-link" /> Connect your Instagram account</CardTitle>
         <CardDescription>
-          Pick an account you&apos;ve connected in Adeli, or connect a new one. It needs to be an Instagram Business or Creator account.
+          Adeli Chat replies to comments and sends DMs from this account. It needs to be an Instagram Business or Creator account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {loadError ? (
           <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-            <span>We couldn&apos;t load your accounts from Adeli.</span>
+            <span>We couldn&apos;t load your Instagram accounts from Adeli.</span>
             <Button size="sm" variant="outline" onClick={() => void loadAccounts()}><RefreshCw /> Retry</Button>
           </div>
         ) : accounts === null ? (
@@ -153,15 +159,13 @@ export function ConnectCard({ profileId: defaultProfileId, currentAccountId }: {
               <AccountOption key={account.accountId} account={account} selected={selected === account.accountId} onSelect={() => setSelected(account.accountId)} />
             ))}
           </div>
-        ) : (
-          <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">No Instagram accounts are connected to this Adeli profile yet. Connect one below.</p>
-        )}
+        ) : null}
 
-        <ConnectNew flow={flow} primary={accounts !== null && !hasAccounts} onStart={() => void startConnect()} onCancel={cancel} />
+        <ConnectNew flow={flow} primary={!hasAccounts} hasAccounts={hasAccounts} onStart={() => void startConnect()} onCancel={cancel} />
 
         {hasAccounts ? (
           <div className="flex justify-end border-t pt-4">
-            <Button size="lg" onClick={useAccount} disabled={!selected || flow.kind === "waiting" || saving}>{saving ? <Loader2 className="animate-spin" /> : null} Use this account</Button>
+            <Button size="lg" onClick={useAccount} disabled={!selected || flow.kind === "waiting" || flow.kind === "saving" || saving}>{saving ? <Loader2 className="animate-spin" /> : null} Use this account</Button>
           </div>
         ) : null}
       </CardContent>
@@ -189,9 +193,9 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
       </Avatar>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">@{account.displayIdentifier}</span>
-        <span className="block truncate text-xs text-muted-foreground">{account.displayName}{account.profileName ? ` · ${account.profileName}` : ""}</span>
+        <span className="block truncate text-xs text-muted-foreground">{account.displayName}</span>
       </span>
-      {needsReconnect ? <Badge className="bg-warning-wash text-warning"><AlertTriangle /> Reconnect in Adeli</Badge> : null}
+      {needsReconnect ? <Badge className="bg-warning-wash text-warning"><AlertTriangle /> Connect again</Badge> : null}
       <span className={cn("grid size-5 place-items-center rounded-full border", selected ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
         {selected ? <Check className="size-3" /> : null}
       </span>
@@ -199,7 +203,14 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
   );
 }
 
-function ConnectNew({ flow, primary, onStart, onCancel }: { flow: Flow; primary: boolean; onStart: () => void; onCancel: () => void }) {
+function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: Flow; primary: boolean; hasAccounts: boolean; onStart: () => void; onCancel: () => void }) {
+  if (flow.kind === "saving") {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-secondary/40 p-4 text-sm font-medium text-secondary-foreground" role="status" aria-live="polite">
+        <Loader2 className="size-4 animate-spin" /> Instagram connected. Saving your account…
+      </div>
+    );
+  }
   if (flow.kind === "waiting") {
     return (
       <div className="space-y-3 rounded-lg border border-primary/30 bg-secondary/40 p-4" role="status" aria-live="polite">
@@ -227,7 +238,7 @@ function ConnectNew({ flow, primary, onStart, onCancel }: { flow: Flow; primary:
       ) : null}
       <Button variant={primary ? "default" : "outline"} size="lg" onClick={onStart} disabled={flow.kind === "starting"}>
         {flow.kind === "starting" ? <Loader2 className="animate-spin" /> : <Plus />}
-        {flow.kind === "failed" ? "Try again" : "Connect a new account"}
+        {flow.kind === "failed" ? "Try again" : hasAccounts ? "Connect another account" : "Connect Instagram"}
       </Button>
       <p className="text-xs text-muted-foreground">Opens Instagram in a new tab. Adeli handles the login, so Adeli Chat never sees your password.</p>
     </div>

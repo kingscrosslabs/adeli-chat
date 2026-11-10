@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { KeyBanner } from "@/components/shell/key-banner";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Wordmark } from "@/components/brand/wordmark";
+import { serverKeyRejected } from "@/lib/adeli/client";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { requireUserPage } from "@/lib/auth/session";
 import { getConnectedAccount, listAutomations } from "@/lib/data";
@@ -11,8 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUserPage();
-  const [account, settings, config] = await Promise.all([getConnectedAccount(user.id), getUserSettings(user.id), findAdeliConfig(user.id).catch(() => null)]);
-  const keyProblem = !config ? "missing" as const : settings.adeliKeyStatus === "invalid" ? "invalid" as const : null;
+  const [account, settings] = await Promise.all([getConnectedAccount(user.id), getUserSettings(user.id)]);
+  const keyProblem = !findAdeliConfig() ? "missing" as const : serverKeyRejected() ? "invalid" as const : null;
   const automations = account ? await listAutomations(account.id) : [];
   return (
     <SidebarProvider>

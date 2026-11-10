@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { listInstagramAccounts, listProfiles } from "@/lib/adeli/instagram";
-import { DEFAULT_BASE_URL, findAdeliConfig, normalizeBaseURL, type KeySource } from "@/lib/adeli/key";
-import { AdeliError, adeliKeyPrefix } from "@/lib/adeli/types";
+import { listInstagramAccounts } from "@/lib/adeli/instagram";
+import { ensureUserProfile } from "@/lib/adeli/profile";
+import { AdeliError } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { requireUserId, SignedOutError } from "@/lib/auth/session";
@@ -19,21 +19,15 @@ import { disconnectApp } from "@/lib/mcp/connections";
 import { submitConsent } from "@/lib/mcp/consent";
 import { createToken, revealToken, revokeToken, TOKEN_EXPIRY_OPTIONS, type TokenExpiry } from "@/lib/mcp/tokens";
 import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
-import { sealSecret } from "@/lib/secret-box";
-import { getUserSettings, markKeyStatus, saveAdeliConnection as storeAdeliConnection } from "@/lib/user-settings";
 
 /**
  * Every write the UI makes, as Server Actions backed by the database. Server
  * Actions are public endpoints, so each one resolves the signed-in user first
  * (`guard`, `requireUserId`) and only touches that user's data: their Adeli
- * settings, and automations reached through their own Instagram account.
+ * profile, and automations reached through their own Instagram account.
  */
 
 export type { ActionResult };
-
-export type KeyState =
-  | { configured: false; message: string; baseURL: string }
-  | { configured: true; prefix: string; source: KeySource; baseURL: string; status: "valid" | "invalid" | "unchecked"; profileName: string | null; checkedAt: string | null; message: string | null };
 
 /** A problem the user can fix, shown to them as is. */
 class ActionError extends ServiceError {}
@@ -58,81 +52,6 @@ function settled(result: ActionResult): ActionResult {
   return result;
 }
 
-/** The last recorded key check, without asking Adeli. "Test connection" asks again. */
-export async function lastKeyState(): Promise<KeyState> {
-  const userId = await requireUserId();
-  let config;
-  try {
-    config = await findAdeliConfig(userId);
-  } catch (error) {
-    return { configured: false, message: error instanceof Error ? error.message : "The Adeli settings aren't valid.", baseURL: DEFAULT_BASE_URL };
-  }
-  const settings = await getUserSettings(userId);
-  if (!config) return { configured: false, message: "Add your Adeli API key to start.", baseURL: settings.adeliBaseUrl ?? DEFAULT_BASE_URL };
-  return {
-    configured: true,
-    prefix: adeliKeyPrefix(config.apiKey),
-    source: config.source,
-    baseURL: config.baseURL,
-    status: settings.adeliKeyStatus,
-    profileName: settings.adeliProfileName,
-    checkedAt: settings.adeliKeyCheckedAt?.toISOString() ?? null,
-    message: null,
-  };
-}
-
-/**
- * Checks the configured key against Adeli with `listProfiles`, records the
- * result, registers the webhook, and returns what Setup and Settings show.
- */
-export async function checkAdeliKey(): Promise<KeyState> {
-  const userId = await requireUserId();
-  const last = await lastKeyState();
-  if (!last.configured) return last;
-  let message: string | null = null;
-  try {
-    const [profile] = await listProfiles(userId);
-    if (profile) {
-      await markKeyStatus(userId, "valid", profile);
-      // This also moves the webhook to the current URL when APP_URL or the domain changed.
-      await ensureAdeliWebhook(userId).catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
-    } else message = "This Adeli organization doesn't have a profile yet. Create one in Adeli.";
-  } catch (error) {
-    // `unauthorized` already marked the key invalid. A network error leaves the last result.
-    message = error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute.";
-  }
-  return { ...(await lastKeyState()), message } as KeyState;
-}
-
-/**
- * Saves the Adeli key and URL entered in Setup or Settings. The key is tried
- * against Adeli first and only stored, encrypted, when Adeli accepts it. An
- * empty key keeps the saved one, so you can change just the URL.
- */
-export async function saveAdeliConnection(input: { apiKey: string; baseURL: string }): Promise<ActionResult<{ key: KeyState }>> {
-  return guard(async (userId): Promise<ActionResult<{ key: KeyState }>> => {
-    const baseURL = normalizeBaseURL(input.baseURL.trim() || DEFAULT_BASE_URL);
-    const typed = input.apiKey.trim();
-    if (typed && !/^rk_(live|test)_[A-Za-z0-9_-]{8,}$/.test(typed)) throw new ActionError("That doesn't look like an Adeli API key. It starts with rk_live_.");
-    const current = await findAdeliConfig(userId).catch(() => null);
-    const apiKey = typed || current?.apiKey;
-    if (!apiKey) throw new ActionError("Paste your Adeli API key.");
-
-    const profiles = await listProfiles(userId, { baseURL, apiKey });
-    if (!profiles.length) throw new ActionError("This Adeli organization doesn't have a profile yet. Create one in Adeli.");
-    const settings = await getUserSettings(userId);
-    await storeAdeliConnection(userId, {
-      sealedApiKey: typed ? sealSecret(typed) : undefined,
-      baseUrl: baseURL === DEFAULT_BASE_URL ? null : baseURL,
-      keepProfile: profiles.some((profile) => profile.id === settings.adeliProfileId),
-    });
-    const key = await checkAdeliKey();
-    revalidatePath("/", "layout");
-    if (!key.configured || key.message) return { ok: false, reason: "error", message: key.message ?? "Adeli didn't accept this key." };
-    return { ok: true, key };
-  });
-}
-
 /**
  * Starts Google sign-in and sends the browser to Google. When sign-in is part
  * of an OAuth request (Claude connecting to `/mcp`), the form carries the
@@ -152,21 +71,27 @@ export async function signOut(): Promise<void> {
   redirect("/sign-in");
 }
 
-export async function testConnection(): Promise<ActionResult<{ key: KeyState }>> {
-  return guard(async (): Promise<ActionResult<{ key: KeyState }>> => {
-    const key = await checkAdeliKey();
-    revalidatePath("/", "layout");
-    if (!key.configured || key.message) return { ok: false, reason: "error", message: key.message ?? "Adeli didn't accept this key." };
-    return { ok: true, key };
+/**
+ * Settings' "Check connection": makes sure the user's Adeli profile exists and
+ * Adeli delivers their events to the current URL (say APP_URL changed).
+ */
+export async function checkAdeliConnection(): Promise<ActionResult<{ profileName: string }>> {
+  return guard(async (userId) => {
+    const profile = await ensureUserProfile(userId);
+    await ensureAdeliWebhook(userId);
+    return done({ profileName: profile.name });
   });
 }
 
-/** Saves the account chosen on `/connect`, after checking this key can reach it. */
+/**
+ * Saves the account chosen or just connected on `/connect`, after checking
+ * it's on the user's own Adeli profile, and registers their webhook.
+ */
 export async function connectAccount(adeliAccountId: string): Promise<ActionResult<{ handle: string }>> {
   return guard(async (userId) => {
     const account = (await listInstagramAccounts(userId)).find((item) => item.accountId === adeliAccountId);
-    if (!account) throw new ActionError("This Adeli key can't reach that Instagram account. Refresh and pick another.");
-    if (account.connectionStatus !== "connected") throw new ActionError("Reconnect this account in Adeli first.");
+    if (!account) throw new ActionError("That Instagram account isn't connected to your profile. Refresh and try again.");
+    if (account.connectionStatus !== "connected") throw new ActionError("Instagram needs you to connect this account again. Click Connect Instagram.");
     const now = new Date();
     const values = {
       adeliProfileId: account.profileId ?? "",
@@ -191,6 +116,8 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
       await tx.update(schema.accounts).set({ status: "disconnected", updatedAt: now }).where(and(inArray(schema.accounts.id, others), eq(schema.accounts.status, "connected")));
       await tx.update(schema.automations).set({ status: "paused", updatedAt: now }).where(and(inArray(schema.automations.accountId, others), eq(schema.automations.status, "live")));
     });
+    // Comments on the account only reach Adeli Chat through the user's webhook.
+    await ensureAdeliWebhook(userId).catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
     return done({ handle: account.displayIdentifier });
   });
 }

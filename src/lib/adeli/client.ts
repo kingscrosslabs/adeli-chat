@@ -2,36 +2,38 @@ import "server-only";
 
 import { Adeli, AdeliApiError, AuthenticationError, ConfigurationError, NetworkError, TimeoutError } from "@adeli/sdk";
 
-import { markKeyStatus } from "@/lib/user-settings";
-
-import { getAdeliConfig, type AdeliConfig } from "./key";
+import { getAdeliConfig } from "./key";
 import { AdeliError } from "./types";
 
-/** A client for this user's key. Throws `not_configured` without one. */
-export async function adeli(userId: string): Promise<Adeli> {
+/** When Adeli last rejected the server's key, in this process. Cleared by the next accepted call. Drives the key banner. */
+let keyRejectedAt: Date | null = null;
+
+export function serverKeyRejected() {
+  return keyRejectedAt !== null;
+}
+
+/** A client for the server's key. Throws `not_configured` without one. */
+export function adeli(): Adeli {
   try {
-    const { baseURL, apiKey } = await getAdeliConfig(userId);
-    return new Adeli({ baseURL, apiKey });
+    return new Adeli(getAdeliConfig());
   } catch (error) {
     throw toAdeliError(error);
   }
 }
 
 /**
- * Runs one Adeli call with `userId`'s key and maps SDK errors to Adeli Chat's
- * `AdeliError`. A rejected key also marks that user's key invalid, which
- * shows the key banner.
- *
- * `candidate` tries a key before Settings saves it. It never touches the
- * stored key status.
+ * Runs one Adeli call with the server's key and maps SDK errors to Adeli
+ * Chat's `AdeliError`. The key reaches every user's profile, so callers pass
+ * only the signed-in user's profile and accounts (`profile.ts`, `instagram.ts`).
  */
-export async function adeliCall<T>(userId: string, fn: (client: Adeli) => Promise<T>, candidate?: AdeliConfig): Promise<T> {
+export async function adeliCall<T>(fn: (client: Adeli) => Promise<T>): Promise<T> {
   try {
-    const client = candidate ? new Adeli(candidate) : await adeli(userId);
-    return await fn(client);
+    const result = await fn(adeli());
+    keyRejectedAt = null;
+    return result;
   } catch (error) {
     const mapped = toAdeliError(error);
-    if (mapped.code === "unauthorized" && !candidate) await markKeyStatus(userId, "invalid").catch(() => undefined);
+    if (mapped.code === "unauthorized") keyRejectedAt = new Date();
     throw mapped;
   }
 }
@@ -39,7 +41,7 @@ export async function adeliCall<T>(userId: string, fn: (client: Adeli) => Promis
 export function toAdeliError(error: unknown): AdeliError {
   if (error instanceof AdeliError) return error;
   if (error instanceof AuthenticationError) {
-    return new AdeliError("unauthorized", "Adeli didn't accept this API key. Create a new one in Adeli and enter it in Settings.", 401);
+    return new AdeliError("unauthorized", "Adeli didn't accept this server's API key (ADELI_API_KEY).", 401);
   }
   if (error instanceof NetworkError || error instanceof TimeoutError) {
     return new AdeliError("network", "We couldn't reach Adeli. Try again in a minute.", 502);
@@ -51,5 +53,5 @@ export function toAdeliError(error: unknown): AdeliError {
 
 /** Adeli keys never belong in an error message. */
 function redact(message: string) {
-  return message.replace(/rk_live_[A-Za-z0-9_-]+/g, "rk_live_…");
+  return message.replace(/rk_(live|test)_[A-Za-z0-9_-]+/g, "rk_$1_…");
 }

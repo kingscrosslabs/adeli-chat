@@ -287,16 +287,12 @@ export const apiTokens = pgTable("api_tokens", {
 }, (table) => [index("api_tokens_user_idx").on(table.userId)]);
 
 /**
- * Each user's Adeli connection: the key (encrypted, `src/lib/secret-box.ts`),
- * URL, default profile and webhook. In local no-login mode the user is
- * `local`, and `ADELI_API_KEY` is the fallback when no key is saved.
+ * Each user's own Adeli profile (created for them, `src/lib/adeli/profile.ts`)
+ * and webhook. The Adeli key is the server's `ADELI_API_KEY`, shared by every
+ * user. In local no-login mode the user is `local`.
  */
 export const userSettings = pgTable("user_settings", {
   userId: text("user_id").primaryKey().references(() => authUser.id, { onDelete: "cascade" }),
-  adeliApiKeyEncrypted: text("adeli_api_key_encrypted"),
-  adeliBaseUrl: text("adeli_base_url"),
-  adeliKeyStatus: text("adeli_key_status", { enum: ["valid", "invalid", "unchecked"] }).notNull().default("unchecked"),
-  adeliKeyCheckedAt: timestamp("adeli_key_checked_at", { withTimezone: true }),
   adeliProfileId: text("adeli_profile_id"),
   adeliProfileName: text("adeli_profile_name"),
   adeliWebhookId: text("adeli_webhook_id"),

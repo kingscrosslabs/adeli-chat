@@ -13,7 +13,8 @@ export default defineConfig({
   test: {
     environment: "node",
     // No DATABASE_URL, so every test file runs on a fresh in-memory PGlite.
-    env: { DATABASE_URL: "" },
+    // The server's Adeli key (`test/db-helpers.ts` TEST_KEY), pointing at the fake Adeli.
+    env: { DATABASE_URL: "", ADELI_API_KEY: `rk_live_${"a".repeat(43)}`, ADELI_API_BASE_URL: "http://localhost:3000" },
     setupFiles: ["./test/setup-db.ts"],
   },
 });
