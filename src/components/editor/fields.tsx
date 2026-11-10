@@ -36,7 +36,7 @@ export function Section({ step, title, info, tab, onFocusTab, children, action }
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">{step}</span>
+          <span className="grid size-6 shrink-0 place-items-center rounded-md bg-secondary text-xs font-semibold text-secondary-foreground">{step}</span>
           <h2 id={headingId} className="text-base font-semibold leading-6">{title}</h2>
           {info ? <InfoTip label={`About ${title}`}>{info}</InfoTip> : null}
         </div>
@@ -107,12 +107,14 @@ export function TextField({ field, label, value, onChange, max, error, multiline
 }
 
 /** A selectable option row used for radios that include "Coming soon" choices. */
-export function ChoiceRow({ checked, disabled, onSelect, title, description, badge, name }: {
+export function ChoiceRow({ checked, disabled, onSelect, title, description, info, badge, name }: {
   checked: boolean;
   disabled?: boolean;
   onSelect?: () => void;
   title: string;
   description?: string;
+  /** Explanation in an info icon beside the title, instead of a line of text under it. */
+  info?: React.ReactNode;
   badge?: React.ReactNode;
   name: string;
 }) {
@@ -120,7 +122,10 @@ export function ChoiceRow({ checked, disabled, onSelect, title, description, bad
     <label className={cn("flex items-start gap-3 rounded-lg border p-3 transition", checked ? "border-primary bg-secondary/40" : "hover:bg-muted/60", disabled && "pointer-events-none opacity-60")}>
       <input type="radio" name={name} checked={checked} disabled={disabled} onChange={() => onSelect?.()} className="mt-0.5 size-4 accent-[var(--primary)]" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center justify-between gap-2 text-sm font-medium">{title}{badge}</span>
+        <span className="flex items-center justify-between gap-2 text-sm font-medium">
+          <span className="flex items-center gap-1.5">{title}{info ? <InfoTip label={`About ${title}`}>{info}</InfoTip> : null}</span>
+          {badge}
+        </span>
         {description ? <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span> : null}
       </span>
     </label>

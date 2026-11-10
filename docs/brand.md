@@ -1,8 +1,8 @@
 # Adeli Chat: Design and Brand Reference
 
-> Status: v1 reference · Last updated: 2026-10-02
+> Status: v1.1 reference · Last updated: 2026-11-09
 >
-> Source of truth: the Adeli dashboard (`adeli/apps/web/app/globals.css`, `adeli/apps/web/components/ui/*`). The marketing site (`landing-page/apps/adeli`) is a secondary source, used only for the wordmark font and voice. If Adeli changes its tokens, update this file and `src/app/globals.css` together.
+> Source of truth: Adeli's `DESIGN.md` and `BRAND.md`, its shared tokens (`adeli/packages/ui/src/theme.css`) and its dashboard primitives (`adeli/apps/web/components/ui/*`). `src/app/globals.css` holds a copy of `theme.css`; when Adeli changes its tokens, copy the file again and update this one.
 
 Adeli Chat should look like a room inside the Adeli dashboard: same tokens, same primitives, same calm teal-on-paper feel. A user who has an Adeli account should not be able to tell where Adeli ends and Adeli Chat begins.
 
@@ -54,45 +54,22 @@ Components to copy from `adeli/apps/web/components/ui/` in M0: `alert`, `avatar`
 
 ## 3. Color
 
-Light mode only in v1. The Adeli dashboard has no dark theme, so we don't ship one either. (Dark mode is a v1.1 candidate once Adeli defines it.)
+Adeli Chat uses Adeli's tokens unchanged: **dark (Night Sky) by default**, with Light (Cloud Sky) and System. `next-themes` sets the `.dark` class with `defaultTheme="dark"` and `storageKey="adeli-theme"`, like the Adeli dashboard. The Light / Dark / System toggle is on Settings (`src/components/theme-toggle.tsx`, copied from Adeli).
 
-### Brand palette
+Every token, its light and dark value and its contrast pairings are in Adeli's `DESIGN.md` ("Tokens", "Contrast"). The rules that matter most here:
 
-| Token | Hex | Role |
-|---|---|---|
-| `--brand-ink` | `#17312F` | Body text, headings. Deep green-black, never pure black. |
-| `--brand-deep` | `#075E5A` | Text on mint surfaces, pressed states. |
-| `--brand-green` | `#0A807A` | Signal Teal. Primary buttons, focus rings, links, Live dot. |
-| `--brand-mint` | `#DDEDEC` | Secondary buttons, selected rows, Live pill background. |
-| `--brand-fog` | `#F4F8F7` | Muted surfaces, sidebar, empty-state panels. |
-
-### Semantic tokens
-
-| Token | Value | Use |
-|---|---|---|
-| `--background` | `#FAFCFB` | Page background |
-| `--foreground` | `--brand-ink` | Default text |
-| `--card` / `--popover` | `#FFFFFF` | Cards, modals, menus |
-| `--primary` / `--primary-foreground` | `--brand-green` / `#FFFFFF` | Main action (Go Live, Save key, Create automation) |
-| `--secondary` / `--secondary-foreground` | `--brand-mint` / `--brand-deep` | Secondary action |
-| `--muted` / `--muted-foreground` | `--brand-fog` / ink at 62% | Helper text, counters, placeholders |
-| `--accent` / `--accent-foreground` | `--brand-mint` / `--brand-deep` | Hover and selected states |
-| `--destructive` | `#A63B35` | Delete, errors, invalid fields |
-| `--border` / `--input` | `#D5E3E1` | All borders and input outlines |
-| `--ring` | `--brand-green` | Focus ring (used at 50% opacity, 3px) |
+- **Signal Teal `#0A807A` fills things** (primary buttons, the Live dot, badges) in both modes. One primary button per view.
+- **Teal text is `text-link`, never `text-primary`.** `--link` is `#0A807A` in light and `#2EA398` in dark.
+- **No teal text on the light sidebar** (Cloud Sky). The selected item is a white chip.
+- **Status is `--success`, `--warning`, `--destructive`**, as text on a tint, never as a solid fill.
+- **Tokens, not palette colours.** `bg-card`, not `bg-white`. The phone preview is the one exception (section 7).
 
 ### Adeli Chat additions
 
-Adeli has no warning or success color. We need them for status pills and connection states. These are new tokens, kept in the same muted register:
-
-| Token | Hex | Use |
+| Token | Value | Use |
 |---|---|---|
-| `--warning` | `#8A5A00` | Paused pill text, "delayed" notices |
-| `--warning-wash` | `#FCF1D9` | Paused pill background, warning alerts |
-| `--success` | `--brand-deep` | Success text (reuses brand, no new green) |
-| `--success-wash` | `--brand-mint` | Success backgrounds |
-
-Contrast (WCAG AA for small text, 4.5:1): white on `#0A807A` is about 4.8:1, `#075E5A` on `#DDEDEC` about 6.3:1, `#8A5A00` on `#FCF1D9` about 5.3:1. **Do not put `#0A807A` text on mint** (about 4:1, fails). Use `--brand-deep` there.
+| `--color-warning-wash` | `--warning` at 14% | Paused pill and warning banner backgrounds |
+| `--color-success-wash` | `--success` at 14% | Success pill backgrounds (Connected) |
 
 ---
 
@@ -101,22 +78,23 @@ Contrast (WCAG AA for small text, 4.5:1): white on `#0A807A` is about 4.8:1, `#0
 | Role | Font | Size / weight |
 |---|---|---|
 | Page title (h1) | Inter | `text-2xl font-semibold tracking-tight` |
-| Section title (editor sections A to F) | Inter | `text-base font-semibold` |
+| Section title (editor sections) | Inter | `text-base font-semibold` |
 | Body, inputs | Inter | `text-sm` (inputs are `text-base` on mobile to stop iOS zoom, `md:text-sm`) |
 | Helper text, counters | Inter | `text-xs text-muted-foreground` |
 | API keys, ids, code | Geist Mono | `font-mono text-[0.82rem]` |
-| Wordmark only | Jersey 10 | Used for the "Adeli Chat" lockup on `/setup` and `/connect`. Nowhere else. |
+| Wordmark | Inter | `font-semibold tracking-tight`, beside the logo mark, as Adeli's sidebar header does |
 
-Jersey 10 is the pixel font from the Adeli marketing site. It is a brand accent, not a UI font: never for buttons, labels or body text.
+Jersey 10 is retired, as it is in Adeli. Satoshi belongs to Adeli's marketing site only.
 
 ---
 
 ## 5. Shape, space, elevation
 
-- **Radius:** `--radius: 0.625rem` (10px). Derived scale: `sm` 6px, `md` 8px, `lg` 10px, `xl` 14px. Buttons and inputs use `rounded-lg`, cards use `rounded-xl`, pills use `rounded-4xl`.
-- **Spacing:** Tailwind 4px scale. Cards use `--card-spacing: 16px` (12px for `size="sm"`). Editor sections are separated by `gap-6`.
-- **Elevation:** cards use a hairline ring (`ring-1 ring-foreground/10`), not a shadow. Modals and popovers may use one soft shadow. Never stack shadows.
-- **Focus:** every interactive element shows `focus-visible:ring-3 ring-ring/50`. Do not remove it.
+- **Radius:** Adeli's sharp scale. `rounded-lg` (buttons, inputs) is 3px, `rounded-xl` (cards, menus) is 4px, nothing rounds past 6px. `rounded-full` is for avatars, dots and spinners only; badges are `rounded-md`.
+- **Spacing:** Tailwind 4px scale. Settings and Connect to AI Agent are centred at `max-w-3xl`.
+- **Elevation:** none. Every `shadow-*` resolves to nothing; surfaces separate with a hairline border or a fill.
+- **Focus:** every interactive element shows a visible `ring`. Do not remove it.
+- **Brand logos** (Claude, ChatGPT, Cursor, Perplexity on Connect to AI Agent) keep their owners' colours: a tile in the brand colour with a white mark.
 
 ---
 
@@ -203,130 +181,12 @@ The frame (bezel) is the one place brand touches the preview.
 ## 9. Logo and assets
 
 - Adeli logo: `adeli/apps/web/public/adeli-logo.png` (1024px PNG). Marketing variants in `landing-page/apps/adeli/public/` (`adeli-logo-512.png`, `adeli-logo-1024.png`).
-- Adeli Chat lockup: Adeli logo mark + "Adeli Chat" in Jersey 10.
+- Adeli Chat lockup: Adeli logo mark + "Adeli Chat" in Inter semibold.
 - Favicon: Adeli `icon.png` / `apple-icon.png` until Adeli Chat has its own mark.
 - **Open:** confirm we're OK shipping the Adeli logo in a public MIT repo. Suggested approach: code is MIT, logo files are "all rights reserved, used with permission", noted in `README.md` and a `public/brand/LICENSE` file. Forks must swap it.
 
 ---
 
-## 10. `src/app/globals.css` (copy in M0)
+## 10. `src/app/globals.css`
 
-This is Adeli's file with the docs-only rules removed and the Adeli Chat additions marked.
-
-```css
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-@theme inline {
-  --color-brand-ink: var(--brand-ink);
-  --color-brand-deep: var(--brand-deep);
-  --color-brand-green: var(--brand-green);
-  --color-brand-mint: var(--brand-mint);
-  --color-brand-fog: var(--brand-fog);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --font-wordmark: var(--font-jersey);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  /* Adeli Chat additions */
-  --color-warning: var(--warning);
-  --color-warning-wash: var(--warning-wash);
-  --color-success: var(--success);
-  --color-success-wash: var(--success-wash);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-:root {
-  --brand-ink: #17312F;
-  --brand-deep: #075E5A;
-  --brand-green: #0A807A;
-  --brand-mint: #DDEDEC;
-  --brand-fog: #F4F8F7;
-  --background: #FAFCFB;
-  --foreground: var(--brand-ink);
-  --card: #FFFFFF;
-  --card-foreground: var(--brand-ink);
-  --popover: #FFFFFF;
-  --popover-foreground: var(--brand-ink);
-  --primary: var(--brand-green);
-  --primary-foreground: #FFFFFF;
-  --secondary: var(--brand-mint);
-  --secondary-foreground: var(--brand-deep);
-  --muted: var(--brand-fog);
-  --muted-foreground: color-mix(in srgb, var(--brand-ink) 62%, #FFFFFF);
-  --accent: var(--brand-mint);
-  --accent-foreground: var(--brand-deep);
-  --destructive: #A63B35;
-  --border: #D5E3E1;
-  --input: #D5E3E1;
-  --ring: var(--brand-green);
-  --radius: 0.625rem;
-  --sidebar: #F4F8F7;
-  --sidebar-foreground: var(--brand-ink);
-  --sidebar-primary: var(--brand-green);
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: var(--brand-mint);
-  --sidebar-accent-foreground: var(--brand-deep);
-  --sidebar-border: #D5E3E1;
-  --sidebar-ring: var(--brand-green);
-  /* Adeli Chat additions */
-  --warning: #8A5A00;
-  --warning-wash: #FCF1D9;
-  --success: var(--brand-deep);
-  --success-wash: var(--brand-mint);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
-}
-```
-
-Fonts in `src/app/layout.tsx`:
-
-```tsx
-import { Geist_Mono, Inter, Jersey_10 } from "next/font/google";
-
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const jersey = Jersey_10({ variable: "--font-jersey", weight: "400", subsets: ["latin"] });
-```
+The top of the file is a copy of Adeli's `packages/ui/src/theme.css`, with the two wash tokens added in `@theme inline`. Below it are the base rules (from Adeli's dashboard `globals.css`) and the phone preview tokens.

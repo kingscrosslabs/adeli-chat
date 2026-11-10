@@ -23,7 +23,7 @@ const STEPS: Array<{ title: string; body: React.ReactNode }> = [
 
 function Link({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline">
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-link underline-offset-4 hover:underline">
       {children}
       <ExternalLink className="size-3" aria-hidden />
       <span className="sr-only">(opens in a new tab)</span>

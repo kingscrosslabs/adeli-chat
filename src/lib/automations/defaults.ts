@@ -1,4 +1,4 @@
-import type { Automation, AutomationContent } from "./schemas";
+import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationContent } from "./schemas";
 
 /** Defaults for a new Comment to DM automation (PRD FR-5.x). No em dashes in any copy. */
 export const DEFAULT_REPLY_VARIANTS = [
@@ -31,6 +31,7 @@ export function defaultAutomationContent(createdCount: number): AutomationConten
     trigger: { postScope: "specific", mediaId: null, mediaSnapshot: null, match: "keywords", keywords: [] },
     commentReply: { enabled: true, variants: [...DEFAULT_REPLY_VARIANTS] },
     openingDm: { ...DEFAULT_OPENING_DM },
+    emailCapture: { ...DEFAULT_EMAIL_CAPTURE },
     finalDm: { type: "text_buttons", text: DEFAULT_FINAL_DM.text, buttons: [{ label: DEFAULT_FINAL_DM.buttonLabel, url: DEFAULT_FINAL_DM.url }] },
   };
 }
@@ -42,7 +43,7 @@ export function newDraftAutomation(id: string, createdCount: number, now = new D
     type: "comment_to_dm",
     status: "draft",
     ...defaultAutomationContent(createdCount),
-    stats: { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, finalDms: 0 },
+    stats: { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, emails: 0, finalDms: 0 },
     createdAt: timestamp,
     updatedAt: timestamp,
     liveAt: null,

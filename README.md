@@ -46,16 +46,17 @@ To test the whole flow against a local Adeli dev server, with a real comment tri
 
 Adeli Chat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
 
-Open **MCP & APIs** in the app sidebar (`/mcp-apis`). It has everything below with your URL filled in.
+Open **Connect to AI Agent** in the app sidebar (`/mcp-apis`). It has a setup guide for Claude, ChatGPT (and Codex), Cursor, Perplexity and any other MCP client, with your URL filled in.
 
-- **Claude (claude.ai and Claude Desktop):** click **Install** to open Claude's "Add custom connector" dialog with Adeli Chat filled in. Claude then signs you in with Google and asks what it may do. Turn off "changes" for a read-only connection. Disconnect it any time under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
-- **Claude Code:** create an API token on the MCP & APIs page, then run
+- **Claude, ChatGPT, Cursor and Perplexity** sign in with Google (OAuth) and ask what they may do. Turn off "changes" for a read-only connection. Disconnect any of them under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
+- **Claude Code:**
   ```bash
-  claude mcp add --transport http adeli-chat https://<your-domain>/mcp --header "Authorization: Bearer <YOUR_API_TOKEN>"
+  claude mcp add --transport http adeli-chat https://<your-domain>/mcp
   ```
-- **Cursor, Windsurf and other clients:** use the manual JSON config from Settings with an API token.
+  then type `/mcp` in Claude Code and choose Authenticate.
+- **Other MCP clients:** use the server URL with `Authorization: Bearer <token>`.
 
-API tokens start with `adc_`, are shown once, can be read only, and can expire after 30, 90 or 365 days (or never). Only a hash is stored. A token or connection only reaches your own automations.
+API tokens start with `adc_`. Every user gets a **Default** token, and you can create more that are read only or expire after 30, 90 or 365 days. Tokens are stored as a hash plus an encrypted copy, so you can reveal and copy them again later, as with Adeli's API keys. Tokens created before that stay hidden. A token or connection only reaches your own automations.
 
 Tools: `get_workspace`, `list_automations`, `get_automation`, `list_posts`, `create_automation` (always a draft), `update_automation`, `go_live`, `pause_automation`, `duplicate_automation`, `delete_automation`, `reset_runs`. They use the same validation as the editor, so an automation Claude takes live passes the same checks.
 

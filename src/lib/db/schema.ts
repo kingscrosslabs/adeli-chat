@@ -1,6 +1,6 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
-import type { CommentReply, FinalDm, OpeningDm, Trigger } from "@/lib/automations/schemas";
+import type { CommentReply, EmailCapture, FinalDm, OpeningDm, Trigger } from "@/lib/automations/schemas";
 
 /**
  * Postgres tables (PRD §6, simplified). The JSON columns use the Zod shapes in
@@ -275,6 +275,10 @@ export const apiTokens = pgTable("api_tokens", {
   name: text("name").notNull(),
   prefix: text("prefix").notNull(),
   tokenHash: text("token_hash").notNull().unique(),
+  /** The token sealed with `secret-box`, so it can be revealed again. Null for tokens from before reveal existed. */
+  tokenEncrypted: text("token_encrypted"),
+  /** The one token every user gets automatically, used in the setup guides. */
+  isDefault: boolean("is_default").notNull().default(false),
   readOnly: boolean("read_only").notNull().default(false),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
@@ -322,6 +326,7 @@ export const automations = pgTable("automations", {
   trigger: jsonb("trigger").$type<Trigger>().notNull(),
   commentReply: jsonb("comment_reply").$type<CommentReply>().notNull(),
   openingDm: jsonb("opening_dm").$type<OpeningDm>().notNull(),
+  emailCapture: jsonb("email_capture").$type<EmailCapture>(),
   finalDm: jsonb("final_dm").$type<FinalDm>().notNull(),
   ...timestamps,
   liveAt: timestamp("live_at", { withTimezone: true }),
@@ -339,15 +344,38 @@ export const runs = pgTable("runs", {
   igUsername: text("ig_username"),
   commentId: text("comment_id").notNull(),
   commentText: text("comment_text"),
-  /** `final_sending` is the postback claim: only one delivery moves a run out of `opening_sent`. */
-  state: text("state", { enum: ["matched", "opening_sent", "tapped", "final_sending", "final_sent", "failed"] }).notNull().default("matched"),
+  /**
+   * `final_sending` is the postback claim: only one delivery moves a run out of `opening_sent`.
+   * With email capture on, a tap moves it to `awaiting_email` instead, and their reply claims it the same way.
+   */
+  state: text("state", { enum: ["matched", "opening_sent", "tapped", "awaiting_email", "final_sending", "final_sent", "failed"] }).notNull().default("matched"),
   commentReplyState: text("comment_reply_state", { enum: ["skipped", "sent", "failed"] }),
   error: text("error"),
   openingSentAt: timestamp("opening_sent_at", { withTimezone: true }),
   tappedAt: timestamp("tapped_at", { withTimezone: true }),
+  /** The Instagram-scoped id from the button tap. DMs (and so their email reply) come from this id. */
+  igSenderId: text("ig_sender_id"),
+  /** Set when we've already asked them to resend an invalid email, so we only nudge once. */
+  emailRetriedAt: timestamp("email_retried_at", { withTimezone: true }),
+  emailAt: timestamp("email_at", { withTimezone: true }),
   ...timestamps,
 }, (table) => [
+  index("runs_ig_sender_state").on(table.igSenderId, table.state),
   unique("runs_automation_user").on(table.automationId, table.igUserId),
   // Two users can automate the same Instagram account, so a comment is unique per automation.
   unique("runs_automation_comment").on(table.automationId, table.commentId),
 ]);
+
+/**
+ * Emails people sent from an automation's email step. Kept apart from `runs`
+ * so Reset runs doesn't throw leads away. One per person per automation;
+ * a new email from them replaces the old one.
+ */
+export const leads = pgTable("leads", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  automationId: text("automation_id").notNull().references(() => automations.id, { onDelete: "cascade" }),
+  igUserId: text("ig_user_id").notNull(),
+  igUsername: text("ig_username"),
+  email: text("email").notNull(),
+  ...timestamps,
+}, (table) => [unique("leads_automation_user").on(table.automationId, table.igUserId)]);

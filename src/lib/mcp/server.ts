@@ -7,7 +7,7 @@ import { findMedia, listMedia } from "@/lib/adeli/instagram";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { LIMITS, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
@@ -28,15 +28,16 @@ export type McpPrincipal = { userId: string; canWrite: boolean };
 const INSTRUCTIONS = `Adeli Chat runs Instagram Comment to DM automations for the signed-in user's connected Instagram account.
 
 How an automation works:
-1. Someone comments on one specific post (trigger). It matches either specific keywords (case-insensitive) or any comment.
+1. Someone comments (trigger). postScope says where: "specific" (one post, set postId), "next" (the first post published after it goes live) or "any" (every post; a post with its own automation uses that one first). It matches either specific keywords (case-insensitive) or any comment.
 2. Optionally, a public reply is posted under their comment (one variant is picked at random).
 3. They get an Opening DM: a message with one button. Instagram only allows this one message until they tap.
-4. When they tap the button, they get the Final DM: a message with a link button (https only).
+4. Optionally, after the tap we ask for their email (emailCaptureEnabled). The Final DM waits until they reply with a valid email, which is saved as a lead the user can export in the app.
+5. They get the Final DM: a message with a link button (https only).
 Each person gets the flow once per automation.
 
 Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, replies ${LIMITS.replyVariant} chars each, DM text ${LIMITS.dmText} chars, button labels ${LIMITS.buttonLabel} chars.
 
-Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation on the same post shares a keyword (or uses any comment).
+Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation with the same scope (and, for "specific", the same post) shares a keyword (or uses any comment).
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Adeli API key and Instagram account are managed in the app at ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -58,6 +59,7 @@ function summary(automation: Automation) {
     name: automation.name,
     status: automation.status,
     trigger: triggerSummary(automation),
+    postScope: automation.trigger.postScope,
     post: automation.trigger.mediaSnapshot
       ? { id: automation.trigger.mediaId, caption: automation.trigger.mediaSnapshot.caption.slice(0, 120), permalink: automation.trigger.mediaSnapshot.permalink }
       : automation.trigger.mediaId ? { id: automation.trigger.mediaId } : null,
@@ -74,6 +76,7 @@ function detail(automation: Automation) {
     name: automation.name,
     status: automation.status,
     url: automationUrl(automation.id),
+    postScope: automation.trigger.postScope,
     postId: automation.trigger.mediaId,
     post: automation.trigger.mediaSnapshot,
     match: automation.trigger.match,
@@ -82,6 +85,9 @@ function detail(automation: Automation) {
     commentReplies: automation.commentReply.variants,
     openingDmText: automation.openingDm.text,
     openingDmButtonLabel: automation.openingDm.buttonLabel,
+    emailCaptureEnabled: emailCaptureOf(automation).enabled,
+    emailCaptureText: emailCaptureOf(automation).text,
+    emailCaptureRetryText: emailCaptureOf(automation).retryText,
     finalDmText: automation.finalDm.text,
     linkButtonLabel: button?.label ?? "",
     linkUrl: button?.url ?? "",
@@ -95,14 +101,18 @@ function detail(automation: Automation) {
 /** Editable fields, flattened so they're easy to fill in. Every one is optional. */
 const fieldsSchema = {
   name: z.string().max(LIMITS.name).optional().describe("Name shown in Adeli Chat."),
-  postId: z.string().optional().describe("Instagram media id of the post or reel, from list_posts."),
+  postScope: z.enum(["specific", "next", "any"]).optional().describe("Which posts trigger it: one specific post (set postId), the next post published after going live, or any post."),
+  postId: z.string().optional().describe("Instagram media id of the post or reel, from list_posts. Only for postScope specific; setting it also sets postScope to specific."),
   match: z.enum(["keywords", "any"]).optional().describe("Reply to comments with specific keywords, or to any comment."),
   keywords: z.array(z.string().max(LIMITS.keyword)).max(LIMITS.keywords).optional().describe("Keywords that trigger the automation (case-insensitive). Replaces the whole list."),
   commentReplyEnabled: z.boolean().optional().describe("Post a public reply under the comment."),
   commentReplies: z.array(z.string().max(LIMITS.replyVariant)).max(LIMITS.replyVariants).optional().describe("Public reply variants; one is picked at random. Replaces the whole list."),
   openingDmText: z.string().max(LIMITS.dmText).optional().describe("First DM. Sent right after the comment."),
   openingDmButtonLabel: z.string().max(LIMITS.buttonLabel).optional().describe("Button on the first DM. Tapping it sends the final DM."),
-  finalDmText: z.string().max(LIMITS.dmText).optional().describe("Final DM, sent after they tap the button."),
+  emailCaptureEnabled: z.boolean().optional().describe("Ask for their email after the tap, before the final DM. Emails are saved as leads."),
+  emailCaptureText: z.string().max(LIMITS.dmText).optional().describe("The message that asks for their email."),
+  emailCaptureRetryText: z.string().max(LIMITS.dmText).optional().describe("Sent once if their reply doesn't contain an email."),
+  finalDmText: z.string().max(LIMITS.dmText).optional().describe("Final DM, sent after they tap the button (or send their email, when that step is on)."),
   linkButtonLabel: z.string().max(LIMITS.buttonLabel).optional().describe("Label of the link button on the final DM."),
   linkUrl: z.string().max(LIMITS.url).optional().describe("Where the link button goes. Must start with https://"),
 };
@@ -116,8 +126,16 @@ async function applyFields(userId: string, account: ConnectedAccount, content: A
   if (fields.postId !== undefined && fields.postId !== content.trigger.mediaId) {
     const media = await findMedia(userId, account.accountId, fields.postId);
     if (!media) throw new service.ServiceError(`There's no post with id ${fields.postId} on @${account.displayIdentifier}. Use list_posts to find one.`);
+    next.trigger.postScope = "specific";
     next.trigger.mediaId = media.id;
     next.trigger.mediaSnapshot = snapshotOf(media);
+  }
+  if (fields.postScope !== undefined && fields.postScope !== next.trigger.postScope) {
+    next.trigger.postScope = fields.postScope;
+    if (fields.postScope !== "specific") {
+      next.trigger.mediaId = null;
+      next.trigger.mediaSnapshot = null;
+    }
   }
   if (fields.match !== undefined) next.trigger.match = fields.match;
   if (fields.keywords !== undefined) next.trigger.keywords = fields.keywords.map((keyword) => keyword.trim()).filter(Boolean);
@@ -125,6 +143,14 @@ async function applyFields(userId: string, account: ConnectedAccount, content: A
   if (fields.commentReplies !== undefined) next.commentReply.variants = fields.commentReplies;
   if (fields.openingDmText !== undefined) next.openingDm.text = fields.openingDmText;
   if (fields.openingDmButtonLabel !== undefined) next.openingDm.buttonLabel = fields.openingDmButtonLabel;
+  if (fields.emailCaptureEnabled !== undefined || fields.emailCaptureText !== undefined || fields.emailCaptureRetryText !== undefined) {
+    const email = emailCaptureOf(next);
+    next.emailCapture = {
+      enabled: fields.emailCaptureEnabled ?? email.enabled,
+      text: fields.emailCaptureText ?? email.text,
+      retryText: fields.emailCaptureRetryText ?? email.retryText,
+    };
+  }
   if (fields.finalDmText !== undefined) next.finalDm.text = fields.finalDmText;
   if (fields.linkButtonLabel !== undefined || fields.linkUrl !== undefined) {
     const [first, ...rest] = next.finalDm.buttons;
@@ -151,7 +177,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
   async function run(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
-    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the MCP & APIs page in Adeli Chat, or reconnect and allow changes.");
+    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in Adeli Chat, or reconnect and allow changes.");
     try {
       return await body();
     } catch (error) {

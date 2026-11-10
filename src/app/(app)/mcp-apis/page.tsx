@@ -4,19 +4,21 @@ import { authEnabled } from "@/lib/auth/config";
 import { requireUserPage } from "@/lib/auth/session";
 import { mcpResourceUrl } from "@/lib/mcp/config";
 import { listConnectedApps } from "@/lib/mcp/connections";
-import { listTokens } from "@/lib/mcp/tokens";
+import { ensureDefaultToken, listTokens } from "@/lib/mcp/tokens";
 
 export const dynamic = "force-dynamic";
 
-/** MCP & APIs: connect Claude or another MCP client, API tokens and connected apps. */
+/** Connect to AI Agent: connect Claude or another MCP client, API tokens and connected apps. */
 export default async function McpSettingsPage() {
   const user = await requireUserPage();
+  // Every user has a Default token, so the guides can show a real one.
+  const defaultToken = await ensureDefaultToken(user.id);
   const [tokens, apps] = await Promise.all([listTokens(user.id), listConnectedApps(user.id)]);
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      <PageHeading title="MCP & APIs" description="Let Claude, or any MCP client, list, create and manage your automations." />
-      <div className="grid max-w-3xl gap-4">
-        <McpSettings mcpUrl={mcpResourceUrl()} oauthEnabled={authEnabled()} tokens={tokens} apps={apps} />
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 md:p-8">
+      <PageHeading title="Connect to AI Agent" description="Let Claude, ChatGPT, Cursor or any MCP client list, create and manage your automations." />
+      <div className="grid gap-4">
+        <McpSettings mcpUrl={mcpResourceUrl()} oauthEnabled={authEnabled()} defaultToken={defaultToken} tokens={tokens} apps={apps} />
       </div>
     </div>
   );

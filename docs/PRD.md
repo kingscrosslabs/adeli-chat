@@ -1,6 +1,6 @@
 # Adeli Chat: PRD + Build Plan v0.3 (Instagram Comment to DM)
 
-> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-10-27
+> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-09
 >
 > Companion docs: [`docs/brand.md`](brand.md) (design system and copy voice).
 
@@ -40,11 +40,12 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 5. Easy to self-host and easy to contribute to.
 
 ### Non-goals (v1). Shown in the UI as "Coming soon" where relevant.
-- Other triggers: Direct Message, Story Reply, Story Mention.
+- Other triggers: Direct Message, Story Reply, Story Mention. (Story Reply is shown as Coming soon and waits on Adeli sending story-reply info in `message.created`.)
 - Other channels: Facebook, TikTok.
 - Other DM types: Image, Video, Card.
-- Post targeting other than one specific post ("Any post", "Next post").
-- Follow-gating, email/phone collection, tags, broadcasts, AI replies.
+- Follow-gating (shown as Coming soon; waits on a follow check in the Adeli API), phone collection, tags, broadcasts, AI replies.
+
+Added 2026-11-09: "Next post" and "Any post" targeting, and an optional email step whose emails are saved as leads and exported as CSV (§5.12).
 - Visual node-based flow builder.
 - Link-click tracking, multi-user accounts, billing.
 
@@ -273,6 +274,13 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 
 ---
 
+
+### 5.12 Post scopes, email step and leads (added 2026-11-09)
+- **Scopes.** `trigger.postScope` is `specific` (one post, `mediaId`), `next` (the earliest post published at or after Go Live; the runtime binds `mediaId` on the first comment after that post exists, then it acts like `specific`) or `any` (every post). A comment goes to a matching `specific` automation first, then `next`, then `any`. Go Live's conflict rule applies within a scope only. Going live again resets a `next` automation's binding.
+- **Email step.** Optional `emailCapture { enabled, text, retryText }`. After the tap the run moves to `awaiting_email` and we DM `text`. The person's next DM (Adeli `message.created`) with an email address unlocks the Final DM and saves a lead; a reply without one gets `retryText` once. Runs record the tap's sender id (`ig_sender_id`) so the reply can be matched.
+- **Leads.** `leads` table, one per person per automation, kept when runs are reset. Export leads in the editor's menu downloads a CSV (`/api/automations/<id>/leads`).
+- **Webhook.** The per-user webhook subscribes to `message.created` too; an older webhook without it is replaced on boot.
+
 ## 6. Data model
 
 ```
@@ -497,10 +505,9 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 ## 11. Later (v1.1+)
 - Link-click tracking via redirect links
 - Treat a typed reply as a button tap
-- "Any post" and "Next post" targeting
-- Follow-gate before sending the link
+- Follow-gate before sending the link (needs the Adeli follow check)
 - Image, Video and Card DMs, more buttons
-- Direct Message, Story Reply, Story Mention triggers
+- Direct Message, Story Reply (needs Adeli's story-reply info), Story Mention triggers
 - Facebook and TikTok channels
 - Multi-user workspaces
 

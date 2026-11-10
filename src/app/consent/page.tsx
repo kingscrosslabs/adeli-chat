@@ -40,7 +40,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
     <Shell>
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4 text-primary" /> Connect {name} to Adeli Chat</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4 text-link" /> Connect {name} to Adeli Chat</CardTitle>
           <CardDescription>
             {name} wants to reach the automations for {user.email}.{redirectHost ? <> You&apos;ll be sent back to <span className="font-medium text-foreground">{redirectHost}</span>.</> : null}
           </CardDescription>
@@ -63,7 +63,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
                 </li>
               ) : null}
             </ul>
-            <p className="text-xs text-muted-foreground">You can disconnect it any time in MCP & APIs.</p>
+            <p className="text-xs text-muted-foreground">You can disconnect it any time in Connect to AI Agent.</p>
             <div className="flex gap-2">
               <Button type="submit" name="decision" value="allow" className="flex-1">Allow</Button>
               <Button type="submit" name="decision" value="deny" variant="outline" className="flex-1">Deny</Button>
@@ -101,7 +101,7 @@ function hostOf(url: string | null) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-brand-fog/60 px-4 py-8">
+    <main className="grid min-h-screen place-items-center bg-muted px-4 py-8">
       <div className="flex w-full max-w-md flex-col items-center gap-6">
         <Wordmark />
         {children}

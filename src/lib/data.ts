@@ -4,7 +4,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import type { AdeliAccount } from "@/lib/adeli/types";
-import type { Automation, AutomationStats } from "@/lib/automations/schemas";
+import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationStats } from "@/lib/automations/schemas";
 import { NO_STATS, statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
@@ -37,6 +37,7 @@ export function toAutomation(row: AutomationRow, stats: AutomationStats = NO_STA
     trigger: row.trigger,
     commentReply: row.commentReply,
     openingDm: row.openingDm,
+    emailCapture: row.emailCapture ?? { ...DEFAULT_EMAIL_CAPTURE },
     finalDm: row.finalDm,
     stats,
     createdAt: row.createdAt.toISOString(),

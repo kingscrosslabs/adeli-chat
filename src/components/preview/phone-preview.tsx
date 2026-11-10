@@ -5,7 +5,7 @@ import { Bookmark, ChevronLeft, ExternalLink, Heart, ImageOff, MessageCircle, Mo
 import type { PreviewTab } from "@/components/editor/fields";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import { PREVIEW_FALLBACK_KEYWORD } from "@/lib/automations/defaults";
-import type { AutomationContent } from "@/lib/automations/schemas";
+import { emailCaptureOf, type AutomationContent } from "@/lib/automations/schemas";
 import { cn } from "@/lib/utils";
 
 /**
@@ -83,12 +83,18 @@ function CommenterAvatar({ size = "size-7" }: { size?: string }) {
   return <span className={cn(size, "grid shrink-0 place-items-center rounded-full bg-[#E0E7FF] text-[0.6rem] font-semibold text-[#3730A3]")}>{SAMPLE_COMMENTER.initials}</span>;
 }
 
+const PLACEHOLDER = {
+  specific: "Pick a post to see it here",
+  next: "Your next post or reel",
+  any: "Any of your posts or reels",
+} as const;
+
 function PostImage({ content, className }: { content: AutomationContent; className?: string }) {
   const thumb = content.trigger.mediaSnapshot?.thumbUrl;
   if (!thumb) {
     return (
       <div className={cn("grid place-items-center bg-[var(--pv-divider)] text-[var(--pv-subtle)]", className)}>
-        <span className="flex flex-col items-center gap-2 px-6 text-center text-xs"><ImageOff className="size-6" /> Pick a post to see it here</span>
+        <span className="flex flex-col items-center gap-2 px-6 text-center text-xs"><ImageOff className="size-6" /> {PLACEHOLDER[content.trigger.postScope]}</span>
       </div>
     );
   }
@@ -179,6 +185,7 @@ function OtherComment({ handle, text, time }: { handle: string; text: string; ti
 
 function DmView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
   const finalButton = content.finalDm.buttons[0];
+  const email = emailCaptureOf(content);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-[var(--pv-divider)] px-3 pb-2">
@@ -192,9 +199,13 @@ function DmView({ content, account }: { content: AutomationContent; account: Ade
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 text-[0.75rem]">
         <p className="pb-1 text-center text-[0.62rem] text-[var(--pv-subtle)]">Replied to your comment</p>
         <IncomingBubble account={account} text={content.openingDm.text || "Your opening message"} button={content.openingDm.buttonLabel || "Button"} />
-        <div className="flex justify-end">
-          <span className="max-w-[75%] rounded-2xl rounded-br-md bg-[var(--pv-bubble-out)] px-3 py-2 break-words text-[var(--pv-bubble-out-text)]">{content.openingDm.buttonLabel || "Button"}</span>
-        </div>
+        <OutgoingBubble text={content.openingDm.buttonLabel || "Button"} />
+        {email.enabled ? (
+          <>
+            <IncomingBubble account={account} text={email.text || "Your email question"} />
+            <OutgoingBubble text="alex@example.com" />
+          </>
+        ) : null}
         <IncomingBubble account={account} text={content.finalDm.text || "Your final message"} button={finalButton?.label || "Button"} link={finalButton?.url} />
       </div>
       <div className="flex items-center gap-2 border-t border-[var(--pv-divider)] px-3 py-2">
@@ -204,7 +215,15 @@ function DmView({ content, account }: { content: AutomationContent; account: Ade
   );
 }
 
-function IncomingBubble({ account, text, button, link }: { account: AdeliAccount | null; text: string; button: string; link?: string }) {
+function OutgoingBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <span className="max-w-[75%] rounded-2xl rounded-br-md bg-[var(--pv-bubble-out)] px-3 py-2 break-words text-[var(--pv-bubble-out-text)]">{text}</span>
+    </div>
+  );
+}
+
+function IncomingBubble({ account, text, button, link }: { account: AdeliAccount | null; text: string; button?: string; link?: string }) {
   let host: string | null = null;
   if (link) {
     try {
@@ -218,10 +237,12 @@ function IncomingBubble({ account, text, button, link }: { account: AdeliAccount
       <MiniAvatar account={account} size="size-5" />
       <div className="max-w-[78%] overflow-hidden rounded-2xl rounded-bl-md border border-[var(--pv-bubble-in)] bg-[var(--pv-bubble-in)]">
         <p className="px-3 py-2 break-words whitespace-pre-wrap">{text}</p>
-        <div className="border-t border-black/5 bg-[var(--pv-button)] px-3 py-2 text-center font-semibold text-[#3B5BDB]">
-          <span className="inline-flex items-center gap-1 break-all">{button}{link ? <ExternalLink className="size-3 shrink-0" /> : null}</span>
-          {host ? <span className="block text-[0.6rem] font-normal text-[var(--pv-subtle)]">{host}</span> : null}
-        </div>
+        {button ? (
+          <div className="border-t border-black/5 bg-[var(--pv-button)] px-3 py-2 text-center font-semibold text-[#3B5BDB]">
+            <span className="inline-flex items-center gap-1 break-all">{button}{link ? <ExternalLink className="size-3 shrink-0" /> : null}</span>
+            {host ? <span className="block text-[0.6rem] font-normal text-[var(--pv-subtle)]">{host}</span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

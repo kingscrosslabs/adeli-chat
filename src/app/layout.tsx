@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Inter, Jersey_10 } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,6 @@ import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const jersey = Jersey_10({ variable: "--font-jersey", weight: "400", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: { default: "Adeli Chat", template: "%s · Adeli Chat" },
@@ -17,12 +17,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${geistMono.variable} ${jersey.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full">
-        <TooltipProvider>
-          {children}
-          <Toaster position="top-center" />
-        </TooltipProvider>
+        {/* Dark by default, like Adeli's dashboard (docs/brand.md). */}
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange storageKey="adeli-theme">
+          <TooltipProvider>
+            {children}
+            <Toaster position="top-center" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

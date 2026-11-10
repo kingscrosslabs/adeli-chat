@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
@@ -45,8 +45,14 @@ async function checkLive(accountId: string, id: string, content: AutomationConte
   if (invalid) return { ok: false, reason: "invalid", count: invalid, errors };
   const conflict = findConflict(content, id, await otherLiveAutomations(accountId, id));
   if (!conflict) return null;
-  const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : "already answers comments on this post";
-  return { ok: false, reason: "conflict", message: `"${conflict.automation.name}" is live on this post and ${detail}.`, conflictId: conflict.automation.id };
+  const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : "already answers every comment";
+  return { ok: false, reason: "conflict", message: `"${conflict.automation.name}" is live on ${scopePhrase(content.trigger.postScope)} and ${detail}.`, conflictId: conflict.automation.id };
+}
+
+function scopePhrase(scope: AutomationContent["trigger"]["postScope"]) {
+  if (scope === "next") return "your next post";
+  if (scope === "any") return "every post";
+  return "this post";
 }
 
 export function parseContent(input: unknown): AutomationContent {
@@ -93,8 +99,10 @@ export async function goLive(userId: string, id: string, input?: unknown): Promi
   const rejected = await checkLive(account.id, id, content);
   if (rejected) return rejected;
   const now = new Date();
-  const { name, trigger, commentReply, openingDm, finalDm } = content;
-  await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
+  const { name, commentReply, openingDm, emailCapture, finalDm } = content;
+  // A Next post automation starts waiting again from now: forget any post an earlier run bound.
+  const trigger = content.trigger.postScope === "next" ? { ...content.trigger, mediaId: null, mediaSnapshot: null } : content.trigger;
+  await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, emailCapture, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
   return { ok: true };
 }
 
@@ -105,13 +113,14 @@ export async function pauseAutomation(userId: string, id: string): Promise<void>
 
 export async function duplicateAutomation(userId: string, id: string): Promise<{ id: string }> {
   const { account, automation } = await loadOwn(userId, id);
-  const { trigger, commentReply, openingDm, finalDm } = automation;
+  const { trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
   const [row] = await db().insert(schema.automations).values({
     accountId: account.id,
     name: `${automation.name} (copy)`.slice(0, 80),
     trigger,
     commentReply,
     openingDm,
+    emailCapture,
     finalDm,
   }).returning({ id: schema.automations.id });
   return { id: row.id };
@@ -130,4 +139,24 @@ export async function resetRuns(userId: string, id: string): Promise<{ count: nu
   await loadOwn(userId, id);
   const deleted = await db().delete(schema.runs).where(eq(schema.runs.automationId, id)).returning({ id: schema.runs.id });
   return { count: deleted.length };
+}
+
+export type Lead = { igUsername: string | null; igUserId: string; email: string; createdAt: string };
+
+/** Emails the automation's email step collected, oldest first. */
+export async function listLeads(userId: string, id: string): Promise<{ automation: Automation; leads: Lead[] }> {
+  const { automation } = await loadOwn(userId, id);
+  const rows = await db().select().from(schema.leads).where(eq(schema.leads.automationId, id)).orderBy(asc(schema.leads.createdAt));
+  return { automation, leads: rows.map((row) => ({ igUsername: row.igUsername, igUserId: row.igUserId, email: row.email, createdAt: row.createdAt.toISOString() })) };
+}
+
+/** RFC 4180 quoting, plus a leading quote on anything a spreadsheet would run as a formula. */
+function csvCell(value: string) {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+}
+
+export function leadsCsv(leads: Lead[]) {
+  const rows = [["Email", "Instagram username", "Instagram user id", "Captured at"], ...leads.map((lead) => [lead.email, lead.igUsername ?? "", lead.igUserId, lead.createdAt])];
+  return rows.map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }

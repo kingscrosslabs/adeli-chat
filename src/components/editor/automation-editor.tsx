@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -21,18 +21,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { LIMITS, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
 import { goLive as goLiveAction, pauseAutomation, saveAutomation, type ActionResult } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import { errorCount, firstErrorField, validateForLive, type FieldErrors } from "@/lib/automations/validate";
 import { compactNumber, relativeTime } from "@/lib/format";
 
 import type { PreviewTab } from "./fields";
-import { FinalDmSection, OpeningDmSection, PostSection, ReplySection, TriggerSection } from "./sections";
+import { EmailSection, FinalDmSection, FollowSection, OpeningDmSection, PostSection, ReplySection, TriggerSection } from "./sections";
 
 function contentOf(automation: Automation): AutomationContent {
-  const { name, trigger, commentReply, openingDm, finalDm } = automation;
-  return structuredClone({ name, trigger, commentReply, openingDm, finalDm });
+  const { name, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
+  return structuredClone({ name, trigger, commentReply, openingDm, emailCapture, finalDm });
+}
+
+/** JSON with object keys sorted. Postgres jsonb reorders keys, so plain JSON.stringify would see a saved draft as changed. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => item && typeof item === "object" && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
+    : item);
 }
 
 function scrollToField(errors: FieldErrors) {
@@ -62,7 +69,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
   const nameRef = useRef<HTMLInputElement>(null);
 
   const saved = contentOf(automation);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const dirty = stableJson(draft) !== stableJson(saved);
   const errors: FieldErrors = validating ? validateForLive(draft) : {};
   const isLive = automation.status === "live";
 
@@ -132,7 +139,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
     setBusy(null);
     if (rejected(result)) return;
     setValidating(false);
-    toast.success("You're live!", { description: "New comments on your post will get a reply and a DM." });
+    toast.success("You're live!", { description: draft.trigger.postScope === "next" ? "It starts on the next post or reel you publish." : "New comments will get a reply and a DM." });
   }
 
   async function pause() {
@@ -182,7 +189,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
               aria-label="Automation name"
               aria-invalid={Boolean(errors.name)}
-              className="min-w-0 max-w-sm flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-lg font-semibold outline-none hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+              className="min-w-0 flex-1 truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-lg font-semibold outline-none hover:border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
               placeholder="Name this automation"
             />
           </div>
@@ -209,6 +216,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem render={<a href={`/api/automations/${automation.id}/leads`} download />}><Download /> Export leads</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setResetting(true)}><RotateCcw /> Reset runs</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}><Trash2 /> Delete automation</DropdownMenuItem>
@@ -229,10 +237,12 @@ export function AutomationEditor({ automation, account }: { automation: Automati
           <TriggerSection {...sectionProps} />
           <ReplySection {...sectionProps} />
           <OpeningDmSection {...sectionProps} />
+          <FollowSection {...sectionProps} />
+          <EmailSection {...sectionProps} />
           <FinalDmSection {...sectionProps} />
           <div className="h-16" aria-hidden />
         </div>
-        <aside className="hidden border-l bg-brand-fog/50 lg:block" aria-label="Live preview">
+        <aside className="hidden border-l bg-muted/50 lg:block" aria-label="Live preview">
           <div className="sticky top-28 flex justify-center p-6">{preview}</div>
         </aside>
       </div>
@@ -271,6 +281,7 @@ function StatsRow({ automation }: { automation: Automation }) {
     { label: "Comment replies", value: stats.commentReplies },
     { label: "Opening DMs", value: stats.openingDms },
     { label: "Button taps", value: stats.buttonTaps },
+    ...(emailCaptureOf(automation).enabled || stats.emails ? [{ label: "Emails", value: stats.emails }] : []),
     { label: "Final DMs", value: stats.finalDms },
   ];
   return (

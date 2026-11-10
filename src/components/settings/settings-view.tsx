@@ -1,12 +1,13 @@
 "use client";
 
-import { CheckCircle2, ExternalLink, KeyRound, Loader2, LogOut, RefreshCw, ServerCog, AtSign, UserRound, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, KeyRound, Loader2, LogOut, Palette, RefreshCw, ServerCog, AtSign, UserRound, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdeliConnectionForm } from "@/components/adeli/connection-form";
 import { PageHeading } from "@/components/page-heading";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,11 +29,12 @@ import { relativeTime } from "@/lib/format";
 
 export function SettingsView({ keyState, account, user, liveCount }: { keyState: KeyState; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number }) {
   return (
-    <div className="space-y-6 p-4 md:p-8">
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 md:p-8">
       <PageHeading title="Settings" description="Your Adeli connection and Instagram account." />
-      <div className="grid max-w-3xl gap-4">
+      <div className="grid gap-4">
         <AdeliKeyCard keyState={keyState} />
         <InstagramCard account={account} liveCount={liveCount} canConnect={keyState.configured} />
+        <AppearanceCard />
         {user ? <SignedInCard user={user} /> : null}
       </div>
     </div>
@@ -54,7 +56,7 @@ function AdeliKeyCard({ keyState: key }: { keyState: KeyState }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-primary" /> Adeli</CardTitle>
+        <CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-link" /> Adeli</CardTitle>
         <CardDescription>Adeli Chat talks to Instagram through your Adeli account.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -109,8 +111,7 @@ function InstagramCard({ account, liveCount, canConnect }: { account: AdeliAccou
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><AtSign className="size-4 text-primary" /> Instagram account</CardTitle>
-        <CardDescription>The account your automations reply and DM from.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><AtSign className="size-4 text-link" /> Instagram account</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {account ? (
@@ -163,12 +164,22 @@ function InstagramCard({ account, liveCount, canConnect }: { account: AdeliAccou
   );
 }
 
+function AppearanceCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Palette className="size-4 text-link" /> Appearance</CardTitle>
+      </CardHeader>
+      <CardContent><ThemeToggle className="flex w-full max-w-xs" /></CardContent>
+    </Card>
+  );
+}
+
 function SignedInCard({ user }: { user: CurrentUser }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><UserRound className="size-4 text-primary" /> Signed in</CardTitle>
-        <CardDescription>Your Adeli key, Instagram account and automations belong to this Google account. Nobody else can see them.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><UserRound className="size-4 text-link" /> Signed in</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
         <Avatar>

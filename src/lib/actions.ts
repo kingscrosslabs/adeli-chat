@@ -17,7 +17,7 @@ import { pauseLive, requireAccount, ServiceError, type ActionResult } from "@/li
 import { db, schema } from "@/lib/db";
 import { disconnectApp } from "@/lib/mcp/connections";
 import { submitConsent } from "@/lib/mcp/consent";
-import { createToken, revokeToken, TOKEN_EXPIRY_OPTIONS, type TokenExpiry } from "@/lib/mcp/tokens";
+import { createToken, revealToken, revokeToken, TOKEN_EXPIRY_OPTIONS, type TokenExpiry } from "@/lib/mcp/tokens";
 import { ensureAdeliWebhook } from "@/lib/runtime/webhook-registration";
 import { sealSecret } from "@/lib/secret-box";
 import { getUserSettings, markKeyStatus, saveAdeliConnection as storeAdeliConnection } from "@/lib/user-settings";
@@ -271,6 +271,16 @@ export async function createApiToken(input: { name: string; readOnly: boolean; e
     if (!TOKEN_EXPIRY_OPTIONS.includes(input.expiry)) throw new ActionError("Pick when the token expires.");
     const { token } = await createToken(userId, { name: input.name, readOnly: Boolean(input.readOnly), expiry: input.expiry });
     return done({ token });
+  });
+}
+
+/** A token in full, for the reveal and copy buttons on Connect to AI Agent. */
+export async function revealApiToken(id: string): Promise<ActionResult<{ token: string }>> {
+  return guard(async (userId) => {
+    const token = await revealToken(userId, id);
+    if (!token) throw new ActionError("This token can't be revealed. It was created before tokens could be revealed, or it was revoked.");
+    // Reading only, so no revalidation.
+    return { ok: true as const, token };
   });
 }
 

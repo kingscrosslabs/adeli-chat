@@ -5,7 +5,7 @@ import { db, schema } from "@/lib/db";
 
 import { resetDatabase, seedUser } from "../../../test/db-helpers";
 
-import { createToken, listTokens, revokeToken, userForToken } from "./tokens";
+import { createToken, ensureDefaultToken, listTokens, revealToken, revokeToken, userForToken } from "./tokens";
 
 beforeEach(async () => {
   await resetDatabase();
@@ -13,8 +13,35 @@ beforeEach(async () => {
   await seedUser("user_2");
 });
 
+describe("revealing and the Default token", () => {
+  it("reveals a token to its owner only, and not once it's revoked", async () => {
+    const { token, apiToken } = await createToken("user_1", { name: "Cursor", readOnly: false, expiry: "never" });
+    expect(apiToken.revealable).toBe(true);
+    expect(await revealToken("user_1", apiToken.id)).toBe(token);
+    expect(await revealToken("user_2", apiToken.id)).toBeNull();
+    await revokeToken("user_1", apiToken.id);
+    expect(await revealToken("user_1", apiToken.id)).toBeNull();
+  });
+
+  it("keeps tokens from before reveal hidden", async () => {
+    const { apiToken } = await createToken("user_1", { name: "Old", readOnly: false, expiry: "never" });
+    await db().update(schema.apiTokens).set({ tokenEncrypted: null }).where(eq(schema.apiTokens.id, apiToken.id));
+    expect(await revealToken("user_1", apiToken.id)).toBeNull();
+    expect((await listTokens("user_1"))[0].revealable).toBe(false);
+  });
+
+  it("creates one Default token per user, and a new one after it's revoked", async () => {
+    const first = await ensureDefaultToken("user_1");
+    expect(first).toMatchObject({ name: "Default", isDefault: true, readOnly: false, expiresAt: null, revealable: true });
+    expect((await ensureDefaultToken("user_1")).id).toBe(first.id);
+    expect((await ensureDefaultToken("user_2")).id).not.toBe(first.id);
+    await revokeToken("user_1", first.id);
+    expect((await ensureDefaultToken("user_1")).id).not.toBe(first.id);
+  });
+});
+
 describe("API tokens", () => {
-  it("stores only a hash and finds the user by the token", async () => {
+  it("never stores the token in plain text, and finds the user by it", async () => {
     const { token, apiToken } = await createToken("user_1", { name: "Claude Code", readOnly: false, expiry: "never" });
     expect(token).toMatch(/^adc_[A-Za-z0-9_-]{40,}$/);
     expect(token.startsWith(apiToken.prefix)).toBe(true);
