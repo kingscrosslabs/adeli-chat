@@ -67,9 +67,10 @@ export function validateLimits(content: AutomationContent): FieldErrors {
 export function validateForLive(content: AutomationContent): FieldErrors {
   const errors: FieldErrors = { ...validateLimits(content) };
   if (!content.name.trim()) errors.name = "Give this automation a name.";
-  if (content.trigger.postScope === "specific" && !content.trigger.mediaId) errors["trigger.mediaId"] = "Pick the post or reel people will comment on.";
-  if (content.trigger.match === "keywords" && content.trigger.keywords.length === 0) errors["trigger.keywords"] = "Add at least one keyword, or choose Any comment.";
-  if (content.commentReply.enabled && !content.commentReply.variants.some((variant) => variant.trim())) errors["commentReply.variants"] = "Write at least one reply, or turn replies off.";
+  const story = content.type === "story_reply";
+  if (!story && content.trigger.postScope === "specific" && !content.trigger.mediaId) errors["trigger.mediaId"] = "Pick the post or reel people will comment on.";
+  if (content.trigger.match === "keywords" && content.trigger.keywords.length === 0) errors["trigger.keywords"] = `Add at least one keyword, or choose ${story ? "Any reply" : "Any comment"}.`;
+  if (!story && content.commentReply.enabled && !content.commentReply.variants.some((variant) => variant.trim())) errors["commentReply.variants"] = "Write at least one reply, or turn replies off.";
   if (!content.openingDm.text.trim()) errors["openingDm.text"] = "The opening DM needs a message.";
   if (!content.openingDm.buttonLabel.trim()) errors["openingDm.buttonLabel"] = "The opening DM needs a button label.";
   const email = emailCaptureOf(content);
@@ -96,13 +97,14 @@ export function firstErrorField(errors: FieldErrors): FieldPath | null {
  * either one using Any comment. Automations of different scopes don't
  * conflict, since a comment goes to the most specific one (see `matchComment`).
  * Two Next post automations wait for the same post, so they count as the same.
+ * Story Reply automations only conflict with each other: they all watch every story.
  */
 export function findConflict(content: AutomationContent, selfId: string, others: Automation[]) {
   const { postScope, mediaId } = content.trigger;
   if (postScope === "specific" && !mediaId) return null;
   const mine = new Set(content.trigger.keywords.map((keyword) => keyword.trim().toLowerCase()));
   for (const other of others) {
-    if (other.id === selfId || other.status !== "live" || other.trigger.postScope !== postScope) continue;
+    if (other.id === selfId || other.status !== "live" || other.type !== content.type || other.trigger.postScope !== postScope) continue;
     if (postScope === "specific" && other.trigger.mediaId !== mediaId) continue;
     if (content.trigger.match === "any" || other.trigger.match === "any") return { automation: other, reason: "any" as const };
     const shared = other.trigger.keywords.find((keyword) => mine.has(keyword.trim().toLowerCase()));
@@ -113,10 +115,11 @@ export function findConflict(content: AutomationContent, selfId: string, others:
 
 const SCOPE_LABEL = { specific: null, next: "Next post", any: "Any post" } as const;
 
-export function triggerSummary(automation: Pick<Automation, "trigger">) {
-  const scope = SCOPE_LABEL[automation.trigger.postScope];
+export function triggerSummary(automation: Pick<Automation, "type" | "trigger">) {
+  const story = automation.type === "story_reply";
+  const scope = story ? "Any story" : SCOPE_LABEL[automation.trigger.postScope];
   let words: string;
-  if (automation.trigger.match === "any") words = "Any comment";
+  if (automation.trigger.match === "any") words = story ? "Any reply" : "Any comment";
   else if (!automation.trigger.keywords.length) words = "No keywords yet";
   else words = automation.trigger.keywords.map((keyword) => keyword.toUpperCase()).join(", ");
   return scope ? `${scope} · ${words}` : words;

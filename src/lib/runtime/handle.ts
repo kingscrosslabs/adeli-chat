@@ -11,7 +11,7 @@ import { snapshotOf } from "@/lib/automations/snapshot";
 import { toAutomation } from "@/lib/data";
 import { db, schema } from "@/lib/db";
 
-import { matchComment, nextPostAfter } from "./match";
+import { matchComment, matchStoryReply, nextPostAfter } from "./match";
 
 /**
  * The Comment to DM runtime (PRD §5.8), for one user: the one whose webhook
@@ -41,6 +41,8 @@ function pick<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+type AccountRow = typeof schema.accounts.$inferSelect;
+
 async function connectedAccount(userId: string, adeliAccountId: string) {
   const [account] = await db().select().from(schema.accounts)
     .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.adeliAccountId, adeliAccountId), eq(schema.accounts.status, "connected")))
@@ -55,9 +57,7 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
   const account = await connectedAccount(userId, event.accountId);
   if (!account) return;
 
-  const rows = await db().select().from(schema.automations)
-    .where(and(eq(schema.automations.accountId, account.id), eq(schema.automations.status, "live")));
-  const live = await bindNextPosts(userId, account.adeliAccountId, rows.map((row) => toAutomation(row)));
+  const live = await bindNextPosts(userId, account.adeliAccountId, await liveAutomations(account.id));
   const automation = matchComment({ mediaId: data.mediaId, text: data.text, fromId: data.from.id, isSelf: data.isSelf }, account.igUserId, live);
   if (!automation) return;
 
@@ -86,19 +86,33 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
     await updateRun(run.id, { commentReplyState: "skipped" });
   }
 
-  try {
-    await adeliCall((client) => client.messages.sendInstagramMessage({
-      body: {
-        accountId: account.adeliAccountId,
-        recipient: { commentId: data.commentId },
-        text: automation.openingDm.text,
-        buttons: [{ type: "postback", title: automation.openingDm.buttonLabel, payload: run.id }],
-      },
-    }));
-    await updateRun(run.id, { state: "opening_sent", openingSentAt: new Date() });
-  } catch (error) {
-    await updateRun(run.id, { state: "failed", error: errorText(error) });
-  }
+  await sendOpeningDm(userId, run.id, account.adeliAccountId, { commentId: data.commentId }, automation.openingDm);
+}
+
+/**
+ * A reply to one of the account's stories. It's a DM, so the conversation is
+ * already open: the Opening DM goes straight to them, with no public reply.
+ * The run keeps the reply's message id where a comment run keeps the
+ * comment id, so a redelivered reply inserts nothing.
+ */
+async function handleStoryReply(userId: string, event: MessageCreatedEvent, account: AccountRow) {
+  const { data } = event;
+  const automation = matchStoryReply({ text: data.text, fromId: data.from.id }, account.igUserId, await liveAutomations(account.id));
+  if (!automation) return false;
+
+  const [run] = await db().insert(schema.runs).values({
+    automationId: automation.id,
+    igUserId: data.from.id,
+    igUsername: data.from.username,
+    commentId: data.messageId,
+    commentText: data.text,
+    commentReplyState: "skipped",
+    igSenderId: data.from.id,
+  }).onConflictDoNothing().returning({ id: schema.runs.id });
+  // Already in this flow (once per person), or a redelivery: either way it's handled.
+  if (!run) return true;
+  await sendOpeningDm(userId, run.id, account.adeliAccountId, { id: data.from.id }, automation.openingDm);
+  return true;
 }
 
 async function handlePostback(userId: string, event: MessagePostbackEvent) {
@@ -139,7 +153,8 @@ async function handlePostback(userId: string, event: MessagePostbackEvent) {
 }
 
 /**
- * A DM someone sent us. If they owe an automation an email, this is their
+ * A DM someone sent us. A reply to one of our stories can start a Story
+ * Reply automation. Otherwise, if they owe an automation an email, this is their
  * answer: a valid email is saved as a lead and unlocks the Final DM;
  * anything else gets the retry message once. Other DMs are ignored.
  */
@@ -147,6 +162,8 @@ async function handleMessage(userId: string, event: MessageCreatedEvent) {
   const senderId = event.data.from.id;
   const account = await connectedAccount(userId, event.accountId);
   if (!account) return;
+  // A story reply that starts a Story Reply automation isn't also an email answer.
+  if (event.data.story?.type === "reply" && await handleStoryReply(userId, event, account)) return;
   // Their most recent tap still waiting on an email, on this user's account.
   const [waiting] = await db().select({ run: schema.runs, automation: schema.automations })
     .from(schema.runs)
@@ -205,6 +222,28 @@ async function bindNextPosts(userId: string, adeliAccountId: string, live: Autom
       .where(and(eq(schema.automations.id, automation.id), sql`${schema.automations.trigger}->>'mediaId' is null`));
     return { ...automation, trigger };
   }));
+}
+
+async function liveAutomations(accountId: string) {
+  const rows = await db().select().from(schema.automations)
+    .where(and(eq(schema.automations.accountId, accountId), eq(schema.automations.status, "live")));
+  return rows.map((row) => toAutomation(row));
+}
+
+async function sendOpeningDm(userId: string, runId: string, adeliAccountId: string, recipient: { commentId: string } | { id: string }, openingDm: Automation["openingDm"]) {
+  try {
+    await adeliCall((client) => client.messages.sendInstagramMessage({
+      body: {
+        accountId: adeliAccountId,
+        recipient,
+        text: openingDm.text,
+        buttons: [{ type: "postback", title: openingDm.buttonLabel, payload: runId }],
+      },
+    }));
+    await updateRun(runId, { state: "opening_sent", openingSentAt: new Date() });
+  } catch (error) {
+    await updateRun(runId, { state: "failed", error: errorText(error) });
+  }
 }
 
 async function sendText(userId: string, adeliAccountId: string, recipientId: string, text: string) {

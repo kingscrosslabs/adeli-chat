@@ -1,6 +1,6 @@
 # Adeli Chat: PRD + Build Plan v0.3 (Instagram Comment to DM)
 
-> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-09
+> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-10
 >
 > Companion docs: [`docs/brand.md`](brand.md) (design system and copy voice).
 
@@ -40,7 +40,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 5. Easy to self-host and easy to contribute to.
 
 ### Non-goals (v1). Shown in the UI as "Coming soon" where relevant.
-- Other triggers: Direct Message, Story Reply, Story Mention. (Story Reply is shown as Coming soon and waits on Adeli sending story-reply info in `message.created`.)
+- Other triggers: Direct Message, Story Mention. (Story Reply shipped 2026-11-10, §5.13.)
 - Other channels: Facebook, TikTok.
 - Other DM types: Image, Video, Card.
 - Follow-gating (shown as Coming soon; waits on a follow check in the Adeli API), phone collection, tags, broadcasts, AI replies.
@@ -145,9 +145,9 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account �
 - **FR-3.1** Title "Create automation". Four cards:
   - **Comment to DM**: "Send a DM when someone comments a keyword on your post". Enabled.
   - **Direct Message**: "Reply instantly when someone DMs you on autopilot". Coming soon.
-  - **Story Reply**: "Send a follow-up DM when someone replies to your story". Coming soon.
+  - **Story Reply**: "Send a follow-up DM when someone replies to your story". Enabled (§5.13).
   - **Story Mention**: "Reply automatically when someone mentions you in their story". Coming soon.
-- **FR-3.2** Choosing Comment to DM creates a **Draft** with all defaults and opens the editor.
+- **FR-3.2** Choosing Comment to DM or Story Reply creates a **Draft** of that type with all defaults and opens the editor.
 - **FR-3.3** If no Instagram account is connected, the modal asks you to connect first.
 
 ### 5.4 Editor layout
@@ -268,6 +268,14 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 - **Leads.** `leads` table, one per person per automation, kept when runs are reset. Export leads in the editor's menu downloads a CSV (`/api/automations/<id>/leads`).
 - **Webhook.** The per-user webhook subscribes to `message.created` too; an older webhook without it is replaced on boot.
 
+### 5.13 Story Reply (added 2026-11-10)
+- **Type.** `automations.type` is `comment_to_dm` or `story_reply`, set at create and never changed by a save. Duplicates keep it.
+- **Trigger.** A `message.created` event whose `data.story.type` is `reply` (Adeli #188, SDK 0.4.0). It watches every story: the trigger is stored as `postScope: "any"` with no `mediaId`, and the public reply is always off. Match is keywords (case-insensitive, on the reply text) or Any reply; a reply with no text (a reaction or sticker) only matches Any reply. Replies from the account itself never trigger.
+- **Flow.** No public reply. The Opening DM goes to `recipient.id` (the reply opened the conversation), then the tap, optional email step and Final DM run exactly as for comments. The run stores the reply's message id and text in `comment_id` and `comment_text`, so the existing unique keys make it once per person and idempotent on redelivery.
+- **Priority.** A story reply that starts a Story Reply automation isn't also read as an email answer; any other story reply falls through to the email step.
+- **Conflicts.** Go Live's conflict rule compares Story Reply automations only with each other.
+- **Not yet.** Picking a specific story is shown as Coming soon: Adeli has no endpoint that lists an account's active stories. When it does, the trigger can use `postScope: "specific"` with the story id in `mediaId`.
+
 ## 6. Data model
 
 ```
@@ -283,7 +291,7 @@ accounts
   status ('connected' | 'needs_reconnect' | 'disconnected'), created_at, updated_at
 
 automations
-  id, account_id, name, type ('comment_to_dm'),
+  id, account_id, name, type ('comment_to_dm' | 'story_reply'),
   status ('draft' | 'live' | 'paused'),
   trigger        jsonb  { postScope: 'specific', mediaId, mediaSnapshot{thumbUrl,mediaType,caption,permalink},
                           match: 'keywords' | 'any', keywords: string[] }
@@ -493,7 +501,7 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 - Treat a typed reply as a button tap
 - Follow-gate before sending the link (needs the Adeli follow check)
 - Image, Video and Card DMs, more buttons
-- Direct Message, Story Reply (needs Adeli's story-reply info), Story Mention triggers
+- Direct Message and Story Mention triggers; Story Reply on a specific story (needs an Adeli stories list)
 - Facebook and TikTok channels
 - Multi-user workspaces
 

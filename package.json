@@ -17,7 +17,7 @@
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
-    "@adeli/sdk": "^0.3.1",
+    "@adeli/sdk": "^0.4.0",
     "@base-ui/react": "^1.7.0",
     "@better-auth/cimd": "^1.7.18",
     "@better-auth/mcp": "^1.7.18",

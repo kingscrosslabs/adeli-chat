@@ -17,6 +17,15 @@ export const LIMITS = {
   url: 2048,
 } as const;
 
+/**
+ * What starts an automation. `comment_to_dm` is a comment on a post.
+ * `story_reply` is a DM replying to one of the account's stories: it has no
+ * public reply, and its trigger always watches every story (`postScope: "any"`).
+ * Everything after the trigger, from the Opening DM on, is the same flow.
+ */
+export const automationTypeSchema = z.enum(["comment_to_dm", "story_reply"]);
+export type AutomationType = z.infer<typeof automationTypeSchema>;
+
 export const mediaTypeSchema = z.enum(["IMAGE", "VIDEO", "REEL", "CAROUSEL_ALBUM"]);
 export type MediaType = z.infer<typeof mediaTypeSchema>;
 
@@ -99,6 +108,8 @@ export type AutomationStats = z.infer<typeof automationStatsSchema>;
 
 /** The editable content of an automation, everything the editor form owns. */
 export const automationContentSchema = z.object({
+  /** Set when it's created and never changed by a save. Defaults so older callers (MCP clients, saved drafts) still parse. */
+  type: automationTypeSchema.default("comment_to_dm"),
   name: z.string(),
   trigger: triggerSchema,
   commentReply: commentReplySchema,
@@ -111,7 +122,6 @@ export type AutomationContent = z.infer<typeof automationContentSchema>;
 
 export const automationSchema = automationContentSchema.extend({
   id: z.string(),
-  type: z.literal("comment_to_dm"),
   status: automationStatusSchema,
   stats: automationStatsSchema,
   createdAt: z.string(),

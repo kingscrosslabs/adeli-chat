@@ -11,7 +11,7 @@ import { AdeliError } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { requireUserId, SignedOutError } from "@/lib/auth/session";
-import type { AutomationContent } from "@/lib/automations/schemas";
+import { automationTypeSchema, type AutomationContent } from "@/lib/automations/schemas";
 import * as service from "@/lib/automations/service";
 import { pauseLive, requireAccount, ServiceError, type ActionResult } from "@/lib/automations/service";
 import { db, schema } from "@/lib/db";
@@ -132,8 +132,12 @@ export async function disconnectAccount(): Promise<ActionResult> {
   });
 }
 
-export async function createAutomation(): Promise<ActionResult<{ id: string }>> {
-  return guard(async (userId) => done(await service.createAutomation(userId)));
+export async function createAutomation(type: unknown = "comment_to_dm"): Promise<ActionResult<{ id: string }>> {
+  return guard(async (userId) => {
+    const parsed = automationTypeSchema.safeParse(type);
+    if (!parsed.success) throw new ServiceError("That kind of automation isn't available yet.");
+    return done(await service.createAutomation(userId, {}, parsed.data));
+  });
 }
 
 /** Saves the editor. Saving a live automation applies at once, so it must pass Go Live checks (D4). */

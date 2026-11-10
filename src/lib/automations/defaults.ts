@@ -1,6 +1,6 @@
-import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationContent } from "./schemas";
+import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationContent, type AutomationType } from "./schemas";
 
-/** Defaults for a new Comment to DM automation (PRD FR-5.x). No em dashes in any copy. */
+/** Defaults for a new automation (PRD FR-5.x). No em dashes in any copy. */
 export const DEFAULT_REPLY_VARIANTS = [
   "Sent you a DM! 📩",
   "Check your DMs 👀",
@@ -21,15 +21,24 @@ export const DEFAULT_FINAL_DM = {
 /** Used by the preview when the user hasn't typed a keyword yet. */
 export const PREVIEW_FALLBACK_KEYWORD = "GUIDE";
 
-export function defaultAutomationName(createdCount: number) {
-  return `Comment to DM #${createdCount + 1}`;
+export const AUTOMATION_TYPE_LABEL: Record<AutomationType, string> = {
+  comment_to_dm: "Comment to DM",
+  story_reply: "Story Reply",
+};
+
+export function defaultAutomationName(createdCount: number, type: AutomationType = "comment_to_dm") {
+  return `${AUTOMATION_TYPE_LABEL[type]} #${createdCount + 1}`;
 }
 
-export function defaultAutomationContent(createdCount: number): AutomationContent {
+export function defaultAutomationContent(createdCount: number, type: AutomationType = "comment_to_dm"): AutomationContent {
+  const story = type === "story_reply";
   return {
-    name: defaultAutomationName(createdCount),
-    trigger: { postScope: "specific", mediaId: null, mediaSnapshot: null, match: "keywords", keywords: [] },
-    commentReply: { enabled: true, variants: [...DEFAULT_REPLY_VARIANTS] },
+    type,
+    name: defaultAutomationName(createdCount, type),
+    // A story reply watches every story; picking one needs a stories list Adeli doesn't have yet.
+    trigger: { postScope: story ? "any" : "specific", mediaId: null, mediaSnapshot: null, match: "keywords", keywords: [] },
+    // Stories have no public comments, so a story reply never posts one.
+    commentReply: { enabled: !story, variants: [...DEFAULT_REPLY_VARIANTS] },
     openingDm: { ...DEFAULT_OPENING_DM },
     emailCapture: { ...DEFAULT_EMAIL_CAPTURE },
     finalDm: { type: "text_buttons", text: DEFAULT_FINAL_DM.text, buttons: [{ label: DEFAULT_FINAL_DM.buttonLabel, url: DEFAULT_FINAL_DM.url }] },
@@ -40,7 +49,6 @@ export function newDraftAutomation(id: string, createdCount: number, now = new D
   const timestamp = now.toISOString();
   return {
     id,
-    type: "comment_to_dm",
     status: "draft",
     ...defaultAutomationContent(createdCount),
     stats: { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, emails: 0, finalDms: 0 },

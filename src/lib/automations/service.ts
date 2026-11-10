@@ -6,7 +6,7 @@ import { getAutomation, getConnectedAccount, otherLiveAutomations, type Connecte
 import { db, schema } from "@/lib/db";
 
 import { defaultAutomationContent } from "./defaults";
-import { automationContentSchema, type Automation, type AutomationContent } from "./schemas";
+import { automationContentSchema, type Automation, type AutomationContent, type AutomationType } from "./schemas";
 import { errorCount, findConflict, validateForLive, validateLimits, type FieldErrors } from "./validate";
 
 /**
@@ -45,14 +45,22 @@ async function checkLive(accountId: string, id: string, content: AutomationConte
   if (invalid) return { ok: false, reason: "invalid", count: invalid, errors };
   const conflict = findConflict(content, id, await otherLiveAutomations(accountId, id));
   if (!conflict) return null;
-  const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : "already answers every comment";
-  return { ok: false, reason: "conflict", message: `"${conflict.automation.name}" is live on ${scopePhrase(content.trigger.postScope)} and ${detail}.`, conflictId: conflict.automation.id };
+  const story = content.type === "story_reply";
+  const detail = conflict.reason === "keyword" ? `also uses the keyword ${conflict.keyword?.toUpperCase()}` : `already answers every ${story ? "reply" : "comment"}`;
+  return { ok: false, reason: "conflict", message: `"${conflict.automation.name}" is live on ${scopePhrase(content)} and ${detail}.`, conflictId: conflict.automation.id };
 }
 
-function scopePhrase(scope: AutomationContent["trigger"]["postScope"]) {
+function scopePhrase({ type, trigger: { postScope: scope } }: AutomationContent) {
+  if (type === "story_reply") return "your stories";
   if (scope === "next") return "your next post";
   if (scope === "any") return "every post";
   return "this post";
+}
+
+/** A type's fixed fields, whatever a caller sent: a story reply watches every story and never replies publicly. */
+function keepShape(content: AutomationContent): AutomationContent {
+  if (content.type !== "story_reply") return content;
+  return { ...content, trigger: { ...content.trigger, postScope: "any", mediaId: null, mediaSnapshot: null }, commentReply: { ...content.commentReply, enabled: false } };
 }
 
 export function parseContent(input: unknown): AutomationContent {
@@ -71,19 +79,19 @@ export async function loadOwn(userId: string, id: string): Promise<{ account: Co
   return { account, automation };
 }
 
-/** A new Draft. `content` replaces the defaults it names (MCP passes some; the app passes none). */
-export async function createAutomation(userId: string, content: Partial<AutomationContent> = {}): Promise<{ id: string }> {
+/** A new Draft of `type`. `content` replaces the defaults it names (MCP passes some; the app passes none). */
+export async function createAutomation(userId: string, content: Partial<AutomationContent> = {}, type: AutomationType = "comment_to_dm"): Promise<{ id: string }> {
   const account = await requireAccount(userId);
   const [{ total }] = await db().select({ total: count() }).from(schema.automations).where(eq(schema.automations.accountId, account.id));
-  const values = parseContent({ ...defaultAutomationContent(total), ...content });
+  const values = keepShape(parseContent({ ...defaultAutomationContent(total, type), ...content, type }));
   const [row] = await db().insert(schema.automations).values({ accountId: account.id, ...values }).returning({ id: schema.automations.id });
   return { id: row.id };
 }
 
 /** Saves content. Saving a live automation applies at once, so it must pass Go Live checks (D4). */
 export async function saveAutomation(userId: string, id: string, input: unknown): Promise<ActionResult> {
-  const content = parseContent(input);
   const { account, automation } = await loadOwn(userId, id);
+  const content = keepShape({ ...parseContent(input), type: automation.type });
   if (automation.status === "live") {
     const rejected = await checkLive(account.id, id, content);
     if (rejected) return rejected;
@@ -95,7 +103,7 @@ export async function saveAutomation(userId: string, id: string, input: unknown)
 /** Saves `input` when given (the editor), then goes live. */
 export async function goLive(userId: string, id: string, input?: unknown): Promise<ActionResult> {
   const { account, automation } = await loadOwn(userId, id);
-  const content = input ? parseContent(input) : automation;
+  const content = input ? keepShape({ ...parseContent(input), type: automation.type }) : automation;
   const rejected = await checkLive(account.id, id, content);
   if (rejected) return rejected;
   const now = new Date();
@@ -113,9 +121,10 @@ export async function pauseAutomation(userId: string, id: string): Promise<void>
 
 export async function duplicateAutomation(userId: string, id: string): Promise<{ id: string }> {
   const { account, automation } = await loadOwn(userId, id);
-  const { trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
+  const { type, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
   const [row] = await db().insert(schema.automations).values({
     accountId: account.id,
+    type,
     name: `${automation.name} (copy)`.slice(0, 80),
     trigger,
     commentReply,
