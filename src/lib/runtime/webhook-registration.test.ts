@@ -72,11 +72,13 @@ describe("ensureAdeliWebhook", () => {
 
   it("gives each user their own webhook URL and secret", async () => {
     const adeli = webhookAdeli();
-    await seedUser("user_2", `rk_live_${"b".repeat(43)}`);
+    await seedUser("user_2", { profileId: "profile_2" });
     await ensureAdeliWebhook(USER);
     await ensureAdeliWebhook("user_2");
     const urls = adeli.sent.filter((item) => item.method === "POST").map((item) => item.body?.url);
     expect(urls).toEqual([URL_, "http://localhost:3030/api/webhooks/adeli/user_2"]);
+    // Each webhook is on that user's own profile, so it only delivers their accounts' events.
+    expect(adeli.sent.filter((item) => item.method === "POST").map((item) => item.body?.profileId)).toEqual(["profile_1", "profile_2"]);
     expect((await getUserSettings("user_2")).adeliWebhookSecret).toBe("whsec_wh_2");
     expect((await getUserSettings(USER)).adeliWebhookSecret).toBe("whsec_wh_1");
   });

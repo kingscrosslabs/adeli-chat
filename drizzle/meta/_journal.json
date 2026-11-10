@@ -57,6 +57,13 @@
       "when": 1794274959975,
       "tag": "0007_revealable_api_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794320871794,
+      "tag": "0008_server_adeli_key",
+      "breakpoints": true
     }
   ]
 }

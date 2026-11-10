@@ -48,7 +48,3 @@ export class AdeliError extends Error {
     super(message);
   }
 }
-
-export function adeliKeyPrefix(key: string) {
-  return `${key.slice(0, 12)}…`;
-}

@@ -1,32 +1,15 @@
 import { AdeliApiError, AuthenticationError, ConfigurationError, NetworkError, TimeoutError } from "@adeli/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adeliCall, toAdeliError } from "./client";
-import { sealSecret } from "@/lib/secret-box";
-
+import { adeliCall, serverKeyRejected, toAdeliError } from "./client";
 import { getAdeliConfig, normalizeBaseURL } from "./key";
 import { AdeliError } from "./types";
-
-const markKeyStatus = vi.fn(async () => undefined);
-// What Settings saved: an encrypted key and a base URL, or nothing.
-const stored: { adeliApiKeyEncrypted: string | null; adeliBaseUrl: string | null } = { adeliApiKeyEncrypted: null, adeliBaseUrl: null };
-vi.mock("@/lib/user-settings", () => ({
-  markKeyStatus: (...args: unknown[]) => markKeyStatus(...(args as [])),
-  getUserSettings: async () => ({ ...stored }),
-}));
-
-// The env fallback is only for the no-login `local` user.
-const LOCAL = "local";
 
 const KEY = `rk_live_${"a".repeat(43)}`;
 
 beforeEach(() => {
-  vi.unstubAllEnvs();
   vi.stubEnv("ADELI_API_KEY", KEY);
   vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000");
-  markKeyStatus.mockClear();
-  stored.adeliApiKeyEncrypted = null;
-  stored.adeliBaseUrl = null;
 });
 
 afterEach(() => {
@@ -53,38 +36,20 @@ describe("normalizeBaseURL", () => {
 });
 
 describe("getAdeliConfig", () => {
-  it("falls back to the key and base URL in the environment for the local user", async () => {
-    expect(await getAdeliConfig(LOCAL)).toEqual({ baseURL: "http://localhost:3000", apiKey: KEY, source: "env" });
+  it("reads the key and base URL from the environment", () => {
+    expect(getAdeliConfig()).toEqual({ baseURL: "http://localhost:3000", apiKey: KEY });
   });
 
-  it("never gives a signed-in user the server's key", async () => {
-    await expect(getAdeliConfig("user_1")).rejects.toMatchObject({ code: "not_configured" });
-  });
-
-  it("accepts an /api/v1 base URL, and defaults to production", async () => {
+  it("accepts an /api/v1 base URL, and defaults to production", () => {
     vi.stubEnv("ADELI_API_BASE_URL", "http://localhost:3000/api/v1");
-    expect((await getAdeliConfig(LOCAL)).baseURL).toBe("http://localhost:3000");
+    expect(getAdeliConfig().baseURL).toBe("http://localhost:3000");
     vi.stubEnv("ADELI_API_BASE_URL", "");
-    expect((await getAdeliConfig(LOCAL)).baseURL).toBe("https://app.tryadeli.com");
+    expect(getAdeliConfig().baseURL).toBe("https://app.tryadeli.com");
   });
 
-  it("prefers the key and URL saved in Settings, for any user", async () => {
-    const saved = `rk_live_${"b".repeat(43)}`;
-    stored.adeliApiKeyEncrypted = sealSecret(saved);
-    stored.adeliBaseUrl = "https://adeli.example.com";
-    expect(await getAdeliConfig(LOCAL)).toEqual({ baseURL: "https://adeli.example.com", apiKey: saved, source: "settings" });
-    expect(await getAdeliConfig("user_1")).toEqual({ baseURL: "https://adeli.example.com", apiKey: saved, source: "settings" });
-    expect(stored.adeliApiKeyEncrypted).not.toContain(saved);
-  });
-
-  it("says when the saved key can't be decrypted", async () => {
-    stored.adeliApiKeyEncrypted = "v1:not:a:secret";
-    await expect(getAdeliConfig(LOCAL)).rejects.toMatchObject({ code: "not_configured", message: expect.stringContaining("Enter the key again") });
-  });
-
-  it("asks for a key when there is none", async () => {
+  it("points to the README when there's no key", () => {
     vi.stubEnv("ADELI_API_KEY", "");
-    await expect(getAdeliConfig(LOCAL)).rejects.toMatchObject({ code: "not_configured", message: expect.stringContaining("Settings") });
+    expect(() => getAdeliConfig()).toThrow(/ADELI_API_KEY.*README/);
   });
 });
 
@@ -110,34 +75,36 @@ describe("toAdeliError", () => {
 });
 
 describe("adeliCall", () => {
-  it("marks the key invalid when Adeli answers 401", async () => {
+  it("sends the server's key to the configured origin", async () => {
+    const fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      void input;
+      void init;
+      return Response.json({ profiles: [] });
+    });
+    vi.stubGlobal("fetch", fetch);
+    await adeliCall((client) => client.profiles.listProfiles());
+    const request = new Request(fetch.mock.calls[0][0], fetch.mock.calls[0][1]);
+    expect(request.url).toBe("http://localhost:3000/api/v1/profiles");
+    expect(request.headers.get("authorization")).toBe(`Bearer ${KEY}`);
+  });
+
+  it("flags a rejected key until Adeli accepts it again", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "unauthorized", message: "A valid Bearer API key is required" } }, { status: 401 })));
-    const error = await adeliCall(LOCAL, (client) => client.profiles.listProfiles()).catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(AdeliError);
+    const error = await adeliCall((client) => client.profiles.listProfiles()).catch((caught: unknown) => caught);
     expect(error).toMatchObject({ code: "unauthorized" });
     expect((error as Error).message).not.toContain(KEY);
-    expect(markKeyStatus).toHaveBeenCalledWith(LOCAL, "invalid");
-  });
+    expect(serverKeyRejected()).toBe(true);
 
-  it("sends requests to the configured origin", async () => {
-    const fetch = vi.fn(async () => Response.json({ profiles: [] }));
-    vi.stubGlobal("fetch", fetch);
-    await adeliCall(LOCAL, (client) => client.profiles.listProfiles());
-    expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("http://localhost:3000/api/v1/profiles");
-    expect(markKeyStatus).not.toHaveBeenCalled();
-  });
-
-  it("tries a candidate key without touching the stored status", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "unauthorized", message: "nope" } }, { status: 401 })));
-    await expect(adeliCall(LOCAL, (client) => client.profiles.listProfiles(), { baseURL: "http://localhost:3000", apiKey: KEY })).rejects.toMatchObject({ code: "unauthorized" });
-    expect(markKeyStatus).not.toHaveBeenCalled();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ profiles: [] })));
+    await adeliCall((client) => client.profiles.listProfiles());
+    expect(serverKeyRejected()).toBe(false);
   });
 
   it("reports a missing key without calling Adeli", async () => {
     vi.stubEnv("ADELI_API_KEY", "");
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
-    await expect(adeliCall(LOCAL, (client) => client.profiles.listProfiles())).rejects.toMatchObject({ code: "not_configured" });
+    await expect(adeliCall((client) => client.profiles.listProfiles())).rejects.toMatchObject({ code: "not_configured" });
     expect(fetch).not.toHaveBeenCalled();
   });
 });

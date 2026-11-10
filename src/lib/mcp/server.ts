@@ -3,7 +3,9 @@ import "server-only";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
+import { serverKeyRejected } from "@/lib/adeli/client";
 import { findMedia, listMedia } from "@/lib/adeli/instagram";
+import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
@@ -11,7 +13,6 @@ import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from 
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
-import { getUserSettings } from "@/lib/user-settings";
 
 import { MCP_DISPLAY_NAME, MCP_SERVER_NAME } from "./config";
 
@@ -39,7 +40,7 @@ Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, 
 
 Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation with the same scope (and, for "specific", the same post) shares a keyword (or uses any comment).
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
-The Adeli API key and Instagram account are managed in the app at ${"{appUrl}"}/settings, not through these tools.`;
+The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
 function json(value: unknown): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
@@ -172,7 +173,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   const { userId } = principal;
   const server = new McpServer(
     { name: MCP_SERVER_NAME, title: MCP_DISPLAY_NAME, version: "1.0.0" },
-    { instructions: INSTRUCTIONS.replace("{appUrl}", appUrl()) },
+    { instructions: INSTRUCTIONS.replaceAll("{appUrl}", appUrl()) },
   );
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
@@ -192,20 +193,20 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   server.registerTool("get_workspace", {
     title: "Get workspace",
-    description: "The connected Instagram account, whether the Adeli key works, and how many automations there are by status. Call this first if other tools say setup isn't done.",
+    description: "The connected Instagram account, whether the server has a working Adeli key, and how many automations there are by status. Call this first if other tools say setup isn't done.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, () => run(false, async () => {
-    const [connected, settings] = await Promise.all([getConnectedAccount(userId), getUserSettings(userId)]);
+    const connected = await getConnectedAccount(userId);
     const automations = connected ? await listAutomations(connected.id) : [];
     const counts = { draft: 0, live: 0, paused: 0 };
     for (const automation of automations) counts[automation.status] += 1;
     return json({
       instagram: connected ? { handle: `@${connected.displayIdentifier}`, name: connected.displayName } : null,
-      adeliKey: settings.adeliKeyStatus,
+      adeliKey: !findAdeliConfig() ? "missing" : serverKeyRejected() ? "rejected" : "configured",
       automations: counts,
       settingsUrl: `${appUrl()}/settings`,
-      setupNeeded: connected ? null : "Connect an Instagram account in Adeli Chat first.",
+      setupNeeded: connected ? null : `Connect an Instagram account at ${appUrl()}/connect first.`,
     });
   }));
 

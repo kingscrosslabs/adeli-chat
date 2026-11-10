@@ -74,7 +74,7 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
   const variants = automation.commentReply.variants.filter((variant) => variant.trim());
   if (automation.commentReply.enabled && variants.length) {
     try {
-      await adeliCall(userId, (client) => client.comments.createComment({
+      await adeliCall((client) => client.comments.createComment({
         body: { platform: "instagram", accountId: account.adeliAccountId, parentId: data.commentId, message: pick(variants) },
       }));
       await updateRun(run.id, { commentReplyState: "sent" });
@@ -87,7 +87,7 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
   }
 
   try {
-    await adeliCall(userId, (client) => client.messages.sendInstagramMessage({
+    await adeliCall((client) => client.messages.sendInstagramMessage({
       body: {
         accountId: account.adeliAccountId,
         recipient: { commentId: data.commentId },
@@ -208,12 +208,12 @@ async function bindNextPosts(userId: string, adeliAccountId: string, live: Autom
 }
 
 async function sendText(userId: string, adeliAccountId: string, recipientId: string, text: string) {
-  await adeliCall(userId, (client) => client.messages.sendInstagramMessage({ body: { accountId: adeliAccountId, recipient: { id: recipientId }, text } }));
+  await adeliCall((client) => client.messages.sendInstagramMessage({ body: { accountId: adeliAccountId, recipient: { id: recipientId }, text } }));
 }
 
 async function sendFinalDm(userId: string, runId: string, adeliAccountId: string, recipientId: string, finalDm: Automation["finalDm"]) {
   try {
-    await adeliCall(userId, (client) => client.messages.sendInstagramMessage({
+    await adeliCall((client) => client.messages.sendInstagramMessage({
       body: {
         accountId: adeliAccountId,
         recipient: { id: recipientId },

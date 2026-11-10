@@ -6,8 +6,8 @@ import { authEnabled } from "@/lib/auth/config";
 /**
  * Optimistic sign-in redirect: pages need a session cookie when login is on.
  * The cookie is only a hint; pages, Server Actions and API routes check the
- * session for real (`src/lib/auth/session.ts`). The Adeli key check needs the
- * database, so `(app)/layout.tsx` sends you to `/setup` instead.
+ * session for real (`src/lib/auth/session.ts`). Pages that need an Instagram
+ * account send you to `/connect` themselves.
  */
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === "/sign-in" || !authEnabled()) return NextResponse.next();

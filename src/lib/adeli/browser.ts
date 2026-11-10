@@ -25,16 +25,12 @@ export const adeli = {
     return result.accounts;
   },
 
-  startConnect(profileId: string) {
-    return request<ConnectSession>("/api/adeli/connect/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId }),
-    });
+  startConnect() {
+    return request<ConnectSession>("/api/adeli/connect/start", { method: "POST" });
   },
 
-  getConnectSession(profileId: string, sessionId: string) {
-    const query = new URLSearchParams({ profileId, sessionId });
+  getConnectSession(sessionId: string) {
+    const query = new URLSearchParams({ sessionId });
     return request<ConnectSession>(`/api/adeli/connect/status?${query}`);
   },
 

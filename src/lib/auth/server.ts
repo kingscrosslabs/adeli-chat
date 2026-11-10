@@ -8,6 +8,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { jwt } from "better-auth/plugins";
 
+import { ensureUserProfile } from "@/lib/adeli/profile";
 import { appUrl } from "@/lib/app-url";
 import { db, schema } from "@/lib/db";
 import { MCP_SCOPES, mcpResourceUrl } from "@/lib/mcp/config";
@@ -16,7 +17,8 @@ import { googleCredentials, signInRefusal } from "./config";
 
 /**
  * Better Auth with Google as the only sign-in method. Anyone with Google can
- * sign in and gets their own workspace, unless `ALLOWED_EMAILS` limits it.
+ * sign in and gets their own workspace and Adeli profile, unless
+ * `ALLOWED_EMAILS` limits it.
  *
  * It is also the OAuth 2.1 server for the MCP endpoint (`/mcp`), which is what
  * Claude's custom connectors use: `mcp()` issues access tokens bound to
@@ -51,6 +53,16 @@ function create() {
       validateUserInfo({ user }) {
         const refusal = signInRefusal(typeof user.email === "string" ? user.email : "");
         return refusal ? { error: "not_allowed", errorDescription: refusal } : undefined;
+      },
+    },
+    // Every new user gets their own Adeli profile. Adeli being down never blocks sign-up: `/connect` makes the profile later.
+    databaseHooks: {
+      user: {
+        create: {
+          async after(user) {
+            await ensureUserProfile(user.id, user).catch((error: unknown) => console.warn(`Couldn't create the Adeli profile for ${user.id}: ${error instanceof Error ? error.message : String(error)}`));
+          },
+        },
       },
     },
     // The JWT plugin's own session-token route isn't needed, and its tokens share the access tokens' signing key.
