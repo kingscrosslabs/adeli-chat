@@ -2,7 +2,7 @@ import { Badge } from "@adeli-chat/ui/components/badge";
 import type { AutomationStatus } from "@adeli-chat/ui/automation/schemas";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
-/** Status pills per brand.md §6. */
+/** Status pills per docs/design.md section 6. */
 export function StatusPill({ status, className }: { status: AutomationStatus; className?: string }) {
   if (status === "live") {
     return (

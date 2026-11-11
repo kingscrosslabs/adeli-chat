@@ -24,7 +24,7 @@ export default async function ConnectPage() {
     return (
       <OnboardingLayout step="account">
         <Problem icon="server" title="This server isn't connected to Adeli yet">
-          Adeli Chat needs an Adeli API key in the <code className="font-mono text-[0.82rem]">ADELI_API_KEY</code> environment variable. Whoever runs this install can follow &quot;Get your Adeli API key&quot; in the README, then restart it.
+          LedaChat needs an Adeli API key in the <code className="font-mono text-[0.82rem]">ADELI_API_KEY</code> environment variable. Whoever runs this install can follow &quot;Get your Adeli API key&quot; in the README, then restart it.
         </Problem>
         {signedIn}
       </OnboardingLayout>

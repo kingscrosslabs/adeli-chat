@@ -63,7 +63,7 @@ function AdeliCard({ adeli }: { adeli: AdeliStatus }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-link" /> Adeli</CardTitle>
-        <CardDescription>Adeli Chat talks to Instagram through Adeli. You have your own Adeli profile, and only your Instagram account is on it.</CardDescription>
+        <CardDescription>LedaChat talks to Instagram through Adeli. You have your own Adeli profile, and only your Instagram account is on it.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
@@ -170,7 +170,7 @@ function InstagramCard({ account, liveCount, canConnect }: { account: AdeliAccou
             <AlertDialogTitle>Disconnect @{account?.displayIdentifier}?</AlertDialogTitle>
             <AlertDialogDescription>
               {liveCount ? `Your ${liveCount} live ${liveCount === 1 ? "automation" : "automations"} will be paused. ` : ""}
-              This only removes it from Adeli Chat. You can connect it again any time.
+              This only removes it from LedaChat. You can connect it again any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

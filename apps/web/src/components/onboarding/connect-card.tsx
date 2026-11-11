@@ -139,7 +139,7 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><AtSign className="size-4 text-link" /> Connect your Instagram account</CardTitle>
         <CardDescription>
-          Adeli Chat replies to comments and sends DMs from this account. It needs to be an Instagram Business or Creator account.
+          LedaChat replies to comments and sends DMs from this account. It needs to be an Instagram Business or Creator account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -240,7 +240,7 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
         {flow.kind === "starting" ? <Loader2 className="animate-spin" /> : <Plus />}
         {flow.kind === "failed" ? "Try again" : hasAccounts ? "Connect another account" : "Connect Instagram"}
       </Button>
-      <p className="text-xs text-muted-foreground">Opens Instagram in a new tab. Adeli handles the login, so Adeli Chat never sees your password.</p>
+      <p className="text-xs text-muted-foreground">Opens Instagram in a new tab. Adeli handles the login, so LedaChat never sees your password.</p>
     </div>
   );
 }

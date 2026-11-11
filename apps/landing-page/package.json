@@ -2,7 +2,7 @@
   "name": "@adeli-chat/landing-page",
   "version": "0.1.0",
   "private": true,
-  "description": "Landing page for Adeli Chat",
+  "description": "Landing page for LedaChat",
   "license": "MIT",
   "type": "module",
   "engines": {

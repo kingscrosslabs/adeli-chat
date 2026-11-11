@@ -17,7 +17,7 @@ import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAcco
 import { MCP_DISPLAY_NAME, MCP_SERVER_NAME } from "./config";
 
 /**
- * The Adeli Chat MCP server: list, create and manage Comment to DM
+ * The LedaChat MCP server: list, create and manage Comment to DM
  * automations. One instance per request, for one user (`principal`), who was
  * already authenticated by `/mcp`. Every tool goes through the same service as
  * the app (`src/lib/automations/service.ts`) and only reaches automations on
@@ -26,7 +26,7 @@ import { MCP_DISPLAY_NAME, MCP_SERVER_NAME } from "./config";
 
 export type McpPrincipal = { userId: string; canWrite: boolean };
 
-const INSTRUCTIONS = `Adeli Chat runs Instagram Comment to DM and Story Reply automations for the signed-in user's connected Instagram account.
+const INSTRUCTIONS = `LedaChat runs Instagram Comment to DM and Story Reply automations for the signed-in user's connected Instagram account.
 
 How an automation works:
 1. Something starts it (trigger). The type, chosen at create_automation and fixed after, says what:
@@ -107,7 +107,7 @@ function detail(automation: Automation) {
 
 /** Editable fields, flattened so they're easy to fill in. Every one is optional. */
 const fieldsSchema = {
-  name: z.string().max(LIMITS.name).optional().describe("Name shown in Adeli Chat."),
+  name: z.string().max(LIMITS.name).optional().describe("Name shown in LedaChat."),
   postScope: z.enum(["specific", "next", "any"]).optional().describe("Which posts or stories trigger it. Comment to DM: one specific post (set postId), the next post published after going live, or any post. Story Reply: one specific story (set storyId) or any story."),
   postId: z.string().optional().describe("Instagram media id of the post or reel, from list_posts. Only for postScope specific; setting it also sets postScope to specific. Comment to DM only."),
   storyId: z.string().optional().describe("Instagram media id of a live story, from list_stories. Story Reply only; setting it also sets postScope to specific."),
@@ -197,7 +197,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
   async function run(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
-    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in Adeli Chat, or reconnect and allow changes.");
+    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in LedaChat, or reconnect and allow changes.");
     try {
       return await body();
     } catch (error) {

@@ -68,7 +68,7 @@ function bearerOf(request: Request): string | null {
 
 const viaOAuth = (request: Request) => requireMcpAuth(auth(), async (inner, claims) => {
   const userId = typeof claims.sub === "string" ? claims.sub : "";
-  if (!userId || !(await stillAllowed(userId))) return unauthorized("This account can't use Adeli Chat any more.");
+  if (!userId || !(await stillAllowed(userId))) return unauthorized("This account can't use LedaChat any more.");
   const scopes = typeof claims.scope === "string" ? claims.scope.split(" ").filter(Boolean) : [];
   if (!scopes.includes(MCP_READ_SCOPE) && !scopes.includes(MCP_WRITE_SCOPE)) return unauthorized("This token doesn't allow access to automations.");
   const clientId = typeof claims.azp === "string" ? claims.azp : "oauth";
@@ -80,7 +80,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   if (bearer && looksLikeApiToken(bearer)) {
     const user = await userForToken(bearer);
     if (!user) return unauthorized("This API token isn't valid. It may have been revoked or expired.");
-    if (!(await stillAllowed(user.userId))) return unauthorized("This account can't use Adeli Chat any more.");
+    if (!(await stillAllowed(user.userId))) return unauthorized("This account can't use LedaChat any more.");
     const scopes = user.readOnly ? [MCP_READ_SCOPE] : [...MCP_SCOPES];
     return serve(request, bearer, `api-token:${user.tokenId}`, { userId: user.userId, canWrite: !user.readOnly }, scopes);
   }

@@ -46,7 +46,7 @@ export function McpSettings({ mcpUrl, oauthEnabled, defaultToken, tokens, apps }
           <div className="space-y-2">
             <Label>Server URL</Label>
             <CopyField value={mcpUrl} />
-            <p className="text-sm text-muted-foreground">Install this MCP to connect Adeli Chat to Claude, ChatGPT, Cursor or Perplexity.</p>
+            <p className="text-sm text-muted-foreground">Install this MCP to connect LedaChat to Claude, ChatGPT, Cursor or Perplexity.</p>
           </div>
           <ConnectToAgent mcpUrl={mcpUrl} oauthEnabled={oauthEnabled} apps={apps} defaultToken={defaultToken} />
         </CardContent>
@@ -207,7 +207,7 @@ function ConnectedAppsCard({ apps }: { apps: ConnectedApp[] }) {
     <Card id="connected-apps" className="scroll-mt-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Plug className="size-4 text-link" /> Connected apps</CardTitle>
-        <CardDescription>Apps you allowed through sign-in, like Claude&apos;s Adeli Chat connector.</CardDescription>
+        <CardDescription>Apps you allowed through sign-in, like Claude&apos;s LedaChat connector.</CardDescription>
       </CardHeader>
       <CardContent>
         {apps.length ? (

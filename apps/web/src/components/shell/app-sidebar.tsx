@@ -37,7 +37,7 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="border-b p-4">
-        <Link href="/automations" aria-label="Adeli Chat home">
+        <Link href="/automations" aria-label="LedaChat home">
           <Wordmark size="sm" />
         </Link>
       </SidebarHeader>

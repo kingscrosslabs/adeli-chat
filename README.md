@@ -1,10 +1,10 @@
-# Adeli Chat
+# LedaChat
 
-Free, open-source Instagram Comment to DM automations (a ManyChat alternative), built on the [Adeli](https://tryadeli.com) API.
+Free, open-source Instagram Comment to DM automations (a ManyChat alternative), built on the [Adeli](https://www.tryadeli.com/) API. Hosted at [ledachat.com](https://ledachat.com).
 
-When someone comments a keyword on your post, Adeli Chat replies to their comment and sends them a DM with your link.
+When someone comments a keyword on your post, LedaChat replies to their comment and sends them a DM with your link.
 
-**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres, or in a local PGlite database if you don't set one up. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) for the design system.
+**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres, or in a local PGlite database if you don't set one up. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) and [docs/design.md](docs/design.md) for the brand and design system.
 
 ## Run it locally
 
@@ -31,7 +31,7 @@ The repo is Yarn workspaces:
 
 ## How it uses Adeli
 
-One Adeli Chat install uses one Adeli organization, through the API key in `ADELI_API_KEY`. Every person who signs in gets their own [profile](https://www.tryadeli.com/docs/api/profiles/create-profile) in that organization, created when they sign up and named after them (their Google name and email). Their Instagram account, posts and webhook all live on that profile, and Adeli Chat only ever reads or writes the signed-in person's own profile. People never need an Adeli account of their own: **Connect Instagram** runs Instagram Login through Adeli.
+One LedaChat install uses one Adeli organization, through the API key in `ADELI_API_KEY`. Every person who signs in gets their own [profile](https://www.tryadeli.com/docs/api/profiles/create-profile) in that organization, created when they sign up and named after them (their Google name and email). Their Instagram account, posts and webhook all live on that profile, and LedaChat only ever reads or writes the signed-in person's own profile. People never need an Adeli account of their own: **Connect Instagram** runs Instagram Login through Adeli.
 
 ## Deploy to Vercel
 
@@ -40,9 +40,9 @@ One Adeli Chat install uses one Adeli organization, through the API key in `ADEL
 3. **Create a Google OAuth client** in Google Cloud Console (APIs & Services, Credentials, OAuth client ID, type "Web application"). Add the authorized redirect URI `https://<your-domain>/api/auth/callback/google`.
 4. **Get an Adeli API key** (see "Get your Adeli API key" below).
 5. **Set the environment variables** below, then redeploy.
-6. **Allowlist the connect redirect.** In Adeli, under Settings, OAuth, add `https://<your-domain>/connect` so people can connect Instagram from Adeli Chat.
+6. **Allowlist the connect redirect.** In Adeli, under Settings, OAuth, add `https://<your-domain>/connect` so people can connect Instagram from LedaChat.
 7. **Sign in with Google.** Everyone who signs in gets their own workspace: their own Adeli profile, Instagram account, automations and webhook. Nobody sees anyone else's. Set `ALLOWED_EMAILS` to limit who can sign in.
-8. **Click Connect Instagram.** Adeli runs Instagram Login for your profile, then Adeli Chat registers a webhook just for you.
+8. **Click Connect Instagram.** Adeli runs Instagram Login for your profile, then LedaChat registers a webhook just for you.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
@@ -68,14 +68,14 @@ To test the whole flow against a local Adeli dev server, with a real comment tri
 
 ## Use with Claude (MCP)
 
-Adeli Chat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
+LedaChat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
 
 Open **Connect to AI Agent** in the app sidebar (`/mcp-apis`). It has a setup guide for Claude, ChatGPT (and Codex), Cursor, Perplexity and any other MCP client, with your URL filled in.
 
 - **Claude, ChatGPT, Cursor and Perplexity** sign in with Google (OAuth) and ask what they may do. Turn off "changes" for a read-only connection. Disconnect any of them under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
 - **Claude Code:**
   ```bash
-  claude mcp add --transport http adeli-chat https://<your-domain>/mcp
+  claude mcp add --transport http ledachat https://<your-domain>/mcp
   ```
   then type `/mcp` in Claude Code and choose Authenticate.
 - **Other MCP clients:** use the server URL with `Authorization: Bearer <token>`.
@@ -86,16 +86,16 @@ Tools: `get_workspace`, `list_automations`, `get_automation`, `list_posts`, `cre
 
 ## Get your Adeli API key
 
-Whoever runs the install needs one Adeli API key. The people who sign in to Adeli Chat don't.
+Whoever runs the install needs one Adeli API key. The people who sign in to LedaChat don't.
 
 1. **Create an Adeli account.** Go to [app.tryadeli.com](https://app.tryadeli.com/sign-in) and sign in with Google. Your first sign-in creates your organization.
-2. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**. It needs to be able to create profiles, connect accounts, read posts, reply to comments, send messages and manage webhooks.
+2. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "LedaChat", and click **Create key**. It needs to be able to create profiles, connect accounts, read posts, reply to comments, send messages and manage webhooks.
 3. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
 4. **Set it as `ADELI_API_KEY`:** in `apps/web/.env.local` for local development, or in the Vercel project's environment variables. Restart or redeploy afterwards.
 
-Never commit a key. If Adeli stops accepting it, Adeli Chat shows a banner on every page until you replace it.
+Never commit a key. If Adeli stops accepting it, LedaChat shows a banner on every page until you replace it.
 
 ## Notes
 
 - Follow Meta's Platform Terms and Instagram's messaging policies when you run automations.
-- The code is MIT licensed. The Adeli logo in `apps/web/public/brand/` and `apps/landing-page/public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.
+- The code is MIT licensed. The Adeli logo in `apps/landing-page/public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.
