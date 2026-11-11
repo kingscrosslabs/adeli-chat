@@ -8,7 +8,7 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { absolute: "Adeli Chat: Free, Open-Source ManyChat Alternative for Instagram" },
+  title: { absolute: "LedaChat: Free, Open-Source ManyChat Alternative for Instagram" },
   description: "Comment-to-DM workflow, with an MCP. Free & open source.",
 };
 
@@ -16,8 +16,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full">
-        {/* Same theme setup as the app, so a visitor's choice carries over (docs/brand.md). */}
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange storageKey="adeli-theme">
+        {/* Same theme setup as the app, so a visitor's choice carries over (docs/design.md). */}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange storageKey="ledachat-theme">
           {children}
         </ThemeProvider>
       </body>

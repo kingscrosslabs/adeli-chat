@@ -9,7 +9,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(url, { ...init, cache: "no-store" });
   } catch {
-    throw new AdeliError("network", "We couldn't reach this Adeli Chat server.");
+    throw new AdeliError("network", "We couldn't reach this LedaChat server.");
   }
   const body = await response.json().catch(() => null) as T | ErrorBody | null;
   if (!response.ok) {

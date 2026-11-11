@@ -11,7 +11,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
-  not_allowed: "This Google account isn't allowed to use this Adeli Chat.",
+  not_allowed: "This Google account isn't allowed to use this LedaChat.",
 };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -33,7 +33,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             <CardTitle className="text-base">Sign in</CardTitle>
             <CardDescription>
               {oauthQuery
-                ? "Sign in to let an app like Claude manage your Adeli Chat automations. You'll choose what it can do next."
+                ? "Sign in to let an app like Claude manage your LedaChat automations. You'll choose what it can do next."
                 : "Sign in to manage your own Comment to DM automations. Your Adeli key and automations are only visible to you."}
             </CardDescription>
           </CardHeader>

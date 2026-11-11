@@ -125,13 +125,13 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
       await tx.update(schema.accounts).set({ status: "disconnected", updatedAt: now }).where(and(inArray(schema.accounts.id, others), eq(schema.accounts.status, "connected")));
       await tx.update(schema.automations).set({ status: "paused", updatedAt: now }).where(and(inArray(schema.automations.accountId, others), eq(schema.automations.status, "live")));
     });
-    // Comments on the account only reach Adeli Chat through the user's webhook.
+    // Comments on the account only reach LedaChat through the user's webhook.
     await ensureAdeliWebhook(userId).catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
     return done({ handle: account.displayIdentifier });
   });
 }
 
-/** Removes the account from Adeli Chat (not from Adeli) and pauses its live automations. */
+/** Removes the account from LedaChat (not from Adeli) and pauses its live automations. */
 export async function disconnectAccount(): Promise<ActionResult> {
   return guard(async (userId) => {
     const account = await requireAccount(userId);

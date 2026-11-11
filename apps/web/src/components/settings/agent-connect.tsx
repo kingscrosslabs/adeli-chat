@@ -32,7 +32,7 @@ type Agent = {
 };
 
 const PROMPTS = [
-  "List my Adeli Chat automations and show which ones are live",
+  "List my LedaChat automations and show which ones are live",
   "Create a draft automation that DMs my guide link to anyone who comments GUIDE on my next reel",
   "Which of my live automations sent the most final DMs?",
 ];
@@ -196,7 +196,7 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
   return <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-link underline underline-offset-4">{children}<ExternalLink className="size-3" /></a>;
 }
 
-const SIGN_IN = "A sign-in window opens. Sign in to Adeli Chat with Google and allow access.";
+const SIGN_IN = "A sign-in window opens. Sign in to LedaChat with Google and allow access.";
 
 type DefaultToken = { prefix: string; secret: ReturnType<typeof useTokenSecret> };
 
@@ -212,11 +212,11 @@ function buildAgents(mcpUrl: string, oauthEnabled: boolean, token: DefaultToken)
           label: "Claude Code",
           steps: oauthEnabled ? [
             { title: "Add the server", body: <><p>Run this in your terminal. Add <code className="font-mono">--scope user</code> to use it in every project.</p><Code code={claudeCodeCommand(mcpUrl, null)} /></> },
-            { title: "Sign in to Adeli Chat", body: <p>Start Claude Code, type <code className="font-mono">/mcp</code>, pick adeli-chat and choose Authenticate. {SIGN_IN}</p> },
-            { title: "Finish", body: <p>adeli-chat shows as connected in <code className="font-mono">/mcp</code>.</p> },
+            { title: "Sign in to LedaChat", body: <p>Start Claude Code, type <code className="font-mono">/mcp</code>, pick ledachat and choose Authenticate. {SIGN_IN}</p> },
+            { title: "Finish", body: <p>ledachat shows as connected in <code className="font-mono">/mcp</code>.</p> },
           ] : [
             { title: "Add the server", body: <><p>Run this in your terminal. It uses your Default token.</p><RevealableToken block prefix={token.prefix} tokenSecret={token.secret} format={(value) => claudeCodeCommand(mcpUrl, value)} /></> },
-            { title: "Finish", body: <p>Start Claude Code and type <code className="font-mono">/mcp</code>. adeli-chat shows as connected.</p> },
+            { title: "Finish", body: <p>Start Claude Code and type <code className="font-mono">/mcp</code>. ledachat shows as connected.</p> },
           ],
         },
         {
@@ -225,8 +225,8 @@ function buildAgents(mcpUrl: string, oauthEnabled: boolean, token: DefaultToken)
             { title: "Go to Claude", body: <p>Open Claude in your browser or desktop app. <Link href="https://claude.ai">claude.ai</Link></p> },
             { title: "Open Customize", body: <p>Click &quot;Customize&quot;, then &quot;Add&quot;, then &quot;Add custom connector&quot;. Or skip to step 4 with <Link href={claudeConnectorLink(mcpUrl)}>this link</Link>, which fills it in for you.</p> },
             { title: "Enter the server URL", body: <Fields items={[["Name", MCP_DISPLAY_NAME], ["Remote MCP server URL", <Value key="url" value={mcpUrl} label="Copy server URL" />]]} /> },
-            { title: "Sign in to Adeli Chat", body: <p>Click &quot;Add&quot;, then &quot;Connect&quot;. {SIGN_IN}</p> },
-            { title: "Finish", body: <p>Adeli Chat is in your connectors. Turn it on in a chat from the tools menu.</p> },
+            { title: "Sign in to LedaChat", body: <p>Click &quot;Add&quot;, then &quot;Connect&quot;. {SIGN_IN}</p> },
+            { title: "Finish", body: <p>LedaChat is in your connectors. Turn it on in a chat from the tools menu.</p> },
           ],
         },
       ],
@@ -241,8 +241,8 @@ function buildAgents(mcpUrl: string, oauthEnabled: boolean, token: DefaultToken)
           label: "Codex CLI",
           steps: [
             { title: "Add the server", body: <><p>Run this in your terminal.</p><Code code={codexCommands(mcpUrl).add} /></> },
-            { title: "Sign in to Adeli Chat", body: <><p>Then run this. {SIGN_IN}</p><Code code={codexCommands(mcpUrl).login} /></> },
-            { title: "Finish", body: <p>Start Codex and type <code className="font-mono">/mcp</code>. adeli-chat is listed with its tools.</p> },
+            { title: "Sign in to LedaChat", body: <><p>Then run this. {SIGN_IN}</p><Code code={codexCommands(mcpUrl).login} /></> },
+            { title: "Finish", body: <p>Start Codex and type <code className="font-mono">/mcp</code>. ledachat is listed with its tools.</p> },
           ],
         },
         {
@@ -267,9 +267,9 @@ function buildAgents(mcpUrl: string, oauthEnabled: boolean, token: DefaultToken)
           steps: [
             { title: "Open Cursor Settings", body: <p>In Cursor, open Cursor Settings, then the &quot;Tools &amp; MCP&quot; tab. Or skip to step 4 with <a href={cursorInstallLink(mcpUrl)} className="text-link underline underline-offset-4">Add to Cursor</a>.</p> },
             { title: "Add a new MCP server", body: <p>Click &quot;New MCP Server&quot;. That opens mcp.json.</p> },
-            { title: "Enter the server URL", body: <><p>Paste this in. If the file already has an mcpServers block, add the adeli-chat entry inside it.</p><Code code={cursorConfig(mcpUrl)} label="Copy configuration" /></> },
-            { title: "Sign in to Adeli Chat", body: <><p>Back in Tools &amp; MCP, click &quot;Connect&quot; next to adeli-chat. {SIGN_IN}</p></> },
-            { title: "Finish", body: <p>adeli-chat shows a green dot and its tools. Ask the agent to list your automations.</p> },
+            { title: "Enter the server URL", body: <><p>Paste this in. If the file already has an mcpServers block, add the ledachat entry inside it.</p><Code code={cursorConfig(mcpUrl)} label="Copy configuration" /></> },
+            { title: "Sign in to LedaChat", body: <><p>Back in Tools &amp; MCP, click &quot;Connect&quot; next to ledachat. {SIGN_IN}</p></> },
+            { title: "Finish", body: <p>ledachat shows a green dot and its tools. Ask the agent to list your automations.</p> },
           ],
         },
       ],
@@ -286,8 +286,8 @@ function buildAgents(mcpUrl: string, oauthEnabled: boolean, token: DefaultToken)
             { title: "Open Perplexity", body: <p>Open Perplexity in your browser. <Link href="https://www.perplexity.ai">perplexity.ai</Link></p> },
             { title: "Open Connectors", body: <p>Go to &quot;All settings&quot;, then &quot;Connectors&quot;, and add a &quot;Custom connector&quot;.</p> },
             { title: "Add the custom connector", body: <><p>Fill in the form, check the consent box, and click &quot;Add&quot;:</p><Fields items={[["Name", MCP_DISPLAY_NAME], ["MCP Server URL", <Value key="url" value={mcpUrl} label="Copy server URL" />]]} /></> },
-            { title: "Add the connector", body: <p>Under the &quot;Custom&quot; connectors list, find Adeli Chat and click &quot;Add connector&quot;.</p> },
-            { title: "Sign in to Adeli Chat", body: <><p>{SIGN_IN}</p></> },
+            { title: "Add the connector", body: <p>Under the &quot;Custom&quot; connectors list, find LedaChat and click &quot;Add connector&quot;.</p> },
+            { title: "Sign in to LedaChat", body: <><p>{SIGN_IN}</p></> },
           ],
         },
       ],

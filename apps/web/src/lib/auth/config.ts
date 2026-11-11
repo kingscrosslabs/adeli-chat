@@ -13,7 +13,7 @@ export function googleCredentials() {
 /**
  * Sign-in is on when Google is configured, and always when deployed, so a
  * deployment missing its Google variables stays locked instead of open.
- * Locally, without Google variables, Adeli Chat runs with no login.
+ * Locally, without Google variables, LedaChat runs with no login.
  */
 export function authEnabled(): boolean {
   return Boolean(googleCredentials()) || isDeployed();
@@ -37,5 +37,5 @@ export function isAllowedEmail(email: string): boolean {
  * `ALLOWED_EMAILS` limits it. Returns a reason when the sign-in is refused.
  */
 export function signInRefusal(email: string): string | null {
-  return isAllowedEmail(email) ? null : "This Google account isn't allowed to use this Adeli Chat.";
+  return isAllowedEmail(email) ? null : "This Google account isn't allowed to use this LedaChat.";
 }

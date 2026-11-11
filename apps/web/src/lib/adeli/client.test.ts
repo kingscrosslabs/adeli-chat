@@ -54,7 +54,7 @@ describe("getAdeliConfig", () => {
 });
 
 describe("toAdeliError", () => {
-  it("maps SDK errors to Adeli Chat codes", () => {
+  it("maps SDK errors to LedaChat codes", () => {
     expect(toAdeliError(new AuthenticationError("bad key", { status: 401, code: "unauthorized" })).code).toBe("unauthorized");
     expect(toAdeliError(new NetworkError("offline")).code).toBe("network");
     expect(toAdeliError(new TimeoutError("slow")).code).toBe("network");
@@ -63,7 +63,7 @@ describe("toAdeliError", () => {
     expect(api).toMatchObject({ code: "permission_required", status: 403 });
   });
 
-  it("passes Adeli Chat errors through", () => {
+  it("passes LedaChat errors through", () => {
     const error = new AdeliError("not_configured", "ADELI_API_KEY is not set.");
     expect(toAdeliError(error)).toBe(error);
   });

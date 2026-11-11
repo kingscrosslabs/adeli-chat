@@ -40,7 +40,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
     <Shell>
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4 text-link" /> Connect {name} to Adeli Chat</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="size-4 text-link" /> Connect {name} to LedaChat</CardTitle>
           <CardDescription>
             {name} wants to reach the automations for {user.email}.{redirectHost ? <> You&apos;ll be sent back to <span className="font-medium text-foreground">{redirectHost}</span>.</> : null}
           </CardDescription>

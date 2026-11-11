@@ -2,6 +2,7 @@ import { ArrowRight, AtSign, BarChart3, Bot, Check, ChevronDown, CirclePause, Do
 import Link from "next/link";
 import type { IconType } from "react-icons";
 import { AiFillOpenAI } from "react-icons/ai";
+import { RiGrokAiFill } from "react-icons/ri";
 import { SiClaude, SiGithub, SiPerplexity } from "react-icons/si";
 
 import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
@@ -9,13 +10,19 @@ import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 import { Badge } from "@adeli-chat/ui/components/badge";
 import { buttonVariants } from "@adeli-chat/ui/components/button";
-import { ADELI_URL, GITHUB_URL, SIGN_IN_URL } from "@/lib/links";
+import { ADELI_LINKS, CONTACT_EMAIL, GITHUB_URL, SIGN_IN_URL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
+import { SamplePrompts } from "./sample-prompts";
 
 /** Free plan size, shown in the hero, Options and FAQ. One place to change it. */
-const FREE_AUTOMATIONS = 2;
+const FREE_AUTOMATIONS = 10;
+
+/** "Adeli", linked with the UTM for this spot on the page (docs/brand.md section 6). */
+function AdeliLink({ spot, children = "Adeli" }: { spot: keyof typeof ADELI_LINKS; children?: React.ReactNode }) {
+  return <a href={ADELI_LINKS[spot]} target="_blank" rel="noreferrer" className="font-medium text-link underline-offset-4 hover:underline">{children}</a>;
+}
 
 export function LandingPage() {
   return (
@@ -48,8 +55,8 @@ function Section({ id, className, children }: { id?: string; className?: string;
 
 function SectionHeading({ title, lead }: { title: string; lead?: string }) {
   return (
-    <div className="mb-10 max-w-2xl">
-      <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h2>
+    <div className="mx-auto mb-10 max-w-2xl text-center">
+      <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">{title}</h2>
       {lead ? <p className="mt-3 text-base text-muted-foreground">{lead}</p> : null}
     </div>
   );
@@ -81,7 +88,7 @@ function Header() {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" aria-label="Adeli Chat home"><Wordmark size="sm" /></Link>
+        <Link href="/" aria-label="LedaChat home"><Wordmark size="sm" /></Link>
         <nav aria-label="Sections" className="hidden flex-1 items-center gap-5 text-sm text-muted-foreground md:flex">
           {links.map((link) => <a key={link.href} href={link.href} className="hover:text-foreground">{link.label}</a>)}
         </nav>
@@ -99,7 +106,7 @@ function Hero() {
     <section className="px-4 pt-14 pb-16 sm:px-6 md:pt-20">
       <div className="mx-auto grid max-w-5xl items-center gap-12 md:grid-cols-[1.1fr_1fr]">
         <div>
-          <Badge variant="secondary" className="mb-5">Free and open source</Badge>
+          <Badge className="mb-5 bg-highlight text-highlight-foreground">Free and open source</Badge>
           <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl">Turn Instagram comments into DMs, for free</h1>
           <p className="mt-5 max-w-xl text-lg text-muted-foreground">
             Comment-to-DM workflow, with an MCP. Free &amp; open source.
@@ -118,9 +125,9 @@ function Hero() {
 function OfficialStrip() {
   return (
     <div className="border-t bg-muted px-4 py-4 sm:px-6">
-      <p className="mx-auto flex max-w-5xl items-center gap-2.5 text-sm text-muted-foreground">
+      <p className="mx-auto flex max-w-5xl items-center justify-center gap-2.5 text-center text-sm text-muted-foreground">
         <ShieldCheck className="size-4 shrink-0 text-link" aria-hidden />
-        <span>Runs on Instagram&apos;s official API through Adeli, a Meta Tech Provider. No passwords, no scraping, no browser bots.</span>
+        <span>Runs on Instagram&apos;s official API through <AdeliLink spot="officialStrip" />, a Meta Tech Provider. No passwords, no scraping, no browser bots.</span>
       </p>
     </div>
   );
@@ -129,7 +136,7 @@ function OfficialStrip() {
 function HowItWorks() {
   const steps = [
     { title: "Someone comments your keyword", body: "On a post, a reel, or whatever you publish next. Story replies work too." },
-    { title: "Adeli Chat replies and sends a DM", body: "A public reply goes under their comment, and a DM with a button lands in their inbox." },
+    { title: "LedaChat replies and sends a DM", body: "A public reply goes under their comment, and a DM with a button lands in their inbox." },
     { title: "They tap and get your link", body: "Want the lead? Ask for their email before the link goes out." },
   ];
   return (
@@ -153,6 +160,7 @@ const ASSISTANTS: Array<{ name: string; icon: IconType | typeof CursorLogo; tile
   { name: "ChatGPT", icon: AiFillOpenAI, tile: "#0F0F0F" },
   { name: "Cursor", icon: CursorLogo, tile: "#141414" },
   { name: "Perplexity", icon: SiPerplexity, tile: "#1F7A8C" },
+  { name: "Grok Bot", icon: RiGrokAiFill, tile: "#000000" },
 ];
 
 const CONVERSATION: Array<{ from: "you" | "claude"; text: string }> = [
@@ -165,18 +173,19 @@ const CONVERSATION: Array<{ from: "you" | "claude"; text: string }> = [
 function AskClaude() {
   return (
     <Section id="mcp" className="bg-muted">
-      <div className="grid items-start gap-10 md:grid-cols-2">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Ask your favorite AI agent to set up your automation for you</h2>
-          <ul className="mt-6 flex flex-wrap gap-3" aria-label="Works with">
-            {ASSISTANTS.map(({ name, icon: Icon, tile }) => (
-              <li key={name} className="flex items-center gap-2 rounded-lg border bg-card py-1.5 pr-3 pl-1.5 text-sm font-medium">
-                <span className="flex size-6 items-center justify-center rounded-md text-white" style={{ backgroundColor: tile }}><Icon className="size-3.5" /></span>
-                {name}
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="mx-auto mb-10 max-w-2xl text-center">
+        <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">Ask your favorite AI agent to set up your automation for you</h2>
+        <ul className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Works with">
+          {ASSISTANTS.map(({ name, icon: Icon, tile }) => (
+            <li key={name} className="flex items-center gap-2 rounded-lg border bg-card py-1.5 pr-3 pl-1.5 text-sm font-medium">
+              <span className="flex size-6 items-center justify-center rounded-md text-white" style={{ backgroundColor: tile }}><Icon className="size-3.5" /></span>
+              {name}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="grid items-start gap-6 md:grid-cols-[1fr_1.15fr]">
+        <SamplePrompts />
         <figure className="rounded-xl border bg-card">
           <figcaption className="flex items-center gap-2 border-b px-4 py-2.5 text-xs text-muted-foreground">
             <MessagesSquare className="size-3.5" aria-hidden /> Example conversation in Claude
@@ -209,7 +218,7 @@ const FEATURES = [
   { icon: UserCheck, title: "Once per person" },
   { icon: BarChart3, title: "Stats and tap tracking" },
   { icon: CirclePause, title: "Draft, live and pause" },
-  { icon: Bot, title: "MCP for Claude, ChatGPT and Cursor" },
+  { icon: Bot, title: "MCP for Claude, ChatGPT, Cursor and Grok Bot" },
   { icon: KeyRound, title: "Read-only and expiring API tokens" },
   { icon: FileCode2, title: "Open source (MIT)" },
   { icon: Server, title: "Self-host on Vercel" },
@@ -253,13 +262,13 @@ function CellValue({ value }: { value: Cell }) {
 function Comparison() {
   return (
     <Section id="compare">
-      <SectionHeading title="Adeli Chat vs ManyChat" />
+      <SectionHeading title="LedaChat vs ManyChat" />
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="bg-muted">
             <tr>
               <th scope="col" className="w-1/3 px-4 py-3 font-medium text-muted-foreground"><span className="sr-only">Feature</span></th>
-              <th scope="col" className="px-4 py-3 font-semibold">Adeli Chat</th>
+              <th scope="col" className="px-4 py-3 font-semibold">LedaChat</th>
               <th scope="col" className="px-4 py-3 font-semibold">ManyChat</th>
             </tr>
           </thead>
@@ -279,12 +288,12 @@ function Comparison() {
 }
 
 function Options() {
-  const options = [
+  const options: Array<{ name: string; price: string; period: string; points: React.ReactNode[]; action: React.ReactNode; featured: boolean }> = [
     {
       name: "Free",
       price: "$0",
       period: "forever",
-      points: [`${FREE_AUTOMATIONS} live automations`, "MCP, email capture, story replies and stats", "\"Powered by Adeli\" in the last DM"],
+      points: [`${FREE_AUTOMATIONS} live automations`, "Access to all features", "MCP access for AI agents", "LedaChat branding in the last DM"],
       action: <StartFree size="lg" className="w-full" />,
       featured: true,
     },
@@ -292,7 +301,7 @@ function Options() {
       name: "Pro",
       price: "$25",
       period: "per month",
-      points: ["Unlimited live automations", "Everything in Free", "Remove \"Powered by Adeli\""],
+      points: ["Everything in Free", "Remove branding"],
       action: <StartFree variant="outline" className="w-full" />,
       featured: false,
     },
@@ -300,7 +309,7 @@ function Options() {
       name: "Self-host",
       price: "Free",
       period: "MIT license",
-      points: ["Unlimited automations", "Deploy to Vercel in a few steps", "Bring your Adeli API key. Adeli's free plan covers your own account"],
+      points: ["Unlimited automations", "Deploy to Vercel in a few steps", <>Bring your <AdeliLink spot="options" /> API key. Adeli&apos;s free plan covers your own account</>],
       action: <GitHubButton className="w-full" />,
       featured: false,
     },
@@ -314,13 +323,12 @@ function Options() {
             <h3 className="text-base font-semibold">{option.name}</h3>
             <p className="mt-3"><span className="text-3xl font-semibold tracking-tight">{option.price}</span> <span className="text-sm text-muted-foreground">{option.period}</span></p>
             <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-              {option.points.map((point) => <li key={point} className="flex gap-2.5"><Check className="mt-0.5 size-4 shrink-0 text-link" aria-hidden />{point}</li>)}
+              {option.points.map((point, index) => <li key={index} className="flex gap-2.5"><Check className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{point}</span></li>)}
             </ul>
             <div className="mt-6">{option.action}</div>
           </div>
         ))}
       </div>
-      <p className="mt-4 text-sm text-muted-foreground">Pro is billed monthly. Cancel anytime.</p>
     </Section>
   );
 }
@@ -328,21 +336,21 @@ function Options() {
 function OfficialApi() {
   return (
     <Section id="official" className="bg-muted">
-      <div className="grid items-center gap-8 md:grid-cols-[1.4fr_1fr]">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Built on Instagram&apos;s official API</h2>
-          <p className="mt-3 text-base text-muted-foreground">
-            Adeli Chat connects through Adeli, a Meta Tech Provider. You log in with Instagram, and we never see your password.
-          </p>
-        </div>
-        <a href={ADELI_URL} target="_blank" rel="noreferrer" className="group rounded-xl border bg-card p-5 transition hover:border-link">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">Built on Instagram&apos;s official API</h2>
+        <p className="mt-3 text-base text-muted-foreground">
+          LedaChat connects through <AdeliLink spot="officialApi" />, a Meta Tech Provider. You log in with Instagram, and we never see your password.
+        </p>
+      </div>
+      <div className="mx-auto mt-8 max-w-md">
+        <a href={ADELI_LINKS.officialApiDocs} target="_blank" rel="noreferrer" className="group block rounded-xl border bg-card p-5 transition hover:border-link">
           <span className="text-xs font-medium text-muted-foreground">Powered by</span>
           <span className="mt-2 flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/adeli-logo.png" alt="" className="size-7 rounded-md" />
             <span className="text-lg font-semibold tracking-tight">Adeli</span>
           </span>
-          <p className="mt-3 text-sm text-muted-foreground">Building features like this for your own customers? Adeli Chat runs on the Adeli API.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Building features like this for your own customers? LedaChat runs on the Adeli API.</p>
           <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link">See the Adeli API <ArrowRight className="size-4 transition group-hover:translate-x-0.5" aria-hidden /></span>
         </a>
       </div>
@@ -351,12 +359,28 @@ function OfficialApi() {
 }
 
 function Faq() {
-  const items = [
-    { q: "Is this allowed by Instagram?", a: "Yes. Adeli Chat uses Instagram's official API through Adeli, a Meta Tech Provider, and only messages people who commented or replied to your story first." },
+  const items: Array<{ q: string; a: React.ReactNode }> = [
+    { q: "Is this allowed by Instagram?", a: <>Yes. LedaChat uses Instagram&apos;s official API through <AdeliLink spot="faq" />, a Meta Tech Provider, and only messages people who commented or replied to your story first.</> },
     { q: "What account do I need?", a: "An Instagram professional account (Business or Creator). Switching is free in Instagram's settings." },
-    { q: "Do I need an Adeli account?", a: "Not for the hosted version. To self-host, you need an Adeli API key, and Adeli's free plan covers your own account." },
-    { q: "What happens at the free limit?", a: `Your ${FREE_AUTOMATIONS} automations stay live. Pause one to start another, or go Pro for unlimited.` },
-    { q: "Does it work on Facebook or TikTok?", a: "No, Instagram only." },
+    { q: "Do I need an Adeli account?", a: <>Not for the hosted version. To self-host, you need an <AdeliLink spot="faq" /> API key, and Adeli&apos;s free plan covers your own account.</> },
+    { q: "What happens at the free limit?", a: `Your ${FREE_AUTOMATIONS} live automations keep running. Pause one to start another.` },
+    {
+      q: "Does it work on Facebook or TikTok?",
+      a: <>Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-link underline-offset-4 hover:underline">{CONTACT_EMAIL}</a>.</>,
+    },
+    {
+      q: "Why use LedaChat over ManyChat?",
+      a: (
+        <>
+          A couple of reasons:
+          <ul className="mt-2 list-disc space-y-1.5 pl-5">
+            <li>We offer an MCP, so you can ask Claude, ChatGPT or others to set up your automations for you. Better yet, turn them into skills.</li>
+            <li>We do <strong className="font-semibold text-foreground">not</strong> charge by active contact, which racks up your bill when a post goes viral.</li>
+            <li>We offer very simple, targeted features.</li>
+          </ul>
+        </>
+      ),
+    },
     { q: "Can I cancel Pro?", a: "Yes. It's monthly, and you can cancel anytime." },
   ];
   return (
@@ -369,7 +393,7 @@ function Faq() {
               {item.q}
               <ChevronDown className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" aria-hidden />
             </summary>
-            <p className="mt-2.5 text-sm text-muted-foreground">{item.a}</p>
+            <div className="mt-2.5 text-sm text-muted-foreground">{item.a}</div>
           </details>
         ))}
       </div>
@@ -391,7 +415,7 @@ function Footer() {
   return (
     <footer className="border-t px-4 py-8 sm:px-6">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-muted-foreground">
-        <a href={ADELI_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
+        <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
         <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
         <a href={SIGN_IN_URL} className="hover:text-foreground">Sign in</a>
         <span>© King&apos;s Cross Labs</span>

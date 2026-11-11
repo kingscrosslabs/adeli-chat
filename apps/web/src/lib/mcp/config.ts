@@ -1,8 +1,8 @@
 import { appUrl } from "@/lib/app-url";
 
-/** What Adeli Chat calls itself in MCP clients and install links. */
-export const MCP_SERVER_NAME = "adeli-chat";
-export const MCP_DISPLAY_NAME = "Adeli Chat";
+/** What LedaChat calls itself in MCP clients and install links. */
+export const MCP_SERVER_NAME = "ledachat";
+export const MCP_DISPLAY_NAME = "LedaChat";
 
 /**
  * OAuth scopes for the MCP endpoint. Read lets Claude list and inspect

@@ -19,4 +19,19 @@ function appUrl(): string {
 export const APP_URL = appUrl();
 export const SIGN_IN_URL = `${APP_URL}/sign-in`;
 export const GITHUB_URL = "https://github.com/kingscrosslabs/adeli-chat";
-export const ADELI_URL = "https://tryadeli.com";
+export const SITE_URL = "https://ledachat.com";
+export const CONTACT_EMAIL = "hello@ledachat.com";
+
+/**
+ * Every Adeli mention links here, one tagged URL per spot on the page so GA4
+ * shows which one sends traffic. Built with the utm-link skill and logged in
+ * company-brain's gtm/utm/links.csv; change them there too (docs/brand.md section 6).
+ */
+export const ADELI_LINKS = {
+  officialStrip: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=official-strip",
+  options: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=options",
+  officialApi: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=official-api",
+  officialApiDocs: "https://www.tryadeli.com/docs?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=official-api-docs",
+  faq: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=faq",
+  footer: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=footer",
+} as const;

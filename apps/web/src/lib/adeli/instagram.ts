@@ -66,7 +66,7 @@ function toMedia(post: ApiPost): AdeliMedia {
 async function requireOwnAccount(userId: string, accountId: string) {
   const [owned] = await db().select({ id: schema.accounts.id }).from(schema.accounts)
     .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.adeliAccountId, accountId))).limit(1);
-  if (!owned) throw new AdeliError("not_found", "That Instagram account isn't connected to your Adeli Chat.", 404);
+  if (!owned) throw new AdeliError("not_found", "That Instagram account isn't connected to your LedaChat.", 404);
 }
 
 /** Posts of one of the user's own Instagram accounts. Any other account id is refused. */

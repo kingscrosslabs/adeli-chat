@@ -1,10 +1,10 @@
-# adeli-chat
+# LedaChat (repo: adeli-chat)
 
-Open-source ManyChat alternative (Instagram Comment to DM) built on the Adeli API.
+LedaChat (ledachat.com): open-source ManyChat alternative (Instagram Comment to DM) built on the Adeli API.
 
 - **Layout:** Yarn 4 workspaces. `apps/web` is the app (`@adeli-chat/web`, port 3030), `apps/landing-page` the static marketing site (`@adeli-chat/landing-page`, port 3031), `packages/ui` what both share (`@adeli-chat/ui`: theme tokens, `components/`, brand, `PhonePreview`, and the automation schemas and defaults). The package ships source and imports its own files relatively, never through an app's `@/`. Run scripts from the root (`yarn dev`, `yarn dev:landing`, `yarn test`). The only env file is `apps/web/.env.local`.
 - **Spec and build plan:** `docs/PRD.md`. Read it before making changes. Decisions are in §0, milestones in §10.
-- **Design and copy:** `docs/brand.md`. Use its tokens and the shared components in `packages/ui` (copied from Adeli); no ad hoc colors.
+- **Design and copy:** `docs/brand.md` (name, logo, colours, voice) and `docs/design.md` (tokens and components). Both are LedaChat's own, no longer synced with Adeli. Use the tokens and the shared components in `packages/ui`; no ad hoc colors. Light theme is the default.
 - **Adeli API:** endpoint map in PRD §5.11, missing pieces in §12A. Source of truth is the local `adeli` repo
   (`docs/public-api.md`, `apps/web/app/docs/`).
 - **Adeli API key:** never commit one. The install has one key, `ADELI_API_KEY` (URL in `ADELI_API_BASE_URL`), read only through `apps/web/src/lib/adeli/key.ts`; never send it to the browser. Nobody enters a key in the app; the README explains how to get one.

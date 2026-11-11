@@ -58,5 +58,5 @@ export async function requireUserPage(): Promise<CurrentUser> {
 export async function userOrUnauthorized(): Promise<{ userId: string } | { response: Response }> {
   const user = await getCurrentUser();
   if (user) return { userId: user.id };
-  return { response: Response.json({ error: { code: "unauthorized", message: "Sign in to Adeli Chat first." } }, { status: 401 }) };
+  return { response: Response.json({ error: { code: "unauthorized", message: "Sign in to LedaChat first." } }, { status: 401 }) };
 }

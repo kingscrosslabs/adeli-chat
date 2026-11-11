@@ -18,7 +18,7 @@ type ProfileOwner = { id: string; name: string; email: string };
 export function profileName(user: { name: string; email: string }) {
   const name = user.name.trim();
   const email = user.email.trim();
-  if (!name || name === email) return email || "Adeli Chat user";
+  if (!name || name === email) return email || "LedaChat user";
   return email ? `${name} (${email})` : name;
 }
 

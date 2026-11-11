@@ -1,8 +1,8 @@
-# Adeli Chat: PRD + Build Plan v0.3 (Instagram Comment to DM)
+# LedaChat: PRD + Build Plan v0.3 (Instagram Comment to DM)
 
 > Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-11
 >
-> Companion docs: [`docs/brand.md`](brand.md) (design system and copy voice).
+> Companion docs: [`docs/brand.md`](brand.md) (name, logo, colours, voice) and [`docs/design.md`](design.md) (design system).
 
 An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 does one thing well: **when someone comments on your Instagram post, reply to their comment and send them a DM with a link.**
 
@@ -22,10 +22,10 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D6 | Stats | Basic counts only in v1. Link-click tracking is v1.1. |
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
 | D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `apps/web/src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
-| D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
-| D10 | Adeli API key | **One server key, one profile per user** (updated 2026-11-10, replaces "bring your own key, entered in the app"). The install has one organization-level key in `ADELI_API_KEY` (URL in `ADELI_API_BASE_URL`, default hosted Adeli); nobody enters a key in the app, and the README has the steps to get one. Every Adeli Chat user gets their own profile in that organization, created with `client.profiles.createProfile` at sign-up (Better Auth `user.create.after`, and lazily by `ensureUserProfile` in `apps/web/src/lib/adeli/profile.ts`), named `Name (email)` from Google and tagged with `externalId = userId`. The local no-login user is the exception (updated 2026-11-11): every local database has a user with id `local`, so it never looks a profile up in Adeli. Without one stored in its own database it creates a new profile, named `Local: <user> on <host>` and tagged `adeli-chat-local-<random>`, so developers sharing a key never share a profile. A dev-only card in Settings renames it. Because the key reaches every profile, server code only ever uses the signed-in user's stored profile and accounts, never a profile or account id from the browser. `getAdeliConfig()` in `apps/web/src/lib/adeli/key.ts` is the only reader. Plan: [`plans/2026-11-10-env-key-and-per-user-profiles.md`](../plans/2026-11-10-env-key-and-per-user-profiles.md). |
+| D9 | Design | Started from Adeli's dashboard design system (Tailwind v4 tokens + shadcn `base-nova` on Base UI), now LedaChat's own: Leda Purple and Leda Pink, light by default. Full reference in [`docs/design.md`](design.md). (Changed 2026-11-11.) |
+| D10 | Adeli API key | **One server key, one profile per user** (updated 2026-11-10, replaces "bring your own key, entered in the app"). The install has one organization-level key in `ADELI_API_KEY` (URL in `ADELI_API_BASE_URL`, default hosted Adeli); nobody enters a key in the app, and the README has the steps to get one. Every LedaChat user gets their own profile in that organization, created with `client.profiles.createProfile` at sign-up (Better Auth `user.create.after`, and lazily by `ensureUserProfile` in `apps/web/src/lib/adeli/profile.ts`), named `Name (email)` from Google and tagged with `externalId = userId`. The local no-login user is the exception (updated 2026-11-11): every local database has a user with id `local`, so it never looks a profile up in Adeli. Without one stored in its own database it creates a new profile, named `Local: <user> on <host>` and tagged `adeli-chat-local-<random>`, so developers sharing a key never share a profile. A dev-only card in Settings renames it. Because the key reaches every profile, server code only ever uses the signed-in user's stored profile and accounts, never a profile or account id from the browser. `getAdeliConfig()` in `apps/web/src/lib/adeli/key.ts` is the only reader. Plan: [`plans/2026-11-10-env-key-and-per-user-profiles.md`](../plans/2026-11-10-env-key-and-per-user-profiles.md). |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-11-10): Adeli's Facebook Login connections lack the comments permission and subscription. `/connect` leads with one **Connect Instagram** button that starts Adeli's connect session on the user's own profile with `authMethod: "instagram_login"`, then saves the connected account. Accounts already on that profile are listed too. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
-| D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
+| D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. LedaChat waits for them rather than mocking them. |
 | D13 | MCP server | `/mcp` exposes automations to Claude and other MCP clients (added 2026-11-09). Stateless Streamable HTTP via `@modelcontextprotocol/server`. Two ways in: personal API tokens (`adc_`, SHA-256 hashed, optional read only, optional expiry) for clients that send a header, and OAuth 2.1 from Better Auth's `mcp()` plugin (with CIMD and a DCR fallback) for Claude's custom connectors, which can't. Scopes `automations:read` and `automations:write`. Tools call the same service as the app. Plan: [`plans/2026-11-09-mcp.md`](../plans/2026-11-09-mcp.md). |
 
 ---
@@ -67,15 +67,15 @@ Think of Instagram DMs as a shop with a locked door. A comment lets you slip **o
 
 ### Where the Adeli API key fits
 
-Think of the Adeli key as the **key to a mailroom**. Adeli holds the actual Instagram credentials (the provider tokens) and does the sending. Adeli Chat never sees an Instagram token. The install holds one organization-level Adeli key (`ADELI_API_KEY`), which can reach that organization's **profiles**. Each Adeli Chat user gets one profile, which owns their connected Instagram account.
+Think of the Adeli key as the **key to a mailroom**. Adeli holds the actual Instagram credentials (the provider tokens) and does the sending. LedaChat never sees an Instagram token. The install holds one organization-level Adeli key (`ADELI_API_KEY`), which can reach that organization's **profiles**. Each LedaChat user gets one profile, which owns their connected Instagram account.
 
 ```
-Adeli Chat install ──(Bearer rk_live_… key)──▶ Adeli organization ──▶ one profile per Adeli Chat user ──▶ their Instagram account
+LedaChat install ──(Bearer rk_live_… key)──▶ Adeli organization ──▶ one profile per LedaChat user ──▶ their Instagram account
 ```
 
 Consequences:
 - Whoever owns the key owns what the install can do. A clone of this repo must bring **its own** Adeli account and key. Sharing our key would let strangers post and DM as our connected accounts.
-- The key reaches every user's profile, so Adeli Chat enforces the separation: every account, post, connect and webhook call uses the signed-in user's own profile or one of their own accounts.
+- The key reaches every user's profile, so LedaChat enforces the separation: every account, post, connect and webhook call uses the signed-in user's own profile or one of their own accounts.
 - Each user selects one Instagram account in v1.
 
 ---
@@ -133,7 +133,7 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account �
 - **FR-1.3** Login method: always `authMethod: "instagram_login"` (D11). There is no Facebook Login option.
 - **FR-1.4** On `connected`, store the Adeli `accountId`, `providerId` (IG user id), `displayName`, `displayIdentifier` (handle) and status. We never store Instagram tokens (Adeli holds them).
 - **FR-1.5** Errors: session `failed` or `expired`, user closed the tab, `403 missing_permission` on later calls (needs reconnect with comment + messaging permissions), personal account, Adeli unavailable. Each has a plain-language message and a retry button.
-- **FR-1.6** Settings: show account, **Reconnect** (re-runs FR-1.2; Adeli keeps the same `accountId`), **Disconnect** (removes it from Adeli Chat only and pauses all Live automations; we do not call Adeli's delete, since the account may be used by other Adeli apps. A link explains how to fully remove it in Adeli).
+- **FR-1.6** Settings: show account, **Reconnect** (re-runs FR-1.2; Adeli keeps the same `accountId`), **Disconnect** (removes it from LedaChat only and pauses all Live automations; we do not call Adeli's delete, since the account may be used by other Adeli apps. A link explains how to fully remove it in Adeli).
 - **FR-1.7** One connected Instagram account per install in v1. The data model allows more.
 
 ### 5.2 Automations list
@@ -243,7 +243,7 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account �
 
 Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_live_…`. Errors use `{ "error": { "code", "message", "details" } }`. Aggregate reads may return `207` `partial`.
 
-| Adeli Chat needs | Adeli endpoint | Status |
+| LedaChat needs | Adeli endpoint | Status |
 |---|---|---|
 | Find a user's profile by `externalId` | `GET /profiles` | ✅ Available. The key belongs to the organization. |
 | Create each user's profile | `POST /profiles` (`createProfile`, `Idempotency-Key`) | ✅ Available. |
@@ -351,7 +351,7 @@ src/
     api/webhooks/adeli/route.ts
     api/connect/start/route.ts      starts an Adeli connect session
     api/connect/status/route.ts     polls the session
-    globals.css                     Adeli tokens (docs/brand.md §10)
+    globals.css                     Adeli tokens (docs/design.md §8)
   components/
     ui/                     copied from adeli/apps/web/components/ui
     onboarding/             checklist, setup instructions, account picker
@@ -396,7 +396,7 @@ ADELI_API_BASE_URL=     # optional. Defaults to https://app.tryadeli.com
 ---
 
 ## 9. Open-source requirements
-- MIT license (present). README with screenshots and a 5-minute quickstart, including a **"Get your Adeli API key"** section (FR-S.1), and a note that the Adeli logo is used with permission (brand.md §9).
+- MIT license (present). README with screenshots and a 5-minute quickstart, including a **"Get your Adeli API key"** section (FR-S.1), and a note that the Adeli logo is used with permission (brand.md §6).
 - `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates.
 - `docs/architecture.md`, plus guides for "Adding a channel" and "Adding a trigger".
 - CI (GitHub Actions): lint, typecheck, unit tests, build.
@@ -527,13 +527,13 @@ The original open questions were resolved on 2026-10-02 from the local `adeli` a
 **Resolved: design system** (details in [`docs/brand.md`](brand.md))
 - [x] Colors, fonts, radius, components: Adeli dashboard tokens, Inter + Geist Mono, 10px radius, shadcn `base-nova` on Base UI.
 - [x] Tailwind/shadcn already: yes, Tailwind v4 CSS-first. Copy `globals.css` and `components/ui/*` directly.
-- [ ] Logo permission for a public MIT repo (brand.md §9). **Owner: Mika + Nick.**
+- [ ] Logo permission for a public MIT repo (brand.md §6). **Owner: Mika + Nick.**
 
 ### 12A. Adeli API additions needed for Comment to DM
 
-These are changes to the Adeli API (Track A). Adeli Chat is the first customer, but each one is a general feature any Adeli user automating Instagram would want.
+These are changes to the Adeli API (Track A). LedaChat is the first customer, but each one is a general feature any Adeli user automating Instagram would want.
 
-| # | Addition | Proposed shape | Why Adeli Chat needs it |
+| # | Addition | Proposed shape | Why LedaChat needs it |
 |---|---|---|---|
 | A1 | **Outbound webhooks for comments.** Adeli already stores per-profile webhook URLs (`dashboard_webhook_endpoints`, set in the dashboard) but never delivers to them. Deliver Instagram `comments` events to that URL. | `POST {clientUrl}` with `{ id, type: "comment.created", platform, accountId, profileId, occurredAt, data: { commentId, postId, parentId, text, from: { id, username } } }`, header `Adeli-Signature: t=…,v1=HMAC-SHA256(secret, t + "." + body)`. Per-endpoint signing secret shown once. Retries with backoff. Also expose create/list via the API key (`/api/v1/webhooks`) so installs can self-register. | Real-time triggers (seconds, not up to 60s), no polling cost. |
 | A2 | **Private reply to a comment.** | `POST /messages` accepts `{ "platform": "instagram", "accountId", "recipient": { "commentId": "…" }, ... }`, mapping to Meta's `recipient: { comment_id }`. Returns `409 window_closed` if the comment is older than 7 days, and a clear error if a private reply was already sent for that comment. | The Opening DM. Without it we can't DM a commenter at all. |
@@ -548,4 +548,4 @@ These are changes to the Adeli API (Track A). Adeli Chat is the first customer, 
 
 **Still open**
 - [ ] Rate limits: Adeli has no API rate limiting in v1. Confirm Meta's per-account limits for private replies and set our queue's throttle accordingly.
-- [ ] Does Adeli want Adeli Chat listed in its docs as an example app? (Good distribution for both.)
+- [ ] Does Adeli want LedaChat listed in its docs as an example app? (Good distribution for both.)
