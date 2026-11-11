@@ -104,7 +104,7 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
       }, 1000);
     } catch (error) {
       authWindow?.close();
-      setFlow({ kind: "failed", message: startErrorMessage(error, method) });
+      setFlow({ kind: "failed", message: error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute." });
     }
   }
 
@@ -208,16 +208,6 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
       </span>
     </button>
   );
-}
-
-/** A plain-language message for a connect that didn't start. */
-function startErrorMessage(error: unknown, method: AuthMethod): string {
-  if (!(error instanceof AdeliError)) return "We couldn't reach Adeli. Try again in a minute.";
-  if (error.code === "auth_method_conflict") {
-    const other = LOGINS[method === "instagram_login" ? "facebook_login" : "instagram_login"].name;
-    return `This Instagram account is already connected with ${other}. Use Connect with ${other} instead.`;
-  }
-  return error.message;
 }
 
 function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: Flow; primary: boolean; hasAccounts: boolean; onStart: (method: AuthMethod) => void; onCancel: () => void }) {

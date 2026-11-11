@@ -102,14 +102,39 @@ export function isConnectAuthMethod(value: unknown): value is ConnectAuthMethod 
   return value === "instagram_login" || value === "facebook_login";
 }
 
-/** Starts connecting Instagram on the user's own profile, with Instagram Login or Facebook Login. */
+/**
+ * Starts connecting Instagram on the user's own profile, with Instagram Login
+ * or Facebook Login. Adeli keeps a profile's Instagram on one login and refuses
+ * the other (`auth_method_conflict`), so picking the other login overrides it:
+ * the profile's Instagram accounts on the old login are disconnected in Adeli
+ * and the connect starts again. Reconnecting the same Instagram account keeps
+ * its LedaChat automations (`connectAccount` matches it by Instagram user id).
+ */
 export async function startConnect(userId: string, redirectUrl: string, authMethod: ConnectAuthMethod = "instagram_login"): Promise<ConnectSession> {
   const profile = await ensureUserProfile(userId);
-  const result = await adeliCall((client) => client.profiles.startConnection({
+  const start = () => adeliCall((client) => client.profiles.startConnection({
     path: { profileId: profile.id },
     body: { platform: "instagram", authMethod, redirectUrl },
   }));
-  return toConnectSession(result.data);
+  try {
+    return toConnectSession((await start()).data);
+  } catch (error) {
+    if (!(error instanceof AdeliError) || error.code !== "auth_method_conflict") throw error;
+  }
+  await disconnectOtherLogins(profile.id, authMethod);
+  return toConnectSession((await start()).data);
+}
+
+/** Disconnects, in Adeli, the Instagram accounts on this profile connected with a login other than `authMethod`. */
+async function disconnectOtherLogins(profileId: string, authMethod: ConnectAuthMethod) {
+  const result = await adeliCall((client) => client.accounts.listAccounts({ query: { platform: "instagram", profileId } }));
+  const others = result.data.accounts.filter((account) =>
+    account.profileId === profileId
+    && (account.authMethod === "instagram_login" || account.authMethod === "facebook_login")
+    && account.authMethod !== authMethod);
+  for (const account of others) {
+    await adeliCall((client) => client.accounts.disconnectAccount({ path: { profileId, accountId: account.accountId } }));
+  }
 }
 
 /** A connection session on the user's own profile. */

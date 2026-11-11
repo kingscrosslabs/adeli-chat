@@ -179,6 +179,28 @@ describe("one key, many users", () => {
     expect(adeli.sent[0]).toMatchObject({ method: "POST", path: "/profiles/profile_1/connect", body: { platform: "instagram", authMethod: "facebook_login" } });
   });
 
+  it("overrides the other login: disconnects the profile's accounts on it, then starts again", async () => {
+    await seedUser("user_1", { profileId: "profile_1" });
+    const session = { id: "cs_1", profileId: "profile_1", platform: "instagram", status: "pending_authorization", authUrl: "https://facebook.com/dialog/oauth", accountId: null, error: null, expiresAt: now, createdAt: now, updatedAt: now };
+    const account = (accountId: string, profileId: string, authMethod: string) => ({ accountId, profileId, platform: "instagram", authMethod, providerId: "ig_1", displayName: "Birds", displayIdentifier: "birds", connectionStatus: "connected" });
+    let disconnected = false;
+    const adeli = fakeAdeli([(sent) => {
+      if (sent.path.endsWith("/connect") && sent.method === "POST") {
+        return disconnected ? { status: 201, body: session } : { status: 409, body: { error: { code: "auth_method_conflict", message: "This profile's Instagram is connected with Instagram Login" } } };
+      }
+      if (sent.path === "/accounts" && sent.method === "GET") return { status: 200, body: { accounts: [account("acc_ig", "profile_1", "instagram_login"), account("acc_fb", "profile_1", "facebook_login"), account("acc_other", "profile_2", "instagram_login")] } };
+      if (sent.method === "DELETE") {
+        disconnected = true;
+        return { status: 200, body: { id: "acc_ig", disconnected: true } };
+      }
+      return undefined;
+    }]);
+    await expect(startConnect("user_1", "http://localhost:3030/connect", "facebook_login")).resolves.toMatchObject({ id: "cs_1" });
+    const deletes = adeli.sent.filter((sent) => sent.method === "DELETE");
+    expect(deletes.map((sent) => sent.path)).toEqual(["/profiles/profile_1/accounts/acc_ig"]);
+    expect(adeli.sent.filter((sent) => sent.path.endsWith("/connect"))).toHaveLength(2);
+  });
+
   it("refuses posts of an account the user hasn't connected", async () => {
     await seedUser("user_1", { profileId: "profile_1" });
     await seedUser("user_2", { profileId: "profile_2" });
