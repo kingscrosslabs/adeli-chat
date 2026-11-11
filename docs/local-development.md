@@ -46,16 +46,18 @@ You need Node.js 24 and Yarn 4 (run `corepack enable` once; the repo pins Yarn i
 ```bash
 corepack enable
 yarn install
-cp .env.example .env.local
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-Edit `.env.local`:
+Upgrading from a checkout from before the monorepo layout? Move `.env.local` to `apps/web/.env.local` and `.data` to `apps/web/.data`.
+
+Edit `apps/web/.env.local`, the only env file in the repo:
 
 | Variable | Required | Value |
 | --- | --- | --- |
 | `ADELI_API_KEY` | Yes | The key you created in step 3. |
 | `ADELI_API_BASE_URL` | No | `http://localhost:3000` for a local Adeli. Leave it empty to use the hosted Adeli. A trailing `/api/v1` is fine. |
-| `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `./.data`. |
+| `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `apps/web/.data`. |
 
 Then start it:
 
@@ -77,6 +79,6 @@ Before you push, run:
 yarn typecheck && yarn lint && yarn test && yarn build
 ```
 
-After changing `src/lib/db/schema.ts`, create a migration with `yarn db:generate` and commit the new file in `drizzle/`.
+After changing `apps/web/src/lib/db/schema.ts`, create a migration with `yarn db:generate` and commit the new file in `apps/web/drizzle/`.
 
 Never commit `.env.local` or an API key. This repository is public.

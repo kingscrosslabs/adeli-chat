@@ -21,9 +21,9 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D5 | Any comment | Yes. Trigger can be **Specific keywords** or **Any comment**. |
 | D6 | Stats | Basic counts only in v1. Link-click tracking is v1.1. |
 | D7 | Defaults | Name `Comment to DM #n`. Replies listed in FR-5.10. No em dashes. |
-| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
+| D8 | Instagram access | Every Instagram call goes through **the Adeli public API v1** via **`@adeli/sdk`**, called only from `apps/web/src/lib/adeli/` (`client.ts` maps SDK errors, `instagram.ts` holds the calls). `ADELI_API_BASE_URL` is optional (default `https://app.tryadeli.com`); an origin or one ending in `/api/v1` both work. Nothing is mocked: local development runs against a local Adeli dev server ([`docs/local-development.md`](local-development.md)). Endpoint map in §5.11. Updated 2026-10-27. |
 | D9 | Design | Adeli **dashboard** design system, copied directly (Tailwind v4 tokens + shadcn `base-nova` on Base UI). Full reference in [`docs/brand.md`](brand.md). Light mode only in v1. |
-| D10 | Adeli API key | **One server key, one profile per user** (updated 2026-11-10, replaces "bring your own key, entered in the app"). The install has one organization-level key in `ADELI_API_KEY` (URL in `ADELI_API_BASE_URL`, default hosted Adeli); nobody enters a key in the app, and the README has the steps to get one. Every Adeli Chat user gets their own profile in that organization, created with `client.profiles.createProfile` at sign-up (Better Auth `user.create.after`, and lazily by `ensureUserProfile` in `src/lib/adeli/profile.ts`), named `Name (email)` from Google and tagged with `externalId = userId`. The local no-login user is the exception (updated 2026-11-11): every local database has a user with id `local`, so it never looks a profile up in Adeli. Without one stored in its own database it creates a new profile, named `Local: <user> on <host>` and tagged `adeli-chat-local-<random>`, so developers sharing a key never share a profile. A dev-only card in Settings renames it. Because the key reaches every profile, server code only ever uses the signed-in user's stored profile and accounts, never a profile or account id from the browser. `getAdeliConfig()` in `src/lib/adeli/key.ts` is the only reader. Plan: [`plans/2026-11-10-env-key-and-per-user-profiles.md`](../plans/2026-11-10-env-key-and-per-user-profiles.md). |
+| D10 | Adeli API key | **One server key, one profile per user** (updated 2026-11-10, replaces "bring your own key, entered in the app"). The install has one organization-level key in `ADELI_API_KEY` (URL in `ADELI_API_BASE_URL`, default hosted Adeli); nobody enters a key in the app, and the README has the steps to get one. Every Adeli Chat user gets their own profile in that organization, created with `client.profiles.createProfile` at sign-up (Better Auth `user.create.after`, and lazily by `ensureUserProfile` in `apps/web/src/lib/adeli/profile.ts`), named `Name (email)` from Google and tagged with `externalId = userId`. The local no-login user is the exception (updated 2026-11-11): every local database has a user with id `local`, so it never looks a profile up in Adeli. Without one stored in its own database it creates a new profile, named `Local: <user> on <host>` and tagged `adeli-chat-local-<random>`, so developers sharing a key never share a profile. A dev-only card in Settings renames it. Because the key reaches every profile, server code only ever uses the signed-in user's stored profile and accounts, never a profile or account id from the browser. `getAdeliConfig()` in `apps/web/src/lib/adeli/key.ts` is the only reader. Plan: [`plans/2026-11-10-env-key-and-per-user-profiles.md`](../plans/2026-11-10-env-key-and-per-user-profiles.md). |
 | D11 | Connecting Instagram | **Instagram Login only** (updated 2026-11-10): Adeli's Facebook Login connections lack the comments permission and subscription. `/connect` leads with one **Connect Instagram** button that starts Adeli's connect session on the user's own profile with `authMethod: "instagram_login"`, then saves the connected account. Accounts already on that profile are listed too. Pass this install's `/connect` URL as `redirectUrl`, and still poll the session before trusting completion. |
 | D12 | Adeli API gaps | Missing Comment-to-DM primitives (§12A) are built **in the Adeli repo**, as a separate plan there. Adeli Chat waits for them rather than mocking them. |
 | D13 | MCP server | `/mcp` exposes automations to Claude and other MCP clients (added 2026-11-09). Stateless Streamable HTTP via `@modelcontextprotocol/server`. Two ways in: personal API tokens (`adc_`, SHA-256 hashed, optional read only, optional expiry) for clients that send a header, and OAuth 2.1 from Better Auth's `mcp()` plugin (with CIMD and a DCR fallback) for Claude's custom connectors, which can't. Scopes `automations:read` and `automations:write`. Tools call the same service as the app. Plan: [`plans/2026-11-09-mcp.md`](../plans/2026-11-09-mcp.md). |
@@ -326,10 +326,11 @@ Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adel
           ◀──── comment reply / private reply / DM via Adeli API ──────┘
 ```
 
+- **Repo layout (2026-11-11):** Yarn 4 workspaces. `apps/web` is the app below; `apps/landing-page` is a static marketing site, deployed as its own Vercel project; `packages/ui` holds what both share (tokens, shadcn components, brand marks, `PhonePreview`, and the automation schemas and defaults). Paths below are inside `apps/web` unless they say otherwise. Plan: [`plans/2026-11-11-monorepo.md`](../plans/2026-11-11-monorepo.md).
 - **App:** Next.js 16 App Router + TypeScript (match Adeli's version). Server Actions for editor saves, route handlers for webhooks and auth. Next 16 uses `proxy.ts` for the auth guard, not `middleware.ts`.
-- **UI:** Tailwind CSS v4 (CSS-first, no `tailwind.config.ts`) + shadcn `base-nova` style on Base UI, with Adeli's component files copied in. All tokens live in `src/app/globals.css`. See [`docs/brand.md`](brand.md).
+- **UI:** Tailwind CSS v4 (CSS-first, no `tailwind.config.ts`) + shadcn `base-nova` style on Base UI, with Adeli's component files copied into `packages/ui/src/components`. All tokens live in `packages/ui/src/theme.css`, which each app's `globals.css` imports. See [`docs/brand.md`](brand.md).
 - **Forms:** React Hook Form + Zod (same schemas on server).
-- **DB:** Drizzle ORM. Postgres when `DATABASE_URL` is set, otherwise PGlite in `./.data` (in memory under tests). `src/instrumentation.ts` applies the migrations in `drizzle/` on start; `yarn db:generate` creates new ones.
+- **DB:** Drizzle ORM. Postgres when `DATABASE_URL` is set, otherwise PGlite in `apps/web/.data` (in memory under tests). `src/instrumentation.ts` applies the migrations in `drizzle/` on start; `yarn db:generate` creates new ones.
 - **Runtime:** no queue. The webhook route verifies the signature, answers 200, and handles the event in `after()`. A failed step is recorded on the run and not retried.
 - **Adeli client:** `@adeli/sdk`, used only in `src/lib/adeli/`. Nothing else talks to Adeli directly. `client.ts` builds the client from `getAdeliConfig()` (`src/lib/adeli/key.ts`, env only), maps SDK errors (`AuthenticationError`, `NetworkError`, `TimeoutError`, `ConfigurationError`, other `AdeliApiError` codes) to typed errors, and flags the key as rejected on any `401` (FR-S.7). `profile.ts` creates and finds each user's profile (FR-S.2). Server-only (`import "server-only"`).
 - **Channel adapter:** `src/lib/channels/types.ts` defines `listMedia`, `replyToComment`, `sendPrivateReply`, `sendMessage`, `parseWebhook`. `instagram.ts` implements it via the Adeli client. Facebook and TikTok add files here later.
@@ -337,6 +338,9 @@ Instagram ──comment──▶ Adeli ──webhook──▶ /api/webhooks/adel
 - **Deploy target (v1):** Vercel with Neon Postgres, or your own machine next to a local or hosted Adeli. The Adeli key and URL are entered in the app, not the environment.
 
 ### Proposed folder structure
+
+The original proposal, kept for history. It now lives under `apps/web/`, with `components/ui`, `preview/` and `automations/{schemas,defaults}.ts` moved to `packages/ui` (see Repo layout above).
+
 ```
 src/
   app/
@@ -367,7 +371,7 @@ drizzle/                    migrations
 
 ### Environment variables
 ```
-DATABASE_URL=           # required on Vercel. Empty locally means PGlite in ./.data
+DATABASE_URL=           # required on Vercel. Empty locally means PGlite in apps/web/.data
 BETTER_AUTH_SECRET=     # required when deployed. Signs sessions and encrypts MCP API tokens
 GOOGLE_CLIENT_ID=       # required when deployed. Locally, leave empty for no login
 GOOGLE_CLIENT_SECRET=   # required when deployed
@@ -377,7 +381,7 @@ ADELI_API_KEY=          # required. The install's Adeli key; every user gets a p
 ADELI_API_BASE_URL=     # optional. Defaults to https://app.tryadeli.com
 ```
 
-**Our own key (KCL):** for our hosted instance, set it as `ADELI_API_KEY` in Vercel. For local dev, put it in `.env.local`. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
+**Our own key (KCL):** for our hosted instance, set it as `ADELI_API_KEY` in Vercel. For local dev, put it in `apps/web/.env.local`. Never commit it. `.env*` stays gitignored, and CI runs the unit tests, which need no key.
 
 ---
 
