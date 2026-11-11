@@ -30,12 +30,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <Wordmark />
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-base">Sign in</CardTitle>
-            <CardDescription>
-              {oauthQuery
-                ? "Sign in to let an app like Claude manage your LedaChat automations. You'll choose what it can do next."
-                : "Sign in to manage your own Comment to DM automations. Your Adeli key and automations are only visible to you."}
-            </CardDescription>
+            <CardTitle className="text-base">Sign in or create account</CardTitle>
+            {oauthQuery ? (
+              <CardDescription>{"Sign in to let an app like Claude manage your LedaChat automations. You'll choose what it can do next."}</CardDescription>
+            ) : null}
           </CardHeader>
           <CardContent className="space-y-4">
             {problem ? <Problem message={problem} /> : null}

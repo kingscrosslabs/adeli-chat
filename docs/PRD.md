@@ -142,11 +142,9 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account ย
 - **FR-2.3** Empty state with a "Create automation" button.
 
 ### 5.3 Create automation modal
-- **FR-3.1** Title "Create automation". Four cards:
-  - **Comment to DM**: "Send a DM when someone comments a keyword on your post". Enabled.
-  - **Direct Message**: "Reply instantly when someone DMs you on autopilot". Coming soon.
-  - **Story Reply**: "Send a follow-up DM when someone replies to your story". Enabled (ยง5.13).
-  - **Story Mention**: "Reply automatically when someone mentions you in their story". Coming soon.
+- **FR-3.1** Title "Create automation". One card per working trigger, no "Coming soon" cards (changed 2026-11-11):
+  - **Comment to DM**: "Send a DM when someone comments a keyword on your post".
+  - **Story Reply**: "Send a follow-up DM when someone replies to your story" (ยง5.13).
 - **FR-3.2** Choosing Comment to DM or Story Reply creates a **Draft** of that type with all defaults and opens the editor.
 - **FR-3.3** If no Instagram account is connected, the modal asks you to connect first.
 
@@ -191,7 +189,7 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account ย
 - **FR-5.17** Info tooltip: "Instagram only lets you send one message until the person taps. This button opens the conversation so we can send your link."
 
 **F. Final DM**
-- **FR-5.18** DM type selector: **Text + Buttons** (selected). Image, Video, Card shown disabled with "Coming soon".
+- **FR-5.18** DM type selector: **Text + Buttons** (selected), the only type for now. Other types aren't shown until they work (changed 2026-11-11).
 - **FR-5.19** Message, default "Here it is! Enjoy!". Max 640 chars.
 - **FR-5.20** Button #1: label default "Click for link!" (max 20 chars), URL default `https://tryadeli.com` (must be a valid `https://` URL).
 - **FR-5.21** The data model supports up to 3 buttons. The v1 UI shows 1.
@@ -271,7 +269,7 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 ### 5.13 Story Reply (added 2026-11-10)
 - **Type.** `automations.type` is `comment_to_dm` or `story_reply`, set at create and never changed by a save. Duplicates keep it.
 - **Trigger.** A `message.created` event whose `data.story.type` is `reply` (Adeli #188, SDK 0.4.0). Scope is `specific` (the default: one story, its id in `mediaId`, matched against `data.story.id`) or `any` (every story); `next` is never used. A story's own automation wins over Any story, like posts. The public reply is always off. Match is keywords (case-insensitive, on the reply text) or Any reply; a reply with no text (a reaction or sticker) only matches Any reply. Replies from the account itself never trigger.
-- **Flow.** No public reply. The Opening DM goes to `recipient.id` (the reply opened the conversation), then the tap, optional email step and Final DM run exactly as for comments. The run stores the reply's message id and text in `comment_id` and `comment_text`, so the existing unique keys make it once per person and idempotent on redelivery.
+- **Flow.** No public reply and no "Ask them to follow you" section in the editor (removed 2026-11-11). The Opening DM goes to `recipient.id` (the reply opened the conversation), then the tap, optional email step and Final DM run exactly as for comments. The run stores the reply's message id and text in `comment_id` and `comment_text`, so the existing unique keys make it once per person and idempotent on redelivery.
 - **Priority.** A story reply that starts a Story Reply automation isn't also read as an email answer; any other story reply falls through to the email step.
 - **Conflicts.** Go Live's conflict rule compares Story Reply automations only with each other, per scope: two automations on the same story, or two on Any story, can't share a keyword.
 - **Picking a story** (added 2026-11-11). The editor lists the account's live stories from Adeli `GET /posts/instagram/stories` (SDK `posts.listInstagramStories`, 0.5.0) through `/api/adeli/stories`, and stores the pick as `mediaId` plus a `mediaSnapshot`. MCP has `list_stories` and a `storyId` field.
