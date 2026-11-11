@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "adeli-chat", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3030 }
+    { "name": "adeli-chat", "runtimeExecutable": "yarn", "runtimeArgs": ["dev"], "port": 3030 },
+    { "name": "landing-page", "runtimeExecutable": "yarn", "runtimeArgs": ["dev:landing"], "port": 3031 }
   ]
 }

@@ -41,25 +41,28 @@ You don't connect Instagram in Adeli itself. Adeli Chat creates a profile for ea
 
 ## 4. Run Adeli Chat
 
-You need Node.js 22 or later. Adeli Chat calls Adeli through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk), a normal dependency, so `npm install` installs it.
+You need Node.js 24 and Yarn 4 (run `corepack enable` once; the repo pins Yarn in `.yarn/releases`). Adeli Chat calls Adeli through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk), a normal dependency, so `yarn install` installs it.
 
 ```bash
-npm install
-cp .env.example .env.local
+corepack enable
+yarn install
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-Edit `.env.local`:
+Upgrading from a checkout from before the monorepo layout? Move `.env.local` to `apps/web/.env.local` and `.data` to `apps/web/.data`.
+
+Edit `apps/web/.env.local`, the only env file in the repo:
 
 | Variable | Required | Value |
 | --- | --- | --- |
 | `ADELI_API_KEY` | Yes | The key you created in step 3. |
 | `ADELI_API_BASE_URL` | No | `http://localhost:3000` for a local Adeli. Leave it empty to use the hosted Adeli. A trailing `/api/v1` is fine. |
-| `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `./.data`. |
+| `DATABASE_URL` | No | A Postgres connection string. Leave it empty and Adeli Chat uses PGlite, an in-process Postgres stored in `apps/web/.data`. |
 
 Then start it:
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 Open http://localhost:3030 and click **Connect Instagram**. Without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` there's no login locally, and the one user is `local`. Set them (plus `BETTER_AUTH_SECRET`, and `http://localhost:3030/api/auth/callback/google` as a redirect URI in the Google OAuth client) to try sign-in. Each Google user gets their own Adeli profile when they sign up, named after their Google name and email; the `local` user gets one the first time it opens `/connect`. That local profile belongs to your database, not to the key: Adeli Chat never looks for an existing one in Adeli, so two developers sharing a key each get their own, named `Local: <user> on <host>`. Rename it under **Local profile** in Settings (shown only without login). Nothing is mocked: every screen reads from Adeli and the database.
@@ -68,14 +71,14 @@ On start, Adeli Chat applies any pending database migrations. It then registers 
 
 ### Tests
 
-`npm test` runs the unit tests. Each test file gets its own in-memory PGlite database, so there's nothing to start first. The tests never call Adeli: a fake `fetch` stands in for it.
+`yarn test` runs the unit tests. Each test file gets its own in-memory PGlite database, so there's nothing to start first. The tests never call Adeli: a fake `fetch` stands in for it.
 
 Before you push, run:
 
 ```bash
-npm run typecheck && npm run lint && npm test && npm run build
+yarn typecheck && yarn lint && yarn test && yarn build
 ```
 
-After changing `src/lib/db/schema.ts`, create a migration with `npm run db:generate` and commit the new file in `drizzle/`.
+After changing `apps/web/src/lib/db/schema.ts`, create a migration with `yarn db:generate` and commit the new file in `apps/web/drizzle/`.
 
 Never commit `.env.local` or an API key. This repository is public.

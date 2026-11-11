@@ -2,7 +2,7 @@
 
 > Status: v1.1 reference · Last updated: 2026-11-09
 >
-> Source of truth: Adeli's `DESIGN.md` and `BRAND.md`, its shared tokens (`adeli/packages/ui/src/theme.css`) and its dashboard primitives (`adeli/apps/web/components/ui/*`). `src/app/globals.css` holds a copy of `theme.css`; when Adeli changes its tokens, copy the file again and update this one.
+> Source of truth: Adeli's `DESIGN.md` and `BRAND.md`, its shared tokens (`adeli/packages/ui/src/theme.css`) and its dashboard primitives (`adeli/apps/web/components/ui/*`). `packages/ui/src/theme.css` holds a copy of it; when Adeli changes its tokens, copy the file again and update this one.
 
 Adeli Chat should look like a room inside the Adeli dashboard: same tokens, same primitives, same calm teal-on-paper feel. A user who has an Adeli account should not be able to tell where Adeli ends and Adeli Chat begins.
 
@@ -14,7 +14,7 @@ Adeli Chat should look like a room inside the Adeli dashboard: same tokens, same
 
 1. **One chromatic voice.** Signal Teal (`#0A807A`) is the only brand color that carries meaning. Everything else is ink, fog and white.
 2. **Calm, not loud.** Thin borders, soft rings, small radii. No gradients, no glow, no stacked shadows.
-3. **Tokens, not hex codes.** Components use semantic tokens (`bg-primary`, `text-muted-foreground`). Raw hex values live only in `globals.css`.
+3. **Tokens, not hex codes.** Components use semantic tokens (`bg-primary`, `text-muted-foreground`). Raw hex values live only in `packages/ui/src/theme.css`.
 4. **Same primitives as Adeli.** shadcn `base-nova` style on Base UI. Copy Adeli's component files rather than re-styling stock shadcn.
 5. **The phone preview is not branded.** It imitates Instagram's general visual language with neutral greys, scoped to its own tokens (§7).
 
@@ -25,14 +25,14 @@ Adeli Chat should look like a room inside the Adeli dashboard: same tokens, same
 | Thing | Adeli dashboard | Adeli Chat does |
 |---|---|---|
 | Framework | Next.js 16 (App Router), React 19 | Same. Next 16 uses `proxy.ts`, not `middleware.ts`. |
-| CSS | Tailwind CSS v4, CSS-first config (`@theme inline` in `globals.css`), no `tailwind.config.ts` | Same. Tokens live in `src/app/globals.css`. |
+| CSS | Tailwind CSS v4, CSS-first config (`@theme inline` in `globals.css`), no `tailwind.config.ts` | Same. Tokens live in `packages/ui/src/theme.css`; each app's `globals.css` imports it. |
 | Components | shadcn CLI, style `base-nova`, primitives from `@base-ui/react` | Same `components.json` settings. |
 | Icons | `lucide-react` | Same. |
 | Toasts | `sonner` | Same. |
 | Animation | `tw-animate-css` | Same. |
 | Fonts | Inter (`--font-inter`) for UI, Geist Mono (`--font-geist-mono`) for code and keys | Same, via `next/font/google`. |
 
-`components.json` to copy:
+`packages/ui/components.json` (run the shadcn CLI from `packages/ui`, so new components land in the shared package):
 
 ```json
 {
@@ -40,9 +40,9 @@ Adeli Chat should look like a room inside the Adeli dashboard: same tokens, same
   "style": "base-nova",
   "rsc": true,
   "tsx": true,
-  "tailwind": { "config": "", "css": "src/app/globals.css", "baseColor": "neutral", "cssVariables": true, "prefix": "" },
+  "tailwind": { "config": "", "css": "src/theme.css", "baseColor": "neutral", "cssVariables": true, "prefix": "" },
   "iconLibrary": "lucide",
-  "aliases": { "components": "@/components", "utils": "@/lib/utils", "ui": "@/components/ui", "lib": "@/lib", "hooks": "@/hooks" },
+  "aliases": { "components": "@adeli-chat/ui/components", "utils": "@adeli-chat/ui/lib/utils", "ui": "@adeli-chat/ui/components", "lib": "@adeli-chat/ui/lib", "hooks": "@adeli-chat/ui/hooks" },
   "menuColor": "default",
   "menuAccent": "subtle"
 }
@@ -54,7 +54,7 @@ Components to copy from `adeli/apps/web/components/ui/` in M0: `alert`, `avatar`
 
 ## 3. Color
 
-Adeli Chat uses Adeli's tokens unchanged: **dark (Night Sky) by default**, with Light (Cloud Sky) and System. `next-themes` sets the `.dark` class with `defaultTheme="dark"` and `storageKey="adeli-theme"`, like the Adeli dashboard. The Light / Dark / System toggle is on Settings (`src/components/theme-toggle.tsx`, copied from Adeli).
+Adeli Chat uses Adeli's tokens unchanged: **dark (Night Sky) by default**, with Light (Cloud Sky) and System. `next-themes` sets the `.dark` class with `defaultTheme="dark"` and `storageKey="adeli-theme"`, like the Adeli dashboard. The Light / Dark / System toggle is on Settings (`packages/ui/src/theme-toggle.tsx`, copied from Adeli).
 
 Every token, its light and dark value and its contrast pairings are in Adeli's `DESIGN.md` ("Tokens", "Contrast"). The rules that matter most here:
 
@@ -183,10 +183,10 @@ The frame (bezel) is the one place brand touches the preview.
 - Adeli logo: `adeli/apps/web/public/adeli-logo.png` (1024px PNG). Marketing variants in `landing-page/apps/adeli/public/` (`adeli-logo-512.png`, `adeli-logo-1024.png`).
 - Adeli Chat lockup: Adeli logo mark + "Adeli Chat" in Inter semibold.
 - Favicon: Adeli `icon.png` / `apple-icon.png` until Adeli Chat has its own mark.
-- **Open:** confirm we're OK shipping the Adeli logo in a public MIT repo. Suggested approach: code is MIT, logo files are "all rights reserved, used with permission", noted in `README.md` and a `public/brand/LICENSE` file. Forks must swap it.
+- **Open:** confirm we're OK shipping the Adeli logo in a public MIT repo. Suggested approach: code is MIT, logo files are "all rights reserved, used with permission", noted in `README.md` and a `public/brand/LICENSE` file in each app. Forks must swap it.
 
 ---
 
-## 10. `src/app/globals.css`
+## 10. `packages/ui/src/theme.css`
 
-The top of the file is a copy of Adeli's `packages/ui/src/theme.css`, with the two wash tokens added in `@theme inline`. Below it are the base rules (from Adeli's dashboard `globals.css`) and the phone preview tokens.
+The top of the file is a copy of Adeli's `packages/ui/src/theme.css`, with the two wash tokens added in `@theme inline`. Below it are the base rules (from Adeli's dashboard `globals.css`) and the phone preview tokens. `apps/web` and `apps/landing-page` each import it from their `src/app/globals.css`, after Tailwind and an `@source` for `packages/ui/src`.

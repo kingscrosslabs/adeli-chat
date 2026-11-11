@@ -9,14 +9,25 @@ When someone comments a keyword on your post, Adeli Chat replies to their commen
 ## Run it locally
 
 ```bash
-npm install
-cp .env.example .env.local   # then set ADELI_API_KEY (see "Get your Adeli API key")
-npm run dev
+corepack enable
+yarn install
+cp apps/web/.env.example apps/web/.env.local   # then set ADELI_API_KEY (see "Get your Adeli API key")
+yarn dev
 ```
 
 Open http://localhost:3030 and click **Connect Instagram**. Nothing is mocked. Every Adeli call goes through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk).
 
-Locally `ADELI_API_KEY` is the only variable you need: the database is PGlite in `./.data`, and without Google variables there's no login. `.env.example` lists the optional ones.
+Locally `ADELI_API_KEY` is the only variable you need: the database is PGlite in `apps/web/.data`, and without Google variables there's no login. `apps/web/.env.example` lists the optional ones. `apps/web/.env.local` is the only env file.
+
+The repo is Yarn workspaces:
+
+| Path | What | Dev |
+| --- | --- | --- |
+| `apps/web` | The app: automations, Instagram, webhooks, MCP | `yarn dev` (port 3030) |
+| `apps/landing-page` | The static marketing site | `yarn dev:landing` (port 3031) |
+| `packages/ui` | Theme tokens and components both apps share | |
+
+`yarn typecheck`, `yarn lint`, `yarn test` and `yarn build` run in every workspace.
 
 ## How it uses Adeli
 
@@ -24,7 +35,7 @@ One Adeli Chat install uses one Adeli organization, through the API key in `ADEL
 
 ## Deploy to Vercel
 
-1. **Import the repo** in Vercel. The defaults work: the `vercel-build` script applies database migrations, then runs `next build`.
+1. **Import the repo** in Vercel and set **Root Directory** to `apps/web`. The other defaults work: the `vercel-build` script applies database migrations, then runs `next build`. Optionally, set **Ignored Build Step** to `sh scripts/vercel-ignored-build-step.sh` so production only redeploys when the app or `packages/ui` changed. It also skips preview deploys, so leave it empty if you want previews.
 2. **Add Postgres.** In the project's Storage tab, add Neon from the Marketplace and connect it. It sets `DATABASE_URL`.
 3. **Create a Google OAuth client** in Google Cloud Console (APIs & Services, Credentials, OAuth client ID, type "Web application"). Add the authorized redirect URI `https://<your-domain>/api/auth/callback/google`.
 4. **Get an Adeli API key** (see "Get your Adeli API key" below).
@@ -47,6 +58,10 @@ One Adeli Chat install uses one Adeli organization, through the API key in `ADEL
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
 
 Google sign-in only works on domains registered in the OAuth client, so preview deployments with random URLs can't sign in unless you add them.
+
+### Landing page (optional)
+
+Self-hosting needs only the app. The marketing site in `apps/landing-page` is a second Vercel project: Root Directory `apps/landing-page`, Ignored Build Step `sh scripts/vercel-ignored-build-step.sh`, and `APP_URL` set to the app's address (for example `https://app.example.com`), which its sign-in links point to. A production build without `APP_URL` fails.
 
 To test the whole flow against a local Adeli dev server, with a real comment triggering a real DM, follow [docs/local-development.md](docs/local-development.md).
 
@@ -75,11 +90,11 @@ Whoever runs the install needs one Adeli API key. The people who sign in to Adel
 1. **Create an Adeli account.** Go to [app.tryadeli.com](https://app.tryadeli.com/sign-in) and sign in with Google. Your first sign-in creates your organization.
 2. **Create an API key.** Open [API keys](https://app.tryadeli.com/settings/api-keys), label it "Adeli Chat", and click **Create key**. It needs to be able to create profiles, connect accounts, read posts, reply to comments, send messages and manage webhooks.
 3. **Copy the key now.** Adeli shows it only once. It starts with `rk_live_`.
-4. **Set it as `ADELI_API_KEY`:** in `.env.local` for local development, or in the Vercel project's environment variables. Restart or redeploy afterwards.
+4. **Set it as `ADELI_API_KEY`:** in `apps/web/.env.local` for local development, or in the Vercel project's environment variables. Restart or redeploy afterwards.
 
 Never commit a key. If Adeli stops accepting it, Adeli Chat shows a banner on every page until you replace it.
 
 ## Notes
 
 - Follow Meta's Platform Terms and Instagram's messaging policies when you run automations.
-- The code is MIT licensed. The Adeli logo in `public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.
+- The code is MIT licensed. The Adeli logo in `apps/web/public/brand/` and `apps/landing-page/public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.

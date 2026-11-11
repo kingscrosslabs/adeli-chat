@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" font-family="Inter, Helvetica, Arial, sans-serif">
+  <!-- Sample reel cover for the landing page preview. Not a real post. -->
+  <rect width="800" height="1000" fill="#17312F"/>
+  <circle cx="660" cy="170" r="210" fill="#0A807A" opacity="0.55"/>
+  <circle cx="120" cy="880" r="260" fill="#2EA398" opacity="0.25"/>
+  <rect x="80" y="300" width="250" height="56" rx="6" fill="#F4F1EA"/>
+  <text x="104" y="338" font-size="28" font-weight="700" fill="#17312F" letter-spacing="2">FREE GUIDE</text>
+  <text x="80" y="470" font-size="96" font-weight="800" fill="#FFFFFF">5 AI tools</text>
+  <text x="80" y="575" font-size="96" font-weight="800" fill="#FFFFFF">that save me</text>
+  <text x="80" y="680" font-size="96" font-weight="800" fill="#7FD1C7">10 hours</text>
+  <text x="80" y="785" font-size="96" font-weight="800" fill="#FFFFFF">a week</text>
+  <text x="80" y="900" font-size="34" font-weight="600" fill="#F4F1EA">Comment GUIDE and I'll DM it to you</text>
+</svg>
