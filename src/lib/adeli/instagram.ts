@@ -121,18 +121,10 @@ export async function listMedia(userId: string, accountId: string, page: number)
   };
 }
 
-/**
- * `GET /posts/instagram/stories`, which @adeli/sdk 0.5.0 adds as
- * `posts.listInstagramStories`. Typed here until that version is published.
- * TODO(sdk 0.5.0): drop this type and the cast below.
- */
-type ApiStory = { id: string; mediaType: string | null; mediaUrl: string | null; thumbnailUrl: string | null; permalink: string | null; timestamp: string; expiresAt: string };
-type StoriesClient = { posts: { listInstagramStories(args: { query: { accountId: string } }): Promise<{ data: { stories: ApiStory[] } }> } };
-
 /** The account's live stories, newest first, as media the story picker can show. Stories have no caption or counts. */
 export async function listStories(userId: string, accountId: string): Promise<AdeliMedia[]> {
   await requireOwnAccount(userId, accountId);
-  const result = await adeliCall((client) => (client as unknown as StoriesClient).posts.listInstagramStories({ query: { accountId } }));
+  const result = await adeliCall((client) => client.posts.listInstagramStories({ query: { accountId } }));
   return result.data.stories.map((story) => {
     const video = story.mediaType?.toUpperCase() === "VIDEO";
     return {
