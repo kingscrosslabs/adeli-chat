@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
-import { PhonePreview } from "@adeli-chat/ui/preview/phone-preview";
-import type { AdeliAccount } from "@/lib/adeli/types";
 import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
 import type { AutomationContent } from "@adeli-chat/ui/automation/schemas";
+import { PhonePreview, type PreviewAccount, type PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
 
 const base = defaultAutomationContent(0);
 
@@ -30,13 +28,10 @@ const SAMPLE: AutomationContent = {
 };
 
 /** Whose account the sample shows. Display only: the preview reads the name, handle and avatar. */
-const ACCOUNT: AdeliAccount = {
-  accountId: "sample",
-  providerId: "instagram",
+const ACCOUNT: PreviewAccount = {
   displayName: "Mika Reyes",
   displayIdentifier: "its.mikareyes",
   avatarUrl: null,
-  connectionStatus: "connected",
 };
 
 const CYCLE: PreviewTab[] = ["post", "comments", "dm"];

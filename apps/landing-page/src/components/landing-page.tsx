@@ -9,7 +9,7 @@ import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 import { Badge } from "@adeli-chat/ui/components/badge";
 import { buttonVariants } from "@adeli-chat/ui/components/button";
-import { ADELI_URL, GITHUB_URL } from "@/lib/landing";
+import { ADELI_URL, GITHUB_URL, SIGN_IN_URL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
@@ -57,9 +57,9 @@ function SectionHeading({ title, lead }: { title: string; lead?: string }) {
 
 function StartFree({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
   return (
-    <Link href="/sign-in" className={cn(buttonVariants({ size, variant }), className)}>
+    <a href={SIGN_IN_URL} className={cn(buttonVariants({ size, variant }), className)}>
       Start free <ArrowRight data-icon="inline-end" />
-    </Link>
+    </a>
   );
 }
 
@@ -86,7 +86,7 @@ function Header() {
           {links.map((link) => <a key={link.href} href={link.href} className="hover:text-foreground">{link.label}</a>)}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <Link href="/sign-in" className={buttonVariants({ variant: "ghost" })}>Sign in</Link>
+          <a href={SIGN_IN_URL} className={buttonVariants({ variant: "ghost" })}>Sign in</a>
           <StartFree size="default" />
         </div>
       </div>
@@ -393,7 +393,7 @@ function Footer() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-muted-foreground">
         <a href={ADELI_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
         <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
-        <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
+        <a href={SIGN_IN_URL} className="hover:text-foreground">Sign in</a>
         <span>© King&apos;s Cross Labs</span>
         <ThemeToggle className="ml-auto" compact />
       </div>
