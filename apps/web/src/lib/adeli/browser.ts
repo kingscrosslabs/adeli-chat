@@ -25,8 +25,12 @@ export const adeli = {
     return result.accounts;
   },
 
-  startConnect() {
-    return request<ConnectSession>("/api/adeli/connect/start", { method: "POST" });
+  startConnect(authMethod: "instagram_login" | "facebook_login" = "instagram_login") {
+    return request<ConnectSession>("/api/adeli/connect/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ authMethod }),
+    });
   },
 
   getConnectSession(sessionId: string) {

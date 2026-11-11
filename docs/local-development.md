@@ -37,7 +37,7 @@ While the Meta app is in development mode, it delivers webhooks and allows messa
 1. Create an API key at `/settings/api-keys`.
 2. Register `http://localhost:3030/connect` as a redirect URL under **Settings → OAuth**.
 
-You don't connect Instagram in Adeli itself. LedaChat creates a profile for each of its users in this organization, and you connect the business account from LedaChat (step 4) with **Instagram Login**. Facebook Login connections lack the comments permission and subscription, so they don't work for Comment to DM.
+You don't connect Instagram in Adeli itself. LedaChat creates a profile for each of its users in this organization, and you connect the business account from LedaChat (step 4) with **Connect with Instagram** (Instagram Login) or **Connect with Facebook** (Facebook Login).
 
 ## 4. Run LedaChat
 

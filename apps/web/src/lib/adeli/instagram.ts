@@ -95,12 +95,19 @@ export async function listInstagramAccounts(userId: string): Promise<AdeliAccoun
     }));
 }
 
-/** Starts Instagram Login on the user's own profile. Instagram Login only: Facebook Login connections can't read comments for Comment to DM. */
-export async function startConnect(userId: string, redirectUrl: string): Promise<ConnectSession> {
+/** How the user logs in to connect Instagram: Instagram Login (the default) or Facebook Login. */
+export type ConnectAuthMethod = "instagram_login" | "facebook_login";
+
+export function isConnectAuthMethod(value: unknown): value is ConnectAuthMethod {
+  return value === "instagram_login" || value === "facebook_login";
+}
+
+/** Starts connecting Instagram on the user's own profile, with Instagram Login or Facebook Login. */
+export async function startConnect(userId: string, redirectUrl: string, authMethod: ConnectAuthMethod = "instagram_login"): Promise<ConnectSession> {
   const profile = await ensureUserProfile(userId);
   const result = await adeliCall((client) => client.profiles.startConnection({
     path: { profileId: profile.id },
-    body: { platform: "instagram", authMethod: "instagram_login", redirectUrl },
+    body: { platform: "instagram", authMethod, redirectUrl },
   }));
   return toConnectSession(result.data);
 }
