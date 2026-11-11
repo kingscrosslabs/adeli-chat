@@ -1,6 +1,6 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
-import type { CommentReply, EmailCapture, FinalDm, OpeningDm, Trigger } from "@adeli-chat/ui/automation/schemas";
+import type { CommentReply, EmailCapture, FinalDm, FollowGate, OpeningDm, Trigger } from "@adeli-chat/ui/automation/schemas";
 
 /**
  * Postgres tables (PRD §6, simplified). The JSON columns use the Zod shapes in
@@ -323,6 +323,7 @@ export const automations = pgTable("automations", {
   commentReply: jsonb("comment_reply").$type<CommentReply>().notNull(),
   openingDm: jsonb("opening_dm").$type<OpeningDm>().notNull(),
   emailCapture: jsonb("email_capture").$type<EmailCapture>(),
+  followGate: jsonb("follow_gate").$type<FollowGate>(),
   finalDm: jsonb("final_dm").$type<FinalDm>().notNull(),
   ...timestamps,
   liveAt: timestamp("live_at", { withTimezone: true }),
@@ -345,8 +346,9 @@ export const runs = pgTable("runs", {
   /**
    * `final_sending` is the postback claim: only one delivery moves a run out of `opening_sent`.
    * With email capture on, a tap moves it to `awaiting_email` instead, and their reply claims it the same way.
+   * With the follow gate on, a tap from someone who doesn't follow moves it to `awaiting_follow`, and their next tap claims it.
    */
-  state: text("state", { enum: ["matched", "opening_sent", "tapped", "awaiting_email", "final_sending", "final_sent", "failed"] }).notNull().default("matched"),
+  state: text("state", { enum: ["matched", "opening_sent", "tapped", "awaiting_follow", "awaiting_email", "final_sending", "final_sent", "failed"] }).notNull().default("matched"),
   commentReplyState: text("comment_reply_state", { enum: ["skipped", "sent", "failed"] }),
   error: text("error"),
   openingSentAt: timestamp("opening_sent_at", { withTimezone: true }),

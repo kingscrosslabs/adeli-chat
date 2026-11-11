@@ -43,7 +43,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 - Other triggers: Direct Message, Story Mention. (Story Reply shipped 2026-11-10, §5.13.)
 - Other channels: Facebook, TikTok.
 - Other DM types: Image, Video, Card.
-- Follow-gating (shown as Coming soon; waits on a follow check in the Adeli API), phone collection, tags, broadcasts, AI replies.
+- Phone collection, tags, broadcasts, AI replies.
 
 Added 2026-11-09: "Next post" and "Any post" targeting, and an optional email step whose emails are saved as leads and exported as CSV (§5.12).
 - Visual node-based flow builder.
@@ -265,6 +265,12 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 - **Email step.** Optional `emailCapture { enabled, text, retryText }`. After the tap the run moves to `awaiting_email` and we DM `text`. The person's next DM (Adeli `message.created`) with an email address unlocks the Final DM and saves a lead; a reply without one gets `retryText` once. Runs record the tap's sender id (`ig_sender_id`) so the reply can be matched.
 - **Leads.** `leads` table, one per person per automation, kept when runs are reset. Export leads in the editor's menu downloads a CSV (`/api/automations/<id>/leads`).
 - **Webhook.** The per-user webhook subscribes to `message.created` too; an older webhook without it is replaced on boot.
+
+### 5.12b Follow gate (added 2026-11-11, Comment to DM only)
+- **Editor.** "Ask them to follow you" (step 5), off by default. When on: Message (default "One last step! Follow me, then tap below and I'll send it over."), Button label (default "I'm following", max 20) and "If they still don't follow" (default "I don't see your follow yet. Follow me, then tap below again."). Stored in `automations.follow_gate` (jsonb, migration 0009). Story Reply never shows or applies it (`followGateOf`).
+- **Runtime.** On the tap, before the email step, the runtime reads the tapper through Adeli `GET /messages/instagram/users/:igsid` (SDK `messages.getInstagramUser`, 0.5.0) and checks `isFollowing`. Meta only answers once the person has messaged or tapped, which the tap guarantees. `false`: send the Message with a postback button (payload: the run id) and set the run to `awaiting_follow`. A tap on that button claims the run again and re-checks; still not following gets the retry text. `true` or `null`: go on to the email step or the Final DM.
+- **Fails open.** If the check errors, the flow continues as if they follow and the error is kept on the run, so a broken check never strands followers.
+- **Stats.** Button taps count the first tap only.
 
 ### 5.13 Story Reply (added 2026-11-10)
 - **Type.** `automations.type` is `comment_to_dm` or `story_reply`, set at create and never changed by a save. Duplicates keep it.
@@ -502,7 +508,6 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 ## 11. Later (v1.1+)
 - Link-click tracking via redirect links
 - Treat a typed reply as a button tap
-- Follow-gate before sending the link (needs the Adeli follow check)
 - Image, Video and Card DMs, more buttons
 - Direct Message and Story Mention triggers
 - Facebook and TikTok channels

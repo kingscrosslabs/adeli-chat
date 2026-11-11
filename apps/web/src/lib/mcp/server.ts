@@ -9,7 +9,7 @@ import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { LIMITS, automationTypeSchema, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
+import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
@@ -35,8 +35,9 @@ How an automation works:
    It matches either specific keywords (case-insensitive) or any comment or reply.
 2. Comment to DM only, optionally: a public reply is posted under their comment (one variant is picked at random).
 3. They get an Opening DM: a message with one button. Instagram only allows this one message until they tap.
-4. Optionally, after the tap we ask for their email (emailCaptureEnabled). The Final DM waits until they reply with a valid email, which is saved as a lead the user can export in the app.
-5. They get the Final DM: a message with a link button (https only).
+4. Comment to DM only, optionally: after the tap we check that they follow the account (followGateEnabled). If they don't, they get followGateText with a followGateButtonLabel button that checks again; each later tap that still finds no follow gets followGateRetryText. Nothing else is sent until they follow.
+5. Optionally, after that we ask for their email (emailCaptureEnabled). The Final DM waits until they reply with a valid email, which is saved as a lead the user can export in the app.
+6. They get the Final DM: a message with a link button (https only).
 Each person gets the flow once per automation.
 
 Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, replies ${LIMITS.replyVariant} chars each, DM text ${LIMITS.dmText} chars, button labels ${LIMITS.buttonLabel} chars.
@@ -92,6 +93,10 @@ function detail(automation: Automation) {
     commentReplies: automation.commentReply.variants,
     openingDmText: automation.openingDm.text,
     openingDmButtonLabel: automation.openingDm.buttonLabel,
+    followGateEnabled: followGateOf(automation).enabled,
+    followGateText: followGateOf(automation).text,
+    followGateButtonLabel: followGateOf(automation).buttonLabel,
+    followGateRetryText: followGateOf(automation).retryText,
     emailCaptureEnabled: emailCaptureOf(automation).enabled,
     emailCaptureText: emailCaptureOf(automation).text,
     emailCaptureRetryText: emailCaptureOf(automation).retryText,
@@ -117,6 +122,10 @@ const fieldsSchema = {
   commentReplies: z.array(z.string().max(LIMITS.replyVariant)).max(LIMITS.replyVariants).optional().describe("Public reply variants; one is picked at random. Replaces the whole list."),
   openingDmText: z.string().max(LIMITS.dmText).optional().describe("First DM. Sent right after the comment."),
   openingDmButtonLabel: z.string().max(LIMITS.buttonLabel).optional().describe("Button on the first DM. Tapping it sends the final DM."),
+  followGateEnabled: z.boolean().optional().describe("Only send the rest of the flow to people who follow the account, checked after the tap. Comment to DM only."),
+  followGateText: z.string().max(LIMITS.dmText).optional().describe("Sent after the tap to someone who doesn't follow yet."),
+  followGateButtonLabel: z.string().max(LIMITS.buttonLabel).optional().describe("Button on the follow message. Tapping it checks again."),
+  followGateRetryText: z.string().max(LIMITS.dmText).optional().describe("Sent each time they tap that button without following."),
   emailCaptureEnabled: z.boolean().optional().describe("Ask for their email after the tap, before the final DM. Emails are saved as leads."),
   emailCaptureText: z.string().max(LIMITS.dmText).optional().describe("The message that asks for their email."),
   emailCaptureRetryText: z.string().max(LIMITS.dmText).optional().describe("Sent once if their reply doesn't contain an email."),
@@ -163,6 +172,15 @@ async function applyFields(userId: string, account: ConnectedAccount, content: A
   if (fields.commentReplies !== undefined) next.commentReply.variants = fields.commentReplies;
   if (fields.openingDmText !== undefined) next.openingDm.text = fields.openingDmText;
   if (fields.openingDmButtonLabel !== undefined) next.openingDm.buttonLabel = fields.openingDmButtonLabel;
+  if (fields.followGateEnabled !== undefined || fields.followGateText !== undefined || fields.followGateButtonLabel !== undefined || fields.followGateRetryText !== undefined) {
+    const follow = followGateOf(next);
+    next.followGate = {
+      enabled: fields.followGateEnabled ?? follow.enabled,
+      text: fields.followGateText ?? follow.text,
+      buttonLabel: fields.followGateButtonLabel ?? follow.buttonLabel,
+      retryText: fields.followGateRetryText ?? follow.retryText,
+    };
+  }
   if (fields.emailCaptureEnabled !== undefined || fields.emailCaptureText !== undefined || fields.emailCaptureRetryText !== undefined) {
     const email = emailCaptureOf(next);
     next.emailCapture = {

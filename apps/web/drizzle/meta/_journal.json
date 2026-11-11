@@ -64,6 +64,13 @@
       "when": 1794320871794,
       "tag": "0008_server_adeli_key",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794424677624,
+      "tag": "0009_follow_gate",
+      "breakpoints": true
     }
   ]
 }

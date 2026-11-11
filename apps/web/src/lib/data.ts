@@ -4,7 +4,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import type { AdeliAccount } from "@/lib/adeli/types";
-import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationStats } from "@adeli-chat/ui/automation/schemas";
+import { DEFAULT_EMAIL_CAPTURE, DEFAULT_FOLLOW_GATE, type Automation, type AutomationStats } from "@adeli-chat/ui/automation/schemas";
 import { NO_STATS, statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
@@ -38,6 +38,7 @@ export function toAutomation(row: AutomationRow, stats: AutomationStats = NO_STA
     commentReply: row.commentReply,
     openingDm: row.openingDm,
     emailCapture: row.emailCapture ?? { ...DEFAULT_EMAIL_CAPTURE },
+    followGate: row.followGate ?? { ...DEFAULT_FOLLOW_GATE },
     finalDm: row.finalDm,
     stats,
     createdAt: row.createdAt.toISOString(),
