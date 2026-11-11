@@ -2,6 +2,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { authEnabled } from "@/lib/auth/config";
+import { landingEnabled } from "@/lib/landing";
 
 /**
  * Optimistic sign-in redirect: pages need a session cookie when login is on.
@@ -11,11 +12,13 @@ import { authEnabled } from "@/lib/auth/config";
  */
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === "/sign-in" || !authEnabled()) return NextResponse.next();
+  // The landing page is public; `/` sends signed-in users on to the app itself.
+  if (request.nextUrl.pathname === "/" && landingEnabled()) return NextResponse.next();
   if (!getSessionCookie(request)) return NextResponse.redirect(new URL("/sign-in", request.url));
   return NextResponse.next();
 }
 
 export const config = {
   // Pages only: API routes, `/mcp` and OAuth discovery answer errors themselves, and static files need no session.
-  matcher: ["/((?!api/|mcp(?:/|$)|\\.well-known/|_next/|brand/|icon.png|apple-icon.png|favicon.ico).*)"],
+  matcher: ["/((?!api/|mcp(?:/|$)|\\.well-known/|_next/|brand/|landing/|icon.png|apple-icon.png|favicon.ico).*)"],
 };

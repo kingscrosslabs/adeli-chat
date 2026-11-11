@@ -33,7 +33,7 @@ function sampleText(content: AutomationContent) {
   return `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
 }
 
-export function PhonePreview({ content, account, tab: requested, onTabChange }: { content: AutomationContent; account: AdeliAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void }) {
+export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true }: { content: AutomationContent; account: AdeliAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean }) {
   const story = content.type === "story_reply";
   const tabs = story ? STORY_TABS : TABS;
   const tab = tabs.some((item) => item.id === requested) ? requested : "post";
@@ -64,7 +64,7 @@ export function PhonePreview({ content, account, tab: requested, onTabChange }: 
           <div className="mx-auto mb-2 h-1 w-28 shrink-0 rounded-full bg-black/80" aria-hidden />
         </div>
       </div>
-      <p className="max-w-[300px] text-center text-xs text-muted-foreground">Preview only. Instagram&apos;s real layout may differ slightly.</p>
+      {disclaimer ? <p className="max-w-[300px] text-center text-xs text-muted-foreground">Preview only. Instagram&apos;s real layout may differ slightly.</p> : null}
     </div>
   );
 }
@@ -104,12 +104,13 @@ const PLACEHOLDER = {
   any: "Any of your posts or reels",
 } as const;
 
-function PostImage({ content, className }: { content: AutomationContent; className?: string }) {
+/** `compact` is the small thumbnail beside the comments: an icon only, since the label can't fit. */
+function PostImage({ content, className, compact = false }: { content: AutomationContent; className?: string; compact?: boolean }) {
   const thumb = content.trigger.mediaSnapshot?.thumbUrl;
   if (!thumb) {
     return (
-      <div className={cn("grid place-items-center bg-[var(--pv-divider)] text-[var(--pv-subtle)]", className)}>
-        <span className="flex flex-col items-center gap-2 px-6 text-center text-xs"><ImageOff className="size-6" /> {PLACEHOLDER[content.trigger.postScope]}</span>
+      <div className={cn("grid shrink-0 place-items-center bg-[var(--pv-divider)] text-[var(--pv-subtle)]", className)}>
+        {compact ? <ImageOff className="size-4" /> : <span className="flex flex-col items-center gap-2 px-6 text-center text-xs"><ImageOff className="size-6" /> {PLACEHOLDER[content.trigger.postScope]}</span>}
       </div>
     );
   }
@@ -173,7 +174,7 @@ function CommentsView({ content, account }: { content: AutomationContent; accoun
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-[var(--pv-divider)] px-3 pb-2">
-        <PostImage content={content} className="size-9 rounded" />
+        <PostImage content={content} className="size-9 shrink-0 rounded" compact />
         <div className="min-w-0 flex-1">
           <p className="text-[0.75rem] font-semibold">Comments</p>
           <p className="truncate text-[0.68rem] text-[var(--pv-subtle)]">{content.trigger.mediaSnapshot?.caption ?? "Your post"}</p>

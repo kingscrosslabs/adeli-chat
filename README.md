@@ -43,6 +43,7 @@ One Adeli Chat install uses one Adeli organization, through the API key in `ADEL
 | `GOOGLE_CLIENT_SECRET` | Yes | From the Google OAuth client. |
 | `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: anyone with Google can sign in. |
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
+| `LANDING_PAGE` | No | `on` shows the public landing page at `/` to signed-out visitors (used on chat.tryadeli.com). Leave empty to send `/` straight to the app. |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
 

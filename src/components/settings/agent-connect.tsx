@@ -7,6 +7,7 @@ import { SiClaude, SiPerplexity } from "react-icons/si";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CursorLogo } from "@/components/brand/cursor-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,15 +18,6 @@ import type { ApiToken } from "@/lib/mcp/tokens";
 
 import { RevealableToken, useTokenSecret } from "./revealable-token";
 import { cn } from "@/lib/utils";
-
-/** Cursor's mark, from LobeHub's open icon set (MIT), as Adeli's site uses it (`agent-logos.tsx`). */
-function CursorLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z" />
-    </svg>
-  );
-}
 
 type Step = { title: string; body: React.ReactNode };
 type Guide = { label: string; steps: Step[] };
