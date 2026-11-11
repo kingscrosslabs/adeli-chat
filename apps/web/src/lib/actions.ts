@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { listInstagramAccounts } from "@/lib/adeli/instagram";
-import { ensureUserProfile, renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
+import { renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
@@ -69,18 +69,6 @@ export async function signInWithGoogle(form?: FormData): Promise<void> {
 export async function signOut(): Promise<void> {
   if (authEnabled()) await auth().api.signOut({ headers: await headers() }).catch(() => undefined);
   redirect("/sign-in");
-}
-
-/**
- * Settings' "Check connection": makes sure the user's Adeli profile exists and
- * Adeli delivers their events to the current URL (say APP_URL changed).
- */
-export async function checkAdeliConnection(): Promise<ActionResult<{ profileName: string }>> {
-  return guard(async (userId) => {
-    const profile = await ensureUserProfile(userId);
-    await ensureAdeliWebhook(userId);
-    return done({ profileName: profile.name });
-  });
 }
 
 /** Local development only: renames the local user's Adeli profile. `renameLocalProfile` refuses any other user. */

@@ -57,7 +57,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
                 <li className="flex gap-3">
                   <PencilLine className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <label className="flex flex-1 items-start justify-between gap-4">
-                    <span>Create, change, go live with, pause and delete automations. Live automations reply and send DMs from your Instagram account.</span>
+                    <span>Create, change, go live with, pause and delete automations.</span>
                     <Switch name="allow_write" defaultChecked aria-label="Allow changes" />
                   </label>
                 </li>

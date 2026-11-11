@@ -18,7 +18,7 @@ import { ConnectToAgent } from "@/components/settings/agent-connect";
 import { maskToken, RevealableToken, useTokenSecret } from "@/components/settings/revealable-token";
 import { Badge } from "@adeli-chat/ui/components/badge";
 import { Button } from "@adeli-chat/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@adeli-chat/ui/components/dialog";
 import { Input } from "@adeli-chat/ui/components/input";
 import { Label } from "@adeli-chat/ui/components/label";
@@ -32,8 +32,8 @@ import { cn } from "@adeli-chat/ui/lib/utils";
 
 /**
  * Settings for the MCP endpoint: the server URL, a setup guide per agent
- * (Claude, ChatGPT, Cursor, Perplexity, any MCP client), API tokens, and apps
- * connected through OAuth.
+ * (Claude, ChatGPT, Cursor, Perplexity, any MCP client), apps connected
+ * through OAuth, and API tokens.
  */
 export function McpSettings({ mcpUrl, oauthEnabled, defaultToken, tokens, apps }: { mcpUrl: string; oauthEnabled: boolean; defaultToken: ApiToken; tokens: ApiToken[]; apps: ConnectedApp[] }) {
   return (
@@ -52,8 +52,8 @@ export function McpSettings({ mcpUrl, oauthEnabled, defaultToken, tokens, apps }
         </CardContent>
       </Card>
 
-      <TokensCard tokens={tokens} />
       {oauthEnabled || apps.length ? <ConnectedAppsCard apps={apps} /> : null}
+      <TokensCard tokens={tokens} />
     </>
   );
 }
@@ -207,7 +207,6 @@ function ConnectedAppsCard({ apps }: { apps: ConnectedApp[] }) {
     <Card id="connected-apps" className="scroll-mt-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Plug className="size-4 text-link" /> Connected apps</CardTitle>
-        <CardDescription>Apps you allowed through sign-in, like Claude&apos;s LedaChat connector.</CardDescription>
       </CardHeader>
       <CardContent>
         {apps.length ? (
