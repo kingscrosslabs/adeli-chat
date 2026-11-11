@@ -53,6 +53,7 @@ One Adeli Chat install uses one Adeli organization, through the API key in `ADEL
 | `GOOGLE_CLIENT_ID` | Yes | From the Google OAuth client. |
 | `GOOGLE_CLIENT_SECRET` | Yes | From the Google OAuth client. |
 | `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: anyone with Google can sign in. |
+| `BETTER_AUTH_API_KEY` | No | A [Better Auth Infrastructure](https://better-auth.com/docs/infrastructure/getting-started) project key. Set it to see and manage your users and sessions in its dashboard. |
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.

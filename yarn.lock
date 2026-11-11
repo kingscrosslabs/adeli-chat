@@ -61,6 +61,7 @@ __metadata:
     "@adeli-chat/ui": "workspace:*"
     "@adeli/sdk": "npm:^0.5.0"
     "@better-auth/cimd": "npm:^1.7.18"
+    "@better-auth/infra": "npm:^0.4.28"
     "@better-auth/mcp": "npm:^1.7.18"
     "@better-auth/oauth-provider": "npm:^1.7.18"
     "@electric-sql/pglite": "npm:^0.5.13"
@@ -518,6 +519,41 @@ __metadata:
     drizzle-orm:
       optional: true
   checksum: 10c0/4690ec6296f83be03a62028420d2beaa66ac36397581c9f3326f24cd42b8d2d48cc55ec38ac683681050e8c4b614f98b88e518e4ad12a2c30648f303f2f85247
+  languageName: node
+  linkType: hard
+
+"@better-auth/infra@npm:^0.4.28":
+  version: 0.4.28
+  resolution: "@better-auth/infra@npm:0.4.28"
+  dependencies:
+    "@better-auth/utils": "npm:0.5.1"
+    "@better-fetch/fetch": "npm:1.3.3"
+    "@noble/hashes": "npm:^2.2.0"
+    "@xmldom/xmldom": "npm:^0.9.10"
+    better-call: "npm:1.4.5"
+    jose: "npm:^6.2.12"
+    libphonenumber-js: "npm:^1.13.14"
+  peerDependencies:
+    "@better-auth/core": ">=1.4.0"
+    "@react-native-async-storage/async-storage": ">=1.21.0"
+    better-auth: ">=1.4.0"
+    expo-constants: ">=16.0.0"
+    expo-crypto: ">=13.0.0"
+    expo-device: ">=6.0.0"
+    react-native: ">=0.74.0"
+    zod: ">=4.1.12"
+  peerDependenciesMeta:
+    "@react-native-async-storage/async-storage":
+      optional: true
+    expo-constants:
+      optional: true
+    expo-crypto:
+      optional: true
+    expo-device:
+      optional: true
+    react-native:
+      optional: true
+  checksum: 10c0/b9790a19b7159dca0f28c878668017b594370269b1c49c271c6e7fb6b141a6933601a156b45b74db8efa8a865e64db7615f8ffbf96e7be5ff8feb527bd67043e
   languageName: node
   linkType: hard
 
@@ -2709,6 +2745,13 @@ __metadata:
   version: 5.1.0
   resolution: "@vitest/spy@npm:5.1.0"
   checksum: 10c0/6f57b9b0cf8fcf65f89cbe7f7688ee87b2bd64d8678d888c6ea5542b66efe041a0c2be6268de89ced0ee29c685b13d4e925b2e791be435e84236cc6d0394feb6
+  languageName: node
+  linkType: hard
+
+"@xmldom/xmldom@npm:^0.9.10":
+  version: 0.9.12
+  resolution: "@xmldom/xmldom@npm:0.9.12"
+  checksum: 10c0/0a9ef38e203213717dde8d16c62743c26c37eb4195aeb4f286550a0aec2145c063a6c3633f253c29f75202f922d7c961d1acaad4dd93e5db1ef05c813354d178
   languageName: node
   linkType: hard
 
@@ -5487,7 +5530,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jose@npm:^6.1.3, jose@npm:^6.2.3":
+"jose@npm:^6.1.3, jose@npm:^6.2.12, jose@npm:^6.2.3":
   version: 6.2.17
   resolution: "jose@npm:6.2.17"
   checksum: 10c0/1a00d44656e38664c54a8b2d903b6c947b3fc4275f7ede2462f74e50ce320359ea324deba15652dcc158c14ed99135a2382a4c5718be350923a9e583bea727db
@@ -5654,6 +5697,13 @@ __metadata:
     prelude-ls: "npm:^1.2.1"
     type-check: "npm:~0.4.0"
   checksum: 10c0/effb03cad7c89dfa5bd4f6989364bfc79994c2042ec5966cb9b95990e2edee5cd8969ddf42616a0373ac49fac1403437deaf6e9050fbbaa3546093a59b9ac94e
+  languageName: node
+  linkType: hard
+
+"libphonenumber-js@npm:^1.13.14":
+  version: 1.13.16
+  resolution: "libphonenumber-js@npm:1.13.16"
+  checksum: 10c0/72bf6b0246c538e3207e573814cd7802259d604b62be5ac3fb7a22bf712823b4ac2d3b365266524c564b5b2d904725ea93133d1007cf29a168172fec23a0a9cd
   languageName: node
   linkType: hard
 
