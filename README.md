@@ -9,9 +9,10 @@ When someone comments a keyword on your post, Adeli Chat replies to their commen
 ## Run it locally
 
 ```bash
-npm install
+corepack enable
+yarn install
 cp .env.example .env.local   # then set ADELI_API_KEY (see "Get your Adeli API key")
-npm run dev
+yarn dev
 ```
 
 Open http://localhost:3030 and click **Connect Instagram**. Nothing is mocked. Every Adeli call goes through [`@adeli/sdk`](https://www.npmjs.com/package/@adeli/sdk).

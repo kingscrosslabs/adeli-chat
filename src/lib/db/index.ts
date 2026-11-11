@@ -53,7 +53,7 @@ export function db(): Database {
 
 /**
  * Applies pending migrations, once per process. Awaited at startup
- * (`src/instrumentation.ts`), except on Vercel, where `npm run db:migrate`
+ * (`src/instrumentation.ts`), except on Vercel, where `yarn db:migrate`
  * runs them during the build.
  */
 export function migrateDatabase(): Promise<void> {
