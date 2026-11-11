@@ -28,7 +28,9 @@ export type SectionProps = {
 
 /** A Story Reply has no public reply section, so every later step moves up one. */
 function stepOf(draft: AutomationContent, step: number) {
-  return draft.type === "story_reply" && step > 3 ? step - 1 : step;
+  if (draft.type !== "story_reply") return step;
+  // Story Reply has no public reply (step 3) and no follow gate (step 5).
+  return step - (step > 3 ? 1 : 0) - (step > 5 ? 1 : 0);
 }
 
 const soon = <Badge variant="outline" className="font-medium text-muted-foreground">Coming soon</Badge>;
@@ -209,9 +211,10 @@ export function OpeningDmSection({ draft, patch, errors, onFocusTab }: SectionPr
   );
 }
 
-/** Follow gate. Needs a follow check in the Adeli API first, so it can't be turned on yet. */
+/** Follow gate, Comment to DM only. Needs a follow check in the Adeli API first, so it can't be turned on yet. */
 export function FollowSection({ draft, onFocusTab }: SectionProps) {
   const switchId = useId();
+  if (draft.type === "story_reply") return null;
   return (
     <Section
       step={stepOf(draft, 5)}
@@ -262,12 +265,8 @@ export function EmailSection({ draft, patch, errors, onFocusTab }: SectionProps)
   );
 }
 
-const DM_TYPES = [
-  { id: "text_buttons", label: "Text + Buttons", enabled: true },
-  { id: "image", label: "Image", enabled: false },
-  { id: "video", label: "Video", enabled: false },
-  { id: "card", label: "Card", enabled: false },
-] as const;
+/** Only the DM types that work today are listed. */
+const DM_TYPES = [{ id: "text_buttons", label: "Text + Buttons" }] as const;
 
 /** F. Final DM (FR-5.18 to FR-5.21). The model allows 3 buttons; v1 edits one. */
 export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProps) {
@@ -287,15 +286,12 @@ export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProp
               type="button"
               role="radio"
               aria-checked={type.id === draft.finalDm.type}
-              disabled={!type.enabled}
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm transition outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                 type.id === draft.finalDm.type ? "border-primary bg-secondary font-medium text-secondary-foreground" : "text-muted-foreground",
-                !type.enabled && "cursor-not-allowed opacity-60",
               )}
             >
               {type.label}
-              {!type.enabled ? <span className="text-[0.65rem] uppercase tracking-wide">Soon</span> : null}
             </button>
           ))}
         </div>
