@@ -34,6 +34,12 @@ export const adeli = {
     return request<ConnectSession>(`/api/adeli/connect/status?${query}`);
   },
 
+  async listStories(accountId: string) {
+    const query = new URLSearchParams({ accountId });
+    const result = await request<{ stories: AdeliMedia[] }>(`/api/adeli/stories?${query}`);
+    return result.stories;
+  },
+
   listMedia(accountId: string, page: number) {
     const query = new URLSearchParams({ accountId, page: String(page) });
     return request<{ media: AdeliMedia[]; hasMore: boolean }>(`/api/adeli/media?${query}`);

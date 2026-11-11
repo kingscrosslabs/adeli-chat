@@ -105,18 +105,34 @@ describe("matchStoryReply", () => {
   }
 
   it("matches a reply with the keyword", () => {
-    expect(matchStoryReply({ text: "GUIDE pls", fromId: "ig_fan" }, "ig_self", [story()])?.id).toBe("story_1");
+    expect(matchStoryReply({ text: "GUIDE pls", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [story()])?.id).toBe("story_1");
   });
 
   it("ignores Comment to DM automations, paused ones, and our own account", () => {
-    expect(matchStoryReply({ text: "guide", fromId: "ig_fan" }, "ig_self", [automation({ postScope: "any" })])).toBeNull();
-    expect(matchStoryReply({ text: "guide", fromId: "ig_fan" }, "ig_self", [story({}, "paused")])).toBeNull();
-    expect(matchStoryReply({ text: "guide", fromId: "ig_self" }, "ig_self", [story()])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [automation({ postScope: "any" })])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [story({}, "paused")])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_self", storyId: "story_a" }, "ig_self", [story()])).toBeNull();
   });
 
   it("only matches a reply with no text on Any reply", () => {
-    expect(matchStoryReply({ text: null, fromId: "ig_fan" }, "ig_self", [story()])).toBeNull();
-    expect(matchStoryReply({ text: null, fromId: "ig_fan" }, "ig_self", [story({ match: "any" })])?.id).toBe("story_1");
+    expect(matchStoryReply({ text: null, fromId: "ig_fan", storyId: "story_a" }, "ig_self", [story()])).toBeNull();
+    expect(matchStoryReply({ text: null, fromId: "ig_fan", storyId: "story_a" }, "ig_self", [story({ match: "any" })])?.id).toBe("story_1");
+  });
+
+  it("only fires a specific-story automation for replies to that story", () => {
+    const picked = { ...story({ postScope: "specific", mediaId: "story_a" }), id: "picked" };
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [picked])?.id).toBe("picked");
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_b" }, "ig_self", [picked])).toBeNull();
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: null }, "ig_self", [picked])).toBeNull();
+  });
+
+  it("prefers the story's own automation over Any story", () => {
+    const anyStory = { ...story({ match: "any" }), id: "any" };
+    const picked = { ...story({ postScope: "specific", mediaId: "story_a" }), id: "picked" };
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [anyStory, picked])?.id).toBe("picked");
+    expect(matchStoryReply({ text: "guide", fromId: "ig_fan", storyId: "story_b" }, "ig_self", [anyStory, picked])?.id).toBe("any");
+    // Their automation wants a keyword they didn't send, so Any story picks it up.
+    expect(matchStoryReply({ text: "love it", fromId: "ig_fan", storyId: "story_a" }, "ig_self", [anyStory, picked])?.id).toBe("any");
   });
 });
 

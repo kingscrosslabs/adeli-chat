@@ -51,16 +51,17 @@ async function checkLive(accountId: string, id: string, content: AutomationConte
 }
 
 function scopePhrase({ type, trigger: { postScope: scope } }: AutomationContent) {
-  if (type === "story_reply") return "your stories";
+  if (type === "story_reply") return scope === "specific" ? "this story" : "every story";
   if (scope === "next") return "your next post";
   if (scope === "any") return "every post";
   return "this post";
 }
 
-/** A type's fixed fields, whatever a caller sent: a story reply watches every story and never replies publicly. */
+/** A type's fixed fields, whatever a caller sent: a story reply has no Next scope and never replies publicly. */
 function keepShape(content: AutomationContent): AutomationContent {
   if (content.type !== "story_reply") return content;
-  return { ...content, trigger: { ...content.trigger, postScope: "any", mediaId: null, mediaSnapshot: null }, commentReply: { ...content.commentReply, enabled: false } };
+  const trigger = content.trigger.postScope === "next" ? { ...content.trigger, postScope: "specific" as const, mediaId: null, mediaSnapshot: null } : content.trigger;
+  return { ...content, trigger, commentReply: { ...content.commentReply, enabled: false } };
 }
 
 export function parseContent(input: unknown): AutomationContent {

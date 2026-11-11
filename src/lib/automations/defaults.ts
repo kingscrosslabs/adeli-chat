@@ -35,8 +35,7 @@ export function defaultAutomationContent(createdCount: number, type: AutomationT
   return {
     type,
     name: defaultAutomationName(createdCount, type),
-    // A story reply watches every story; picking one needs a stories list Adeli doesn't have yet.
-    trigger: { postScope: story ? "any" : "specific", mediaId: null, mediaSnapshot: null, match: "keywords", keywords: [] },
+    trigger: { postScope: "specific", mediaId: null, mediaSnapshot: null, match: "keywords", keywords: [] },
     // Stories have no public comments, so a story reply never posts one.
     commentReply: { enabled: !story, variants: [...DEFAULT_REPLY_VARIANTS] },
     openingDm: { ...DEFAULT_OPENING_DM },

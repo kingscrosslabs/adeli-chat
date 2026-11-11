@@ -43,7 +43,7 @@ function stableJson(value: unknown): string {
 }
 
 function liveMessage(draft: AutomationContent) {
-  if (draft.type === "story_reply") return "New replies to your stories will get a DM.";
+  if (draft.type === "story_reply") return draft.trigger.postScope === "specific" ? "New replies to this story will get a DM until it expires." : "New replies to your stories will get a DM.";
   return draft.trigger.postScope === "next" ? "It starts on the next post or reel you publish." : "New comments will get a reply and a DM.";
 }
 

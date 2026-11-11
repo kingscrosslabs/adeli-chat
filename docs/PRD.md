@@ -1,6 +1,6 @@
 # Adeli Chat: PRD + Build Plan v0.3 (Instagram Comment to DM)
 
-> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-10
+> Status: **Approved for build. UI milestones unblocked; runtime blocked on Adeli API additions (§12A)** · Owner: @kingscrosslabs · Last updated: 2026-11-11
 >
 > Companion docs: [`docs/brand.md`](brand.md) (design system and copy voice).
 
@@ -270,11 +270,12 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 
 ### 5.13 Story Reply (added 2026-11-10)
 - **Type.** `automations.type` is `comment_to_dm` or `story_reply`, set at create and never changed by a save. Duplicates keep it.
-- **Trigger.** A `message.created` event whose `data.story.type` is `reply` (Adeli #188, SDK 0.4.0). It watches every story: the trigger is stored as `postScope: "any"` with no `mediaId`, and the public reply is always off. Match is keywords (case-insensitive, on the reply text) or Any reply; a reply with no text (a reaction or sticker) only matches Any reply. Replies from the account itself never trigger.
+- **Trigger.** A `message.created` event whose `data.story.type` is `reply` (Adeli #188, SDK 0.4.0). Scope is `specific` (the default: one story, its id in `mediaId`, matched against `data.story.id`) or `any` (every story); `next` is never used. A story's own automation wins over Any story, like posts. The public reply is always off. Match is keywords (case-insensitive, on the reply text) or Any reply; a reply with no text (a reaction or sticker) only matches Any reply. Replies from the account itself never trigger.
 - **Flow.** No public reply. The Opening DM goes to `recipient.id` (the reply opened the conversation), then the tap, optional email step and Final DM run exactly as for comments. The run stores the reply's message id and text in `comment_id` and `comment_text`, so the existing unique keys make it once per person and idempotent on redelivery.
 - **Priority.** A story reply that starts a Story Reply automation isn't also read as an email answer; any other story reply falls through to the email step.
-- **Conflicts.** Go Live's conflict rule compares Story Reply automations only with each other.
-- **Not yet.** Picking a specific story is shown as Coming soon: Adeli has no endpoint that lists an account's active stories. When it does, the trigger can use `postScope: "specific"` with the story id in `mediaId`.
+- **Conflicts.** Go Live's conflict rule compares Story Reply automations only with each other, per scope: two automations on the same story, or two on Any story, can't share a keyword.
+- **Picking a story** (added 2026-11-11). The editor lists the account's live stories from Adeli `GET /posts/instagram/stories` (SDK `posts.listInstagramStories`, 0.5.0) through `/api/adeli/stories`, and stores the pick as `mediaId` plus a `mediaSnapshot`. MCP has `list_stories` and a `storyId` field.
+- **Expiry.** Instagram keeps a story up for 24 hours, so a specific-story automation stops getting replies then. It stays live (no job flips it), but the editor says the story has expired and the list shows "Expired story" (`storyExpired` in `schemas.ts`, from the snapshot's `publishedAt`).
 
 ## 6. Data model
 
@@ -501,7 +502,7 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 - Treat a typed reply as a button tap
 - Follow-gate before sending the link (needs the Adeli follow check)
 - Image, Video and Card DMs, more buttons
-- Direct Message and Story Mention triggers; Story Reply on a specific story (needs an Adeli stories list)
+- Direct Message and Story Mention triggers
 - Facebook and TikTok channels
 - Multi-user workspaces
 

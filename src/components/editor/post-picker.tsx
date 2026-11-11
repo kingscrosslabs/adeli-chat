@@ -8,33 +8,41 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adeli } from "@/lib/adeli/browser";
 import type { AdeliMedia } from "@/lib/adeli/types";
-import type { MediaSnapshot } from "@/lib/automations/schemas";
+import { STORY_LIFETIME_MS, type MediaSnapshot } from "@/lib/automations/schemas";
 import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Grid of the account's posts (FR-5.3 to FR-5.6). Once a post is chosen it
- * collapses to a summary, so the form stays short.
+ * Grid of the account's posts (FR-5.3 to FR-5.6), or with `stories` its live
+ * stories, which come in one page. Once one is chosen it collapses to a
+ * summary, so the form stays short.
  */
-export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
+export function PostPicker({ accountId, mediaId, snapshot, onSelect, error, stories = false }: {
   accountId: string;
   mediaId: string | null;
   snapshot: MediaSnapshot | null;
   onSelect: (media: AdeliMedia) => void;
   error?: string;
+  stories?: boolean;
 }) {
+  const fetchPage = useCallback(
+    (page: number) => stories ? adeli.listStories(accountId).then((media) => ({ media, hasMore: false })) : adeli.listMedia(accountId, page),
+    [accountId, stories],
+  );
   const [browsing, setBrowsing] = useState(!mediaId);
   const [media, setMedia] = useState<AdeliMedia[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(!mediaId);
   const [failed, setFailed] = useState(false);
+  // Read once: a story expiring while the editor is open doesn't need a live update.
+  const [now] = useState(() => Date.now());
 
   const load = useCallback(async (nextPage: number) => {
     setLoading(true);
     setFailed(false);
     try {
-      const result = await adeli.listMedia(accountId, nextPage);
+      const result = await fetchPage(nextPage);
       setMedia((current) => nextPage === 0 ? result.media : [...current, ...result.media]);
       setHasMore(result.hasMore);
       setPage(nextPage);
@@ -43,13 +51,13 @@ export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [fetchPage]);
 
   // First page on mount, when no post is chosen yet. Later pages load from clicks.
   useEffect(() => {
     if (mediaId) return;
     let cancelled = false;
-    adeli.listMedia(accountId, 0).then(
+    fetchPage(0).then(
       (result) => {
         if (cancelled) return;
         setMedia(result.media);
@@ -73,15 +81,20 @@ export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
   }
 
   if (!browsing && mediaId && snapshot) {
+    const expired = stories && snapshot.publishedAt ? Date.parse(snapshot.publishedAt) + STORY_LIFETIME_MS <= now : false;
     return (
       <div className="flex items-center gap-3 rounded-lg border border-primary bg-secondary/40 p-3" data-field="trigger.mediaId">
         <PostThumb src={snapshot.thumbUrl} type={snapshot.mediaType} className="h-20 w-16 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MediaTypeIcon type={snapshot.mediaType} className="size-3.5" /> {MEDIA_TYPE_LABEL[snapshot.mediaType]}
+            <MediaTypeIcon type={snapshot.mediaType} className="size-3.5" /> {stories ? "Story" : MEDIA_TYPE_LABEL[snapshot.mediaType]}
             {snapshot.publishedAt ? <> · {shortDate(snapshot.publishedAt)}</> : null}
           </p>
-          <p className="line-clamp-2 text-sm">{snapshot.caption || "No caption"}</p>
+          {stories ? (
+            <p className="text-sm">{expired ? "This story has expired, so it won't get new replies." : `Up until ${shortDate(new Date(Date.parse(snapshot.publishedAt ?? "") + STORY_LIFETIME_MS).toISOString())}`}</p>
+          ) : (
+            <p className="line-clamp-2 text-sm">{snapshot.caption || "No caption"}</p>
+          )}
           {snapshot.permalink ? (
             <a href={snapshot.permalink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-link underline-offset-4 hover:underline">View on Instagram <ExternalLink className="size-3" /></a>
           ) : null}
@@ -95,13 +108,16 @@ export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
     <div className="space-y-3" data-field="trigger.mediaId">
       {failed ? (
         <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-          <span>We couldn&apos;t load your posts from Adeli.</span>
+          <span>We couldn&apos;t load your {stories ? "stories" : "posts"} from Adeli.</span>
           <Button size="sm" variant="outline" onClick={() => void load(page)}><RefreshCw /> Retry</Button>
         </div>
       ) : null}
-      <div className={cn("grid grid-cols-3 gap-2 rounded-lg sm:grid-cols-4", error && "p-1 ring-2 ring-destructive/40")} role="radiogroup" aria-label="Your posts and reels">
+      {stories && !loading && !failed && media.length === 0 ? (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">You don&apos;t have a live story right now. Post one on Instagram, then <button type="button" className="text-link underline-offset-4 hover:underline" onClick={() => void load(0)}>refresh</button>.</p>
+      ) : null}
+      <div className={cn("grid grid-cols-3 gap-2 rounded-lg sm:grid-cols-4", error && "p-1 ring-2 ring-destructive/40")} role="radiogroup" aria-label={stories ? "Your live stories" : "Your posts and reels"}>
         {media.map((item) => (
-          <PostTile key={item.id} media={item} selected={item.id === mediaId} onSelect={() => { onSelect(item); setBrowsing(false); }} />
+          <PostTile key={item.id} media={item} story={stories} selected={item.id === mediaId} onSelect={() => { onSelect(item); setBrowsing(false); }} />
         ))}
         {loading ? Array.from({ length: media.length ? 4 : 8 }, (_, index) => <Skeleton key={index} className="aspect-[4/5] rounded-md" />) : null}
       </div>
@@ -117,17 +133,19 @@ export function PostPicker({ accountId, mediaId, snapshot, onSelect, error }: {
   );
 }
 
-function PostTile({ media, selected, onSelect }: { media: AdeliMedia; selected: boolean; onSelect: () => void }) {
+function PostTile({ media, selected, onSelect, story = false }: { media: AdeliMedia; selected: boolean; onSelect: () => void; story?: boolean }) {
   const isVideo = media.mediaType === "REEL" || media.mediaType === "VIDEO";
+  const label = story ? "Story" : MEDIA_TYPE_LABEL[media.mediaType];
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
-      aria-label={`${MEDIA_TYPE_LABEL[media.mediaType]} from ${shortDate(media.publishedAt)}: ${media.caption}`}
+      aria-label={`${label} from ${shortDate(media.publishedAt)}${media.caption ? `: ${media.caption}` : ""}`}
       onClick={onSelect}
       className={cn(
-        "group relative aspect-[4/5] overflow-hidden rounded-md bg-muted text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+        story ? "aspect-[9/16]" : "aspect-[4/5]",
+        "group relative overflow-hidden rounded-md bg-muted text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
         selected && "ring-2 ring-primary ring-offset-2",
       )}
     >

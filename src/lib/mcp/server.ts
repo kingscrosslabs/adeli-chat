@@ -4,12 +4,12 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import { serverKeyRejected } from "@/lib/adeli/client";
-import { findMedia, listMedia } from "@/lib/adeli/instagram";
+import { findMedia, listMedia, listStories } from "@/lib/adeli/instagram";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { LIMITS, automationTypeSchema, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+import { LIMITS, automationTypeSchema, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@/lib/automations/schemas";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
@@ -31,7 +31,7 @@ const INSTRUCTIONS = `Adeli Chat runs Instagram Comment to DM and Story Reply au
 How an automation works:
 1. Something starts it (trigger). The type, chosen at create_automation and fixed after, says what:
    - "comment_to_dm" (default): someone comments. postScope says where: "specific" (one post, set postId), "next" (the first post published after it goes live) or "any" (every post; a post with its own automation uses that one first).
-   - "story_reply": someone replies to any of the account's stories. There's no postScope, postId or public reply.
+   - "story_reply": someone replies to one of the account's stories. postScope is "specific" (one story, set storyId from list_stories; the default) or "any" (every story; a story with its own automation uses that one first). Stories expire after 24 hours, and so does a specific-story automation. There's no postId or public reply.
    It matches either specific keywords (case-insensitive) or any comment or reply.
 2. Comment to DM only, optionally: a public reply is posted under their comment (one variant is picked at random).
 3. They get an Opening DM: a message with one button. Instagram only allows this one message until they tap.
@@ -85,6 +85,7 @@ function detail(automation: Automation) {
     postScope: automation.trigger.postScope,
     postId: automation.trigger.mediaId,
     post: automation.trigger.mediaSnapshot,
+    ...(automation.type === "story_reply" ? { storyExpired: storyExpired(automation) } : {}),
     match: automation.trigger.match,
     keywords: automation.trigger.keywords,
     commentReplyEnabled: automation.commentReply.enabled,
@@ -107,8 +108,9 @@ function detail(automation: Automation) {
 /** Editable fields, flattened so they're easy to fill in. Every one is optional. */
 const fieldsSchema = {
   name: z.string().max(LIMITS.name).optional().describe("Name shown in Adeli Chat."),
-  postScope: z.enum(["specific", "next", "any"]).optional().describe("Which posts trigger it: one specific post (set postId), the next post published after going live, or any post."),
-  postId: z.string().optional().describe("Instagram media id of the post or reel, from list_posts. Only for postScope specific; setting it also sets postScope to specific."),
+  postScope: z.enum(["specific", "next", "any"]).optional().describe("Which posts or stories trigger it. Comment to DM: one specific post (set postId), the next post published after going live, or any post. Story Reply: one specific story (set storyId) or any story."),
+  postId: z.string().optional().describe("Instagram media id of the post or reel, from list_posts. Only for postScope specific; setting it also sets postScope to specific. Comment to DM only."),
+  storyId: z.string().optional().describe("Instagram media id of a live story, from list_stories. Story Reply only; setting it also sets postScope to specific."),
   match: z.enum(["keywords", "any"]).optional().describe("Reply to comments with specific keywords, or to any comment."),
   keywords: z.array(z.string().max(LIMITS.keyword)).max(LIMITS.keywords).optional().describe("Keywords that trigger the automation (case-insensitive). Replaces the whole list."),
   commentReplyEnabled: z.boolean().optional().describe("Post a public reply under the comment."),
@@ -129,8 +131,17 @@ type Fields = z.infer<typeof fieldsObject>;
 async function applyFields(userId: string, account: ConnectedAccount, content: AutomationContent, fields: Fields): Promise<AutomationContent> {
   const next: AutomationContent = structuredClone(content);
   if (fields.name !== undefined) next.name = fields.name;
-  if (content.type === "story_reply" && (fields.postId !== undefined || fields.postScope !== undefined || fields.commentReplyEnabled || fields.commentReplies !== undefined)) {
-    throw new service.ServiceError("A Story Reply automation watches every story and has no public reply, so postScope, postId and comment replies don't apply.");
+  const story = content.type === "story_reply";
+  if (story && (fields.postId !== undefined || fields.postScope === "next" || fields.commentReplyEnabled || fields.commentReplies !== undefined)) {
+    throw new service.ServiceError("A Story Reply automation picks a story with storyId (or postScope any) and has no public reply, so postId, postScope next and comment replies don't apply.");
+  }
+  if (!story && fields.storyId !== undefined) throw new service.ServiceError("storyId is only for Story Reply automations. Use postId for a post.");
+  if (fields.storyId !== undefined && fields.storyId !== content.trigger.mediaId) {
+    const found = (await listStories(userId, account.accountId)).find((item) => item.id === fields.storyId);
+    if (!found) throw new service.ServiceError(`There's no live story with id ${fields.storyId} on @${account.displayIdentifier}. Use list_stories to find one.`);
+    next.trigger.postScope = "specific";
+    next.trigger.mediaId = found.id;
+    next.trigger.mediaSnapshot = snapshotOf(found);
   }
   if (fields.postId !== undefined && fields.postId !== content.trigger.mediaId) {
     const media = await findMedia(userId, account.accountId, fields.postId);
@@ -236,6 +247,16 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   }, ({ id }) => run(false, async () => {
     const automation = await getAutomation((await account()).id, id);
     return automation ? json(detail(automation)) : fail("There's no automation with that id.");
+  }));
+
+  server.registerTool("list_stories", {
+    title: "List Instagram stories",
+    description: "Live stories on the connected Instagram account, newest first. Stories expire 24 hours after they're posted. Use an id from here as storyId on a Story Reply automation.",
+    inputSchema: z.object({}),
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  }, () => run(false, async () => {
+    const stories = await listStories(userId, (await account()).accountId);
+    return json({ stories: stories.map((item) => ({ id: item.id, type: item.mediaType, permalink: item.permalink, publishedAt: item.publishedAt })) });
   }));
 
   server.registerTool("list_posts", {

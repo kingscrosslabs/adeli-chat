@@ -48,13 +48,16 @@ export function matchComment(comment: IncomingComment, accountIgUserId: string |
 
 /**
  * The live Story Reply automation a reply to one of the account's stories
- * triggers, or null. A reply with no text (a reaction, a sticker) only
- * matches Any reply. Go Live's conflict rule guarantees at most one match.
+ * triggers, or null. The story's own automation wins over Any story, like
+ * posts. A reply with no text (a reaction, a sticker) only matches Any
+ * reply. Go Live's conflict rule guarantees at most one match per scope.
  */
-export function matchStoryReply(reply: { text: string | null; fromId: string }, accountIgUserId: string | null, automations: Automation[]): Automation | null {
+export function matchStoryReply(reply: { text: string | null; fromId: string; storyId: string | null }, accountIgUserId: string | null, automations: Automation[]): Automation | null {
   if (accountIgUserId && reply.fromId === accountIgUserId) return null;
-  return automations.find((automation) => automation.status === "live" && automation.type === "story_reply"
-    && (automation.trigger.match === "any" || matchesKeywords(reply.text ?? "", automation.trigger.keywords))) ?? null;
+  const candidates = automations.filter((automation) => automation.status === "live" && automation.type === "story_reply"
+    && (automation.trigger.match === "any" || matchesKeywords(reply.text ?? "", automation.trigger.keywords)));
+  const own = reply.storyId ? candidates.find((automation) => automation.trigger.postScope === "specific" && automation.trigger.mediaId === reply.storyId) : undefined;
+  return own ?? candidates.find((automation) => automation.trigger.postScope === "any") ?? null;
 }
 
 /**

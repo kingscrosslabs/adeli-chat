@@ -62,11 +62,16 @@ function toMedia(post: ApiPost): AdeliMedia {
   };
 }
 
-/** Posts of one of the user's own Instagram accounts. Any other account id is refused. */
-async function listPosts(userId: string, accountId: string) {
+/** Refuses any Instagram account the user didn't connect themselves. */
+async function requireOwnAccount(userId: string, accountId: string) {
   const [owned] = await db().select({ id: schema.accounts.id }).from(schema.accounts)
     .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.adeliAccountId, accountId))).limit(1);
   if (!owned) throw new AdeliError("not_found", "That Instagram account isn't connected to your Adeli Chat.", 404);
+}
+
+/** Posts of one of the user's own Instagram accounts. Any other account id is refused. */
+async function listPosts(userId: string, accountId: string) {
+  await requireOwnAccount(userId, accountId);
   const result = await adeliCall((client) => client.posts.listPosts({ query: { platform: "instagram", accountId } }));
   return result.data.posts;
 }
@@ -114,6 +119,34 @@ export async function listMedia(userId: string, accountId: string, page: number)
     media: posts.slice(start, start + PAGE_SIZE).map(toMedia),
     hasMore: start + PAGE_SIZE < posts.length,
   };
+}
+
+/**
+ * `GET /posts/instagram/stories`, which @adeli/sdk 0.5.0 adds as
+ * `posts.listInstagramStories`. Typed here until that version is published.
+ * TODO(sdk 0.5.0): drop this type and the cast below.
+ */
+type ApiStory = { id: string; mediaType: string | null; mediaUrl: string | null; thumbnailUrl: string | null; permalink: string | null; timestamp: string; expiresAt: string };
+type StoriesClient = { posts: { listInstagramStories(args: { query: { accountId: string } }): Promise<{ data: { stories: ApiStory[] } }> } };
+
+/** The account's live stories, newest first, as media the story picker can show. Stories have no caption or counts. */
+export async function listStories(userId: string, accountId: string): Promise<AdeliMedia[]> {
+  await requireOwnAccount(userId, accountId);
+  const result = await adeliCall((client) => (client as unknown as StoriesClient).posts.listInstagramStories({ query: { accountId } }));
+  return result.data.stories.map((story) => {
+    const video = story.mediaType?.toUpperCase() === "VIDEO";
+    return {
+      id: story.id,
+      mediaType: video ? "VIDEO" : "IMAGE",
+      caption: "",
+      // A video story's media url is the video (or null with licensed music), so its cover comes first.
+      thumbnailUrl: story.thumbnailUrl ?? (video ? null : story.mediaUrl) ?? "",
+      permalink: story.permalink ?? "",
+      publishedAt: story.timestamp,
+      likes: 0,
+      comments: 0,
+    } satisfies AdeliMedia;
+  });
 }
 
 /** One of the account's posts by its media id (what automations store as `trigger.mediaId`), or null. */
