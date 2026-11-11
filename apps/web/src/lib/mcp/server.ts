@@ -7,6 +7,8 @@ import { serverKeyRejected } from "@/lib/adeli/client";
 import { findMedia, listMedia, listStories } from "@/lib/adeli/instagram";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
+import { trackWentLive } from "@/lib/analytics/automations";
+import { track } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
@@ -214,7 +216,13 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   );
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
-  async function run(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  async function run(tool: string, write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
+    const result = await runTool(write, body);
+    track(userId, "mcp_tool_called", { tool, write, ok: !result.isError });
+    return result;
+  }
+
+  async function runTool(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
     if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in LedaChat, or reconnect and allow changes.");
     try {
       return await body();
@@ -233,7 +241,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "The connected Instagram account, whether the server has a working Adeli key, and how many automations there are by status. Call this first if other tools say setup isn't done.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, () => run(false, async () => {
+  }, () => run("get_workspace", false, async () => {
     const connected = await getConnectedAccount(userId);
     const automations = connected ? await listAutomations(connected.id) : [];
     const counts = { draft: 0, live: 0, paused: 0 };
@@ -252,7 +260,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Every Comment to DM automation on the connected Instagram account, most recently updated first, with its trigger, post and stats.",
     inputSchema: z.object({ status: z.enum(["draft", "live", "paused"]).optional().describe("Only automations with this status.") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, ({ status }) => run(false, async () => {
+  }, ({ status }) => run("list_automations", false, async () => {
     const automations = await listAutomations((await account()).id);
     return json(automations.filter((automation) => !status || automation.status === status).map(summary));
   }));
@@ -262,7 +270,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Everything about one automation: trigger, replies, both DMs, status and stats.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, ({ id }) => run(false, async () => {
+  }, ({ id }) => run("get_automation", false, async () => {
     const automation = await getAutomation((await account()).id, id);
     return automation ? json(detail(automation)) : fail("There's no automation with that id.");
   }));
@@ -272,7 +280,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Live stories on the connected Instagram account, newest first. Stories expire 24 hours after they're posted. Use an id from here as storyId on a Story Reply automation.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, () => run(false, async () => {
+  }, () => run("list_stories", false, async () => {
     const stories = await listStories(userId, (await account()).accountId);
     return json({ stories: stories.map((item) => ({ id: item.id, type: item.mediaType, permalink: item.permalink, publishedAt: item.publishedAt })) });
   }));
@@ -282,7 +290,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Recent posts and reels on the connected Instagram account, newest first, 9 per page. Use an id from here as postId.",
     inputSchema: z.object({ page: z.number().int().min(0).default(0).describe("Page number, starting at 0.") }),
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, ({ page }) => run(false, async () => {
+  }, ({ page }) => run("list_posts", false, async () => {
     const { media, hasMore } = await listMedia(userId, (await account()).accountId, page);
     return json({
       posts: media.map((post) => ({ id: post.id, type: post.mediaType, caption: post.caption.slice(0, 200), permalink: post.permalink, publishedAt: post.publishedAt, comments: post.comments })),
@@ -295,7 +303,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Creates a draft automation. Any field you leave out gets the app's default (friendly replies and DMs, a placeholder link). It doesn't run until you call go_live.",
     inputSchema: fieldsObject.extend({ type: automationTypeSchema.optional().describe("comment_to_dm (default): someone comments on a post. story_reply: someone replies to one of your stories. Can't be changed later.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, ({ type, ...fields }) => run(true, async () => {
+  }, ({ type, ...fields }) => run("create_automation", true, async () => {
     const connected = await account();
     const { id } = await service.createAutomation(userId, {}, type);
     const created = await getAutomation(connected.id, id);
@@ -308,6 +316,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       await service.deleteAutomation(userId, id);
       throw error;
     }
+    track(userId, "automation_created", { automation_id: id, automation_type: type ?? "comment_to_dm", source: "mcp" });
     const automation = await getAutomation(connected.id, id);
     return json(automation ? detail(automation) : { id });
   }));
@@ -317,11 +326,12 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Changes the fields you pass and keeps the rest. On a live automation the change applies at once, so it must still pass the go live checks.",
     inputSchema: fieldsObject.extend({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, ({ id, ...fields }) => run(true, async () => {
+  }, ({ id, ...fields }) => run("update_automation", true, async () => {
     const { account: connected, automation } = await service.loadOwn(userId, id);
     const content = await applyFields(userId, connected, automation, fields);
     const saved = await service.saveAutomation(userId, id, content);
     if (!saved.ok) return rejected(saved);
+    track(userId, "automation_saved", { automation_id: id, source: "mcp" });
     const updated = await getAutomation(connected.id, id);
     return json(updated ? detail(updated) : { id });
   }));
@@ -331,9 +341,13 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Starts an automation: from now on it replies to matching comments and sends DMs from the user's Instagram account. Checks every field first.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-  }, ({ id }) => run(true, async () => {
+  }, ({ id }) => run("go_live", true, async () => {
     const result = await service.goLive(userId, id);
-    if (!result.ok) return rejected(result);
+    if (!result.ok) {
+      track(userId, "automation_go_live_rejected", { automation_id: id, source: "mcp", reason: result.reason });
+      return rejected(result);
+    }
+    await trackWentLive(userId, id, "mcp");
     const automation = await getAutomation((await account()).id, id);
     return json(automation ? summary(automation) : { id, status: "live" });
   }));
@@ -343,8 +357,9 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Stops an automation. People already mid-flow can still tap their button and get the final DM.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, ({ id }) => run(true, async () => {
+  }, ({ id }) => run("pause_automation", true, async () => {
     await service.pauseAutomation(userId, id);
+    track(userId, "automation_paused", { automation_id: id, source: "mcp" });
     return json({ id, status: "paused" });
   }));
 
@@ -353,8 +368,9 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Copies an automation into a new draft.",
     inputSchema: z.object({ id: z.string().describe("Automation id to copy.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, ({ id }) => run(true, async () => {
+  }, ({ id }) => run("duplicate_automation", true, async () => {
     const copy = await service.duplicateAutomation(userId, id);
+    track(userId, "automation_duplicated", { automation_id: copy.id, original_automation_id: id, source: "mcp" });
     const automation = await getAutomation((await account()).id, copy.id);
     return json(automation ? summary(automation) : copy);
   }));
@@ -364,8 +380,9 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Deletes an automation and its history for good. This can't be undone.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-  }, ({ id }) => run(true, async () => {
+  }, ({ id }) => run("delete_automation", true, async () => {
     await service.deleteAutomation(userId, id);
+    track(userId, "automation_deleted", { automation_id: id, source: "mcp" });
     return json({ id, deleted: true });
   }));
 
@@ -374,7 +391,11 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Forgets everyone this automation has messaged, so the same people can trigger it again, and clears its stats. Handy when testing with your own account.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-  }, ({ id }) => run(true, async () => json({ id, ...(await service.resetRuns(userId, id)) })));
+  }, ({ id }) => run("reset_runs", true, async () => {
+    const reset = await service.resetRuns(userId, id);
+    track(userId, "automation_runs_reset", { automation_id: id, runs_cleared: reset.count, source: "mcp" });
+    return json({ id, ...reset });
+  }));
 
   return server;
 }

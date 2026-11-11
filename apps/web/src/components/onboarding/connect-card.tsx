@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, ExternalLink, AtSign, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -78,6 +79,7 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
   }
 
   async function startConnect(method: AuthMethod) {
+    posthog.capture("instagram_connect_started", { method });
     setFlow({ kind: "starting", method });
     const authWindow = window.open("about:blank", "_blank");
     try {
@@ -95,6 +97,7 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
           }
           if (next.status === "failed" || next.status === "expired") {
             stopPolling();
+            posthog.capture("instagram_connect_failed", { method, status: next.status });
             setFlow({ kind: "failed", message: next.error ?? "Instagram didn't finish connecting." });
           }
         } catch (error) {

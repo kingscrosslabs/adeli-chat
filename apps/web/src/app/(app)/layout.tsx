@@ -1,3 +1,4 @@
+import { PostHogIdentify } from "@/components/analytics/posthog-identify";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { KeyBanner } from "@/components/shell/key-banner";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@adeli-chat/ui/components/sidebar";
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const automations = account ? await listAutomations(account.id) : [];
   return (
     <SidebarProvider>
+      <PostHogIdentify user={{ id: user.id, email: user.email, name: user.name }} />
       <AppSidebar
         account={account}
         profileName={settings.adeliProfileName}

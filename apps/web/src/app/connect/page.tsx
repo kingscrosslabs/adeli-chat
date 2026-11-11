@@ -22,7 +22,7 @@ export default async function ConnectPage() {
   const signedIn = authEnabled() ? <SignedInAs user={user} /> : null;
   if (!findAdeliConfig()) {
     return (
-      <OnboardingLayout step="account">
+      <OnboardingLayout step="account" user={user}>
         <Problem icon="server" title="This server isn't connected to Adeli yet">
           LedaChat needs an Adeli API key in the <code className="font-mono text-[0.82rem]">ADELI_API_KEY</code> environment variable. Whoever runs this install can follow &quot;Get your Adeli API key&quot; in the README, then restart it.
         </Problem>
@@ -36,7 +36,7 @@ export default async function ConnectPage() {
     ensureUserProfile(user.id, user).then(() => null, (error: unknown) => (error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute.")),
   ]);
   return (
-    <OnboardingLayout step="account">
+    <OnboardingLayout step="account" user={user}>
       {problem ? (
         <Problem icon="alert" title="We couldn't set up your Adeli profile">{problem} Refresh this page to try again.</Problem>
       ) : (
