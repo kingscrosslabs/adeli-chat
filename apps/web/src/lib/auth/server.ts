@@ -2,6 +2,7 @@ import "server-only";
 
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { dash } from "@better-auth/infra";
 import { mcp } from "@better-auth/mcp";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -25,9 +26,14 @@ import { googleCredentials, signInRefusal } from "./config";
  * `/mcp`, `jwt()` signs them, and `cimd()` lets clients identify themselves
  * with a metadata URL. Older clients that still register dynamically (DCR)
  * are allowed too, limited to the MCP scopes. See `src/lib/mcp/`.
+ *
+ * With `BETTER_AUTH_API_KEY` set, `dash()` connects the install to the Better
+ * Auth Infrastructure dashboard, where you can see and manage users and
+ * sessions. Without it, the plugin is left out.
  */
 function create() {
   const google = googleCredentials();
+  const infraApiKey = process.env.BETTER_AUTH_API_KEY?.trim();
   return betterAuth({
     baseURL: appUrl(),
     secret: process.env.BETTER_AUTH_SECRET,
@@ -81,6 +87,7 @@ function create() {
         refreshTokenReuseInterval: 0,
       }),
       cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+      ...(infraApiKey ? [dash({ apiKey: infraApiKey })] : []),
       nextCookies(),
     ],
   });
