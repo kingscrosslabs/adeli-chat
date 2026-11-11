@@ -13,6 +13,6 @@ export default async function SettingsPage() {
   const [account, settings] = await Promise.all([getConnectedAccount(user.id), getUserSettings(user.id)]);
   const automations = account ? await listAutomations(account.id) : [];
   const config = findAdeliConfig();
-  const adeli = { configured: Boolean(config), rejected: serverKeyRejected(), baseURL: config?.baseURL ?? DEFAULT_BASE_URL, profileName: settings.adeliProfileName };
+  const adeli = { configured: Boolean(config), rejected: serverKeyRejected(), baseURL: config?.baseURL ?? DEFAULT_BASE_URL, profileName: settings.adeliProfileName, localProfile: !authEnabled() };
   return <SettingsView adeli={adeli} account={account} user={authEnabled() ? user : null} liveCount={automations.filter((automation) => automation.status === "live").length} />;
 }

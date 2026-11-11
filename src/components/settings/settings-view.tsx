@@ -1,8 +1,8 @@
 "use client";
 
-import { CheckCircle2, KeyRound, Loader2, LogOut, Palette, RefreshCw, ServerCog, AtSign, UserRound, XCircle } from "lucide-react";
+import { CheckCircle2, KeyRound, Loader2, LogOut, Palette, RefreshCw, ServerCog, AtSign, UserRound, Wrench, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { PageHeading } from "@/components/page-heading";
@@ -21,12 +21,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { checkAdeliConnection, disconnectAccount, signOut } from "@/lib/actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { checkAdeliConnection, disconnectAccount, renameLocalProfile, signOut } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import type { CurrentUser } from "@/lib/auth/session";
 
-/** What Settings shows about Adeli. The key itself is the server's `ADELI_API_KEY` and never reaches the browser. */
-export type AdeliStatus = { configured: boolean; rejected: boolean; baseURL: string; profileName: string | null };
+/**
+ * What Settings shows about Adeli. The key itself is the server's `ADELI_API_KEY` and never reaches the browser.
+ * `localProfile`: local development without login, where the profile can be renamed.
+ */
+export type AdeliStatus = { configured: boolean; rejected: boolean; baseURL: string; profileName: string | null; localProfile: boolean };
 
 export function SettingsView({ adeli, account, user, liveCount }: { adeli: AdeliStatus; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number }) {
   return (
@@ -34,6 +39,7 @@ export function SettingsView({ adeli, account, user, liveCount }: { adeli: Adeli
       <PageHeading title="Settings" description="Your Adeli connection and Instagram account." />
       <div className="grid gap-4">
         <AdeliCard adeli={adeli} />
+        {adeli.localProfile && adeli.configured ? <LocalProfileCard profileName={adeli.profileName} /> : null}
         <InstagramCard account={account} liveCount={liveCount} canConnect={adeli.configured} />
         <AppearanceCard />
         {user ? <SignedInCard user={user} /> : null}
@@ -81,6 +87,42 @@ function AdeliCard({ adeli }: { adeli: AdeliStatus }) {
           <span>The API key is set on the server with <code className="font-mono">ADELI_API_KEY</code>. See the README to change it.</span>
         </p>
         <Button variant="outline" onClick={() => void check()} disabled={checking || !adeli.configured}>{checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} Check connection</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Local development only: names this machine's Adeli profile, so developers sharing a key can tell theirs apart. */
+function LocalProfileCard({ profileName }: { profileName: string | null }) {
+  const [name, setName] = useState(profileName ?? "");
+  const [saving, setSaving] = useState(false);
+  const unchanged = name.trim() === (profileName ?? "") || !name.trim();
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    const result = await renameLocalProfile(name);
+    setSaving(false);
+    if (result.ok) {
+      setName(result.profileName);
+      toast.success("Profile renamed");
+    } else toast.error(result.reason === "error" ? result.message : "We couldn't rename the profile.");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Wrench className="size-4 text-link" /> Local profile <Badge variant="secondary">Dev only</Badge></CardTitle>
+        <CardDescription>This local database has its own Adeli profile. Name it so you can tell it apart from other developers using the same key.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={(event) => void save(event)} className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-56 flex-1 gap-1.5">
+            <Label htmlFor="local-profile-name">Profile name</Label>
+            <Input id="local-profile-name" value={name} maxLength={200} placeholder="Local: you on your laptop" onChange={(event) => setName(event.target.value)} />
+          </div>
+          <Button type="submit" disabled={saving || unchanged}>{saving ? <Loader2 className="animate-spin" /> : null} Save</Button>
+        </form>
       </CardContent>
     </Card>
   );
