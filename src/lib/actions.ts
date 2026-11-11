@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { listInstagramAccounts } from "@/lib/adeli/instagram";
-import { ensureUserProfile } from "@/lib/adeli/profile";
+import { ensureUserProfile, renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
@@ -79,6 +79,15 @@ export async function checkAdeliConnection(): Promise<ActionResult<{ profileName
   return guard(async (userId) => {
     const profile = await ensureUserProfile(userId);
     await ensureAdeliWebhook(userId);
+    return done({ profileName: profile.name });
+  });
+}
+
+/** Local development only: renames the local user's Adeli profile. `renameLocalProfile` refuses any other user. */
+export async function renameLocalProfile(name: string): Promise<ActionResult<{ profileName: string }>> {
+  return guard(async (userId) => {
+    if (authEnabled()) throw new ActionError("Renaming the profile is only for local development.");
+    const profile = await renameProfile(userId, String(name));
     return done({ profileName: profile.name });
   });
 }
