@@ -90,6 +90,19 @@ export const emailCaptureSchema = z.object({
 });
 export type EmailCapture = z.infer<typeof emailCaptureSchema>;
 
+/**
+ * Comment to DM only: after the tap, checks that they follow the account
+ * before sending anything else. If they don't, sends `text` with a button
+ * that checks again; each later tap that still finds no follow gets `retryText`.
+ */
+export const followGateSchema = z.object({
+  enabled: z.boolean(),
+  text: z.string(),
+  buttonLabel: z.string(),
+  retryText: z.string(),
+});
+export type FollowGate = z.infer<typeof followGateSchema>;
+
 export const linkButtonSchema = z.object({
   label: z.string(),
   url: z.string(),
@@ -127,6 +140,8 @@ export const automationContentSchema = z.object({
   openingDm: openingDmSchema,
   /** Optional so older callers (MCP clients, saved drafts) still parse; read it through `emailCaptureOf`. */
   emailCapture: emailCaptureSchema.optional(),
+  /** Optional for the same reason; read it through `followGateOf`. */
+  followGate: followGateSchema.optional(),
   finalDm: finalDmSchema,
 });
 export type AutomationContent = z.infer<typeof automationContentSchema>;
@@ -149,4 +164,17 @@ export const DEFAULT_EMAIL_CAPTURE: EmailCapture = {
 
 export function emailCaptureOf(content: Pick<AutomationContent, "emailCapture">): EmailCapture {
   return content.emailCapture ?? DEFAULT_EMAIL_CAPTURE;
+}
+
+export const DEFAULT_FOLLOW_GATE: FollowGate = {
+  enabled: false,
+  text: "One last step! Follow me, then tap below and I'll send it over.",
+  buttonLabel: "I'm following",
+  retryText: "I don't see your follow yet. Follow me, then tap below again.",
+};
+
+/** The follow gate as the runtime applies it: always off for a Story Reply. */
+export function followGateOf(content: Pick<AutomationContent, "type" | "followGate">): FollowGate {
+  const gate = content.followGate ?? DEFAULT_FOLLOW_GATE;
+  return content.type === "story_reply" ? { ...gate, enabled: false } : gate;
 }

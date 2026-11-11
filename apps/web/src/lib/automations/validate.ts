@@ -1,4 +1,4 @@
-import { LIMITS, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
+import { LIMITS, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 
 /**
  * Field paths double as DOM anchors: the editor gives each field
@@ -11,6 +11,9 @@ export type FieldPath =
   | "commentReply.variants"
   | "openingDm.text"
   | "openingDm.buttonLabel"
+  | "followGate.text"
+  | "followGate.buttonLabel"
+  | "followGate.retryText"
   | "emailCapture.text"
   | "emailCapture.retryText"
   | "finalDm.text"
@@ -27,6 +30,9 @@ export const FIELD_ORDER: FieldPath[] = [
   "commentReply.variants",
   "openingDm.text",
   "openingDm.buttonLabel",
+  "followGate.text",
+  "followGate.buttonLabel",
+  "followGate.retryText",
   "emailCapture.text",
   "emailCapture.retryText",
   "finalDm.text",
@@ -54,6 +60,10 @@ export function validateLimits(content: AutomationContent): FieldErrors {
   if (content.commentReply.variants.some((variant) => variant.length > LIMITS.replyVariant)) errors["commentReply.variants"] = `Each reply can be up to ${LIMITS.replyVariant} characters.`;
   if (content.openingDm.text.length > LIMITS.dmText) errors["openingDm.text"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
   if (content.openingDm.buttonLabel.length > LIMITS.buttonLabel) errors["openingDm.buttonLabel"] = `Button labels can be up to ${LIMITS.buttonLabel} characters.`;
+  const follow = followGateOf(content);
+  if (follow.text.length > LIMITS.dmText) errors["followGate.text"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
+  if (follow.buttonLabel.length > LIMITS.buttonLabel) errors["followGate.buttonLabel"] = `Button labels can be up to ${LIMITS.buttonLabel} characters.`;
+  if (follow.retryText.length > LIMITS.dmText) errors["followGate.retryText"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
   const email = emailCaptureOf(content);
   if (email.text.length > LIMITS.dmText) errors["emailCapture.text"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
   if (email.retryText.length > LIMITS.dmText) errors["emailCapture.retryText"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
@@ -73,6 +83,10 @@ export function validateForLive(content: AutomationContent): FieldErrors {
   if (!story && content.commentReply.enabled && !content.commentReply.variants.some((variant) => variant.trim())) errors["commentReply.variants"] = "Write at least one reply, or turn replies off.";
   if (!content.openingDm.text.trim()) errors["openingDm.text"] = "The opening DM needs a message.";
   if (!content.openingDm.buttonLabel.trim()) errors["openingDm.buttonLabel"] = "The opening DM needs a button label.";
+  const follow = followGateOf(content);
+  if (follow.enabled && !follow.text.trim()) errors["followGate.text"] = "Write the message that asks them to follow you.";
+  if (follow.enabled && !follow.buttonLabel.trim()) errors["followGate.buttonLabel"] = "Add a button label.";
+  if (follow.enabled && !follow.retryText.trim()) errors["followGate.retryText"] = "Write the message for when they still don't follow you.";
   const email = emailCaptureOf(content);
   if (email.enabled && !email.text.trim()) errors["emailCapture.text"] = "Write the message that asks for their email.";
   if (email.enabled && !email.retryText.trim()) errors["emailCapture.retryText"] = "Write the message for when the email doesn't look right.";

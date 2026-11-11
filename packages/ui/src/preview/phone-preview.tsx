@@ -3,7 +3,7 @@
 import { Bookmark, ChevronLeft, ExternalLink, Heart, ImageOff, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 
 import { PREVIEW_FALLBACK_KEYWORD } from "../automation/defaults";
-import { emailCaptureOf, type AutomationContent } from "../automation/schemas";
+import { emailCaptureOf, followGateOf, type AutomationContent } from "../automation/schemas";
 import { cn } from "../lib/utils";
 
 /** Which screen the phone shows. The editor focuses the tab for the section being edited. */
@@ -233,6 +233,7 @@ function OtherComment({ handle, text, time }: { handle: string; text: string; ti
 function DmView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
   const finalButton = content.finalDm.buttons[0];
   const email = emailCaptureOf(content);
+  const follow = followGateOf(content);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-[var(--pv-divider)] px-3 pb-2">
@@ -254,6 +255,12 @@ function DmView({ content, account }: { content: AutomationContent; account: Pre
         )}
         <IncomingBubble account={account} text={content.openingDm.text || "Your opening message"} button={content.openingDm.buttonLabel || "Button"} />
         <OutgoingBubble text={content.openingDm.buttonLabel || "Button"} />
+        {follow.enabled ? (
+          <>
+            <IncomingBubble account={account} text={follow.text || "Your follow message"} button={follow.buttonLabel || "Button"} />
+            <OutgoingBubble text={follow.buttonLabel || "Button"} />
+          </>
+        ) : null}
         {email.enabled ? (
           <>
             <IncomingBubble account={account} text={email.text || "Your email question"} />

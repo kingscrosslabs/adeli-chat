@@ -31,8 +31,8 @@ import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
 import { EmailSection, FinalDmSection, FollowSection, OpeningDmSection, PostSection, ReplySection, TriggerSection } from "./sections";
 
 function contentOf(automation: Automation): AutomationContent {
-  const { type, name, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
-  return structuredClone({ type, name, trigger, commentReply, openingDm, emailCapture, finalDm });
+  const { type, name, trigger, commentReply, openingDm, emailCapture, followGate, finalDm } = automation;
+  return structuredClone({ type, name, trigger, commentReply, openingDm, emailCapture, followGate, finalDm });
 }
 
 /** JSON with object keys sorted. Postgres jsonb reorders keys, so plain JSON.stringify would see a saved draft as changed. */

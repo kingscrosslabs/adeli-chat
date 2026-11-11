@@ -6,7 +6,7 @@ import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
 import { statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 
-import { apiError, fakeAdeli } from "../../../test/fake-adeli";
+import { apiError, fakeAdeli, type Sent } from "../../../test/fake-adeli";
 import { resetDatabase, seedAccount, seedLiveAutomation, seedUser, TEST_KEY } from "../../../test/db-helpers";
 
 import { findEmail, handleEvent } from "./handle";
@@ -351,6 +351,106 @@ describe("email capture", () => {
     await handleEvent(USER, messageEvent("fan@example.com"));
     await db().delete(schema.runs);
     expect(await db().select().from(schema.leads)).toHaveLength(1);
+  });
+});
+
+describe("follow gate", () => {
+  const gate = { enabled: true, text: "Follow me first!", buttonLabel: "I'm following", retryText: "Still not seeing it." };
+  const USER_PATH = "/messages/instagram/users/ig_fan";
+
+  /** Answers the follow check with `isFollowing`, one answer per check, repeating the last. */
+  function follows(...answers: Array<boolean | null>) {
+    let checks = 0;
+    return (sent: Sent) => {
+      if (sent.path !== USER_PATH) return undefined;
+      const isFollowing = answers[Math.min(checks, answers.length - 1)];
+      checks += 1;
+      return { status: 200, body: { platform: "instagram", accountId: "acc_1", profileId: "profile_1", user: { id: "ig_fan", username: "fan", name: null, followerCount: null, isFollowing, isFollowedByAccount: null } } };
+    };
+  }
+
+  async function openRun(overrides: Partial<typeof schema.automations.$inferInsert> = {}) {
+    await db().update(schema.automations).set({ followGate: gate, ...overrides }).where(eq(schema.automations.id, automationId));
+    fakeAdeli();
+    await handleEvent(USER, commentEvent());
+    return onlyRun();
+  }
+
+  it("asks someone who doesn't follow to follow, with a button that checks again", async () => {
+    const run = await openRun();
+    const adeli = fakeAdeli([follows(false)]);
+    await handleEvent(USER, postbackEvent(run.id));
+
+    const check = adeli.sent.find((sent) => sent.path === USER_PATH);
+    expect(check?.query.get("accountId")).toBe("acc_1");
+    expect(adeli.messages()).toHaveLength(1);
+    expect(adeli.messages()[0].body).toEqual({
+      accountId: "acc_1",
+      recipient: { id: "ig_fan" },
+      text: "Follow me first!",
+      buttons: [{ type: "postback", title: "I'm following", payload: run.id }],
+    });
+    expect(await onlyRun()).toMatchObject({ state: "awaiting_follow", igSenderId: "ig_fan" });
+  });
+
+  it("sends the retry while they still don't follow, then the link once they do", async () => {
+    const run = await openRun();
+    const adeli = fakeAdeli([follows(false, false, true)]);
+    await handleEvent(USER, postbackEvent(run.id));
+    await handleEvent(USER, postbackEvent(run.id));
+    await handleEvent(USER, postbackEvent(run.id));
+
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Follow me first!", "Still not seeing it.", "Here it is!"]);
+    expect((await onlyRun()).state).toBe("final_sent");
+    expect((await statsFor([automationId])).get(automationId)?.buttonTaps).toBe(1);
+  });
+
+  it("sends the link straight away to someone who already follows", async () => {
+    const run = await openRun();
+    const adeli = fakeAdeli([follows(true)]);
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Here it is!"]);
+    expect((await onlyRun()).state).toBe("final_sent");
+  });
+
+  it("goes on to the email step once they follow", async () => {
+    const run = await openRun({ emailCapture: { enabled: true, text: "Your email?", retryText: "Try again?" } });
+    const adeli = fakeAdeli([follows(true)]);
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Your email?"]);
+    expect((await onlyRun()).state).toBe("awaiting_email");
+  });
+
+  it("sends the link anyway and records why when the follow check fails", async () => {
+    const run = await openRun();
+    const adeli = fakeAdeli([(sent) => sent.path === USER_PATH ? apiError(400, "provider_error") : undefined]);
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Here it is!"]);
+    const done = await onlyRun();
+    expect(done.state).toBe("final_sent");
+    expect(done.error).toContain("provider_error");
+  });
+
+  it("handles two taps on the follow button that arrive together once", async () => {
+    const run = await openRun();
+    fakeAdeli([follows(false)]);
+    await handleEvent(USER, postbackEvent(run.id));
+    const adeli = fakeAdeli([follows(true)], { delayMs: 200 });
+    await Promise.all([handleEvent(USER, postbackEvent(run.id)), handleEvent(USER, postbackEvent(run.id))]);
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Here it is!"]);
+  });
+
+  it("never gates a Story Reply automation", async () => {
+    const [account] = await db().select().from(schema.accounts);
+    const { type, trigger, commentReply } = defaultAutomationContent(1, "story_reply");
+    await seedLiveAutomation(account.id, { type, name: "Story guide", trigger: { ...trigger, postScope: "any", keywords: ["guide"] }, commentReply, followGate: gate });
+    fakeAdeli();
+    await handleEvent(USER, messageEvent("guide", "ig_fan", { type: "reply", id: "story_1", url: null }));
+    const run = await onlyRun();
+    const adeli = fakeAdeli([follows(false)]);
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.sent.some((sent) => sent.path === USER_PATH)).toBe(false);
+    expect(adeli.messages().map((sent) => sent.body?.text)).toEqual(["Here it is!"]);
   });
 });
 

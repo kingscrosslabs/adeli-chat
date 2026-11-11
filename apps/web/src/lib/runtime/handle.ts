@@ -6,7 +6,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { adeliCall } from "@/lib/adeli/client";
 import { listMedia } from "@/lib/adeli/instagram";
 import { AdeliError } from "@/lib/adeli/types";
-import { emailCaptureOf, type Automation } from "@adeli-chat/ui/automation/schemas";
+import { emailCaptureOf, followGateOf, type Automation } from "@adeli-chat/ui/automation/schemas";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { toAutomation } from "@/lib/data";
 import { db, schema } from "@/lib/db";
@@ -121,11 +121,21 @@ async function handlePostback(userId: string, event: MessagePostbackEvent) {
   const ownAutomations = db().select({ id: schema.automations.id }).from(schema.automations)
     .innerJoin(schema.accounts, eq(schema.accounts.id, schema.automations.accountId))
     .where(eq(schema.accounts.userId, userId));
-  // The claim: Postgres serializes this update, so only one delivery of a tap gets the row back.
-  const [run] = await db().update(schema.runs)
+  const ownRun = and(eq(schema.runs.id, event.data.payload), inArray(schema.runs.automationId, ownAutomations));
+  // The claim: Postgres serializes these updates, so only one delivery of a tap gets the row back.
+  // The first tap is on the Opening DM button.
+  let [run] = await db().update(schema.runs)
     .set({ state: "final_sending", tappedAt: now, igSenderId: event.data.senderId, updatedAt: now })
-    .where(and(eq(schema.runs.id, event.data.payload), eq(schema.runs.state, "opening_sent"), inArray(schema.runs.automationId, ownAutomations)))
+    .where(and(ownRun, eq(schema.runs.state, "opening_sent")))
     .returning({ id: schema.runs.id, automationId: schema.runs.automationId });
+  // A later one is on the follow gate's button, after an earlier check found no follow.
+  const recheck = !run;
+  if (!run) {
+    [run] = await db().update(schema.runs)
+      .set({ state: "final_sending", updatedAt: now })
+      .where(and(ownRun, eq(schema.runs.state, "awaiting_follow")))
+      .returning({ id: schema.runs.id, automationId: schema.runs.automationId });
+  }
   if (!run) return;
 
   // Always the automation's current content. A paused automation still finishes taps it started.
@@ -139,7 +149,26 @@ async function handlePostback(userId: string, event: MessagePostbackEvent) {
     return;
   }
 
-  const emailCapture = emailCaptureOf(toAutomation(row.automation));
+  const automation = toAutomation(row.automation);
+  const followGate = followGateOf(automation);
+  if (followGate.enabled && !(await followsAccount(run.id, row.account.adeliAccountId, event.data.senderId))) {
+    try {
+      await adeliCall((client) => client.messages.sendInstagramMessage({
+        body: {
+          accountId: row.account.adeliAccountId,
+          recipient: { id: event.data.senderId },
+          text: recheck ? followGate.retryText : followGate.text,
+          buttons: [{ type: "postback", title: followGate.buttonLabel, payload: run.id }],
+        },
+      }));
+      await updateRun(run.id, { state: "awaiting_follow" });
+    } catch (error) {
+      await updateRun(run.id, { state: "failed", error: errorText(error) });
+    }
+    return;
+  }
+
+  const emailCapture = emailCaptureOf(automation);
   if (emailCapture.enabled) {
     try {
       await sendText(userId, row.account.adeliAccountId, event.data.senderId, emailCapture.text);
@@ -243,6 +272,22 @@ async function sendOpeningDm(userId: string, runId: string, adeliAccountId: stri
     await updateRun(runId, { state: "opening_sent", openingSentAt: new Date() });
   } catch (error) {
     await updateRun(runId, { state: "failed", error: errorText(error) });
+  }
+}
+
+/**
+ * Whether the person who tapped follows the account. Instagram answers now,
+ * since a tap opens the conversation. If it can't say, they count as
+ * following: a broken check shouldn't strand people who did follow. The
+ * error stays on the run so it shows up.
+ */
+async function followsAccount(runId: string, adeliAccountId: string, igsid: string) {
+  try {
+    const { data } = await adeliCall((client) => client.messages.getInstagramUser({ path: { igsid }, query: { accountId: adeliAccountId } }));
+    return data.user.isFollowing !== false;
+  } catch (error) {
+    await updateRun(runId, { error: `Follow check failed, sent anyway. ${errorText(error)}`.slice(0, 500) });
+    return true;
   }
 }
 

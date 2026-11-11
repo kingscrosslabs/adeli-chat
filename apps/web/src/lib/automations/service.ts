@@ -6,7 +6,7 @@ import { getAutomation, getConnectedAccount, otherLiveAutomations, type Connecte
 import { db, schema } from "@/lib/db";
 
 import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
-import { automationContentSchema, type Automation, type AutomationContent, type AutomationType } from "@adeli-chat/ui/automation/schemas";
+import { automationContentSchema, followGateOf, type Automation, type AutomationContent, type AutomationType } from "@adeli-chat/ui/automation/schemas";
 import { errorCount, findConflict, validateForLive, validateLimits, type FieldErrors } from "./validate";
 
 /**
@@ -57,11 +57,11 @@ function scopePhrase({ type, trigger: { postScope: scope } }: AutomationContent)
   return "this post";
 }
 
-/** A type's fixed fields, whatever a caller sent: a story reply has no Next scope and never replies publicly. */
+/** A type's fixed fields, whatever a caller sent: a story reply has no Next scope, never replies publicly and has no follow gate. */
 function keepShape(content: AutomationContent): AutomationContent {
   if (content.type !== "story_reply") return content;
   const trigger = content.trigger.postScope === "next" ? { ...content.trigger, postScope: "specific" as const, mediaId: null, mediaSnapshot: null } : content.trigger;
-  return { ...content, trigger, commentReply: { ...content.commentReply, enabled: false } };
+  return { ...content, trigger, commentReply: { ...content.commentReply, enabled: false }, followGate: followGateOf(content) };
 }
 
 export function parseContent(input: unknown): AutomationContent {
@@ -108,10 +108,10 @@ export async function goLive(userId: string, id: string, input?: unknown): Promi
   const rejected = await checkLive(account.id, id, content);
   if (rejected) return rejected;
   const now = new Date();
-  const { name, commentReply, openingDm, emailCapture, finalDm } = content;
+  const { name, commentReply, openingDm, emailCapture, followGate, finalDm } = content;
   // A Next post automation starts waiting again from now: forget any post an earlier run bound.
   const trigger = content.trigger.postScope === "next" ? { ...content.trigger, mediaId: null, mediaSnapshot: null } : content.trigger;
-  await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, emailCapture, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
+  await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, emailCapture, followGate, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
   return { ok: true };
 }
 
@@ -122,7 +122,7 @@ export async function pauseAutomation(userId: string, id: string): Promise<void>
 
 export async function duplicateAutomation(userId: string, id: string): Promise<{ id: string }> {
   const { account, automation } = await loadOwn(userId, id);
-  const { type, trigger, commentReply, openingDm, emailCapture, finalDm } = automation;
+  const { type, trigger, commentReply, openingDm, emailCapture, followGate, finalDm } = automation;
   const [row] = await db().insert(schema.automations).values({
     accountId: account.id,
     type,
@@ -131,6 +131,7 @@ export async function duplicateAutomation(userId: string, id: string): Promise<{
     commentReply,
     openingDm,
     emailCapture,
+    followGate,
     finalDm,
   }).returning({ id: schema.automations.id });
   return { id: row.id };

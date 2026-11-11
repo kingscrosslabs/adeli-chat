@@ -4,13 +4,12 @@ import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 
 import { PostPicker } from "@/components/editor/post-picker";
-import { Badge } from "@adeli-chat/ui/components/badge";
 import { Button } from "@adeli-chat/ui/components/button";
 import { Input } from "@adeli-chat/ui/components/input";
 import { Label } from "@adeli-chat/ui/components/label";
 import { Switch } from "@adeli-chat/ui/components/switch";
 import type { AdeliMedia } from "@/lib/adeli/types";
-import { LIMITS, emailCaptureOf, type AutomationContent, type PostScope } from "@adeli-chat/ui/automation/schemas";
+import { LIMITS, emailCaptureOf, followGateOf, type AutomationContent, type PostScope } from "@adeli-chat/ui/automation/schemas";
 import type { FieldErrors } from "@/lib/automations/validate";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { cn } from "@adeli-chat/ui/lib/utils";
@@ -33,7 +32,6 @@ function stepOf(draft: AutomationContent, step: number) {
   return step - (step > 3 ? 1 : 0) - (step > 5 ? 1 : 0);
 }
 
-const soon = <Badge variant="outline" className="font-medium text-muted-foreground">Coming soon</Badge>;
 
 const SCOPES: Array<{ id: PostScope; title: string; description: string }> = [
   { id: "specific", title: "Comments on a specific post or reel", description: "Pick one post below." },
@@ -211,25 +209,35 @@ export function OpeningDmSection({ draft, patch, errors, onFocusTab }: SectionPr
   );
 }
 
-/** Follow gate, Comment to DM only. Needs a follow check in the Adeli API first, so it can't be turned on yet. */
-export function FollowSection({ draft, onFocusTab }: SectionProps) {
+/** Follow gate, Comment to DM only: after the tap, checks that they follow you before sending anything else. */
+export function FollowSection({ draft, patch, errors, onFocusTab }: SectionProps) {
   const switchId = useId();
   if (draft.type === "story_reply") return null;
+  const follow = followGateOf(draft);
+  const setFollow = (next: Partial<typeof follow>) => patch((current) => ({ ...current, followGate: { ...followGateOf(current), ...next } }));
   return (
     <Section
       step={stepOf(draft, 5)}
       title="Ask them to follow you"
-      info="Before sending the link, ask them to follow your account and check that they did."
+      info="After they tap, we check that they follow you. If they don't, we ask them to and send a button that checks again. Your link only goes out once they follow."
       tab="dm"
       onFocusTab={onFocusTab}
       action={
         <span className="flex items-center gap-2">
-          {soon}
-          <Switch id={switchId} checked={false} disabled aria-label="Ask them to follow you" />
+          <Label htmlFor={switchId} className="text-xs text-muted-foreground">{follow.enabled ? "On" : "Off"}</Label>
+          <Switch id={switchId} checked={follow.enabled} onCheckedChange={(enabled) => setFollow({ enabled })} aria-label="Ask them to follow you" />
         </span>
       }
     >
-      <p className="text-sm text-muted-foreground">Optional. Turn it on to only send your link to followers.</p>
+      {follow.enabled ? (
+        <>
+          <TextField field="followGate.text" label="Message" hint="Sent if they don't follow you yet." multiline value={follow.text} max={LIMITS.dmText} error={errors["followGate.text"]} onChange={(text) => setFollow({ text })} />
+          <TextField field="followGate.buttonLabel" label="Button label" hint="They tap it once they've followed, and we check again." value={follow.buttonLabel} max={LIMITS.buttonLabel} error={errors["followGate.buttonLabel"]} onChange={(buttonLabel) => setFollow({ buttonLabel })} />
+          <TextField field="followGate.retryText" label="If they still don't follow" hint="Sent each time they tap without following." multiline value={follow.retryText} max={LIMITS.dmText} error={errors["followGate.retryText"]} onChange={(retryText) => setFollow({ retryText })} />
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">Optional. Turn it on to only send your link to followers.</p>
+      )}
     </Section>
   );
 }

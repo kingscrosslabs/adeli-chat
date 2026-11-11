@@ -68,3 +68,31 @@ describe("Story Reply validation", () => {
     expect(storyExpired({ type: "comment_to_dm", trigger: old })).toBe(false);
   });
 });
+
+describe("follow gate validation", () => {
+  function ready(type: "comment_to_dm" | "story_reply" = "comment_to_dm") {
+    const content = defaultAutomationContent(0, type);
+    content.trigger = { ...content.trigger, postScope: "any", keywords: ["guide"] };
+    return content;
+  }
+
+  it("needs every follow message and a button label only when it's on", () => {
+    const content = ready();
+    content.followGate = { enabled: false, text: "", buttonLabel: "", retryText: "" };
+    expect(validateForLive(content)).toEqual({});
+    content.followGate.enabled = true;
+    expect(Object.keys(validateForLive(content))).toEqual(["followGate.text", "followGate.buttonLabel", "followGate.retryText"]);
+  });
+
+  it("limits the button label even in a draft", () => {
+    const content = ready();
+    content.followGate = { ...content.followGate!, buttonLabel: "x".repeat(21) };
+    expect(validateForLive(content)["followGate.buttonLabel"]).toBe("Button labels can be up to 20 characters.");
+  });
+
+  it("ignores the follow gate on a Story Reply", () => {
+    const content = ready("story_reply");
+    content.followGate = { enabled: true, text: "", buttonLabel: "", retryText: "" };
+    expect(validateForLive(content)).toEqual({});
+  });
+});

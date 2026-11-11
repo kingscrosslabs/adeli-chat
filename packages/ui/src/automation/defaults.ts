@@ -1,4 +1,4 @@
-import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationContent, type AutomationType } from "./schemas";
+import { DEFAULT_EMAIL_CAPTURE, DEFAULT_FOLLOW_GATE, type Automation, type AutomationContent, type AutomationType } from "./schemas";
 
 /** Defaults for a new automation (PRD FR-5.x). No em dashes in any copy. */
 export const DEFAULT_REPLY_VARIANTS = [
@@ -40,6 +40,7 @@ export function defaultAutomationContent(createdCount: number, type: AutomationT
     commentReply: { enabled: !story, variants: [...DEFAULT_REPLY_VARIANTS] },
     openingDm: { ...DEFAULT_OPENING_DM },
     emailCapture: { ...DEFAULT_EMAIL_CAPTURE },
+    followGate: { ...DEFAULT_FOLLOW_GATE },
     finalDm: { type: "text_buttons", text: DEFAULT_FINAL_DM.text, buttons: [{ label: DEFAULT_FINAL_DM.buttonLabel, url: DEFAULT_FINAL_DM.url }] },
   };
 }
