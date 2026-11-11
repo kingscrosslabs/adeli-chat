@@ -172,6 +172,13 @@ describe("one key, many users", () => {
     expect(adeli.sent[0]).toMatchObject({ method: "POST", path: "/profiles/profile_1/connect", body: { platform: "instagram", authMethod: "instagram_login" } });
   });
 
+  it("starts Facebook Login on the user's own profile when asked", async () => {
+    await seedUser("user_1", { profileId: "profile_1" });
+    const adeli = fakeAdeli([(sent) => (sent.path.endsWith("/connect") ? { status: 201, body: { id: "cs_1", profileId: "profile_1", platform: "instagram", status: "pending_authorization", authUrl: "https://facebook.com/dialog/oauth", accountId: null, error: null, expiresAt: now, createdAt: now, updatedAt: now } } : undefined)]);
+    await startConnect("user_1", "http://localhost:3030/connect", "facebook_login");
+    expect(adeli.sent[0]).toMatchObject({ method: "POST", path: "/profiles/profile_1/connect", body: { platform: "instagram", authMethod: "facebook_login" } });
+  });
+
   it("refuses posts of an account the user hasn't connected", async () => {
     await seedUser("user_1", { profileId: "profile_1" });
     await seedUser("user_2", { profileId: "profile_2" });

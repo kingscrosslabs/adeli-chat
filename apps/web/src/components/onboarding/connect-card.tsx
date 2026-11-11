@@ -15,16 +15,23 @@ import { AdeliError, type AdeliAccount } from "@/lib/adeli/types";
 import { connectAccount } from "@/lib/actions";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
+type AuthMethod = "instagram_login" | "facebook_login";
+
+const LOGINS: Record<AuthMethod, { name: string; fallbackUrl: string }> = {
+  instagram_login: { name: "Instagram", fallbackUrl: "https://www.instagram.com/" },
+  facebook_login: { name: "Facebook", fallbackUrl: "https://www.facebook.com/" },
+};
+
 type Flow =
   | { kind: "idle" }
-  | { kind: "starting" }
-  | { kind: "waiting"; sessionId: string; authUrl: string; processing: boolean }
+  | { kind: "starting"; method: AuthMethod }
+  | { kind: "waiting"; method: AuthMethod; sessionId: string; authUrl: string; processing: boolean }
   | { kind: "saving" }
   | { kind: "failed"; message: string };
 
 /**
- * Connect Instagram with Instagram Login (D11) on the user's own Adeli
- * profile. Adeli runs the login; once it finishes, the new account is saved
+ * Connect Instagram with Instagram Login or Facebook Login on the user's own
+ * Adeli profile. Adeli runs the login; once it finishes, the new account is saved
  * and you go to your automations. Accounts already on the profile (say you
  * connected before) are listed too, so you can pick one instead.
  */
@@ -70,18 +77,18 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
     pollTimer.current = null;
   }
 
-  async function startConnect() {
-    setFlow({ kind: "starting" });
+  async function startConnect(method: AuthMethod) {
+    setFlow({ kind: "starting", method });
     const authWindow = window.open("about:blank", "_blank");
     try {
-      const session = await adeli.startConnect();
+      const session = await adeli.startConnect(method);
       if (authWindow) authWindow.location.href = session.authUrl;
-      setFlow({ kind: "waiting", sessionId: session.id, authUrl: session.authUrl, processing: false });
+      setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: false });
       stopPolling();
       pollTimer.current = setInterval(async () => {
         try {
           const next = await adeli.getConnectSession(session.id);
-          if (next.status === "processing") setFlow({ kind: "waiting", sessionId: session.id, authUrl: session.authUrl, processing: true });
+          if (next.status === "processing") setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: true });
           if (next.status === "connected" && next.accountId) {
             stopPolling();
             await saveConnected(next.accountId);
@@ -97,11 +104,11 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
       }, 1000);
     } catch (error) {
       authWindow?.close();
-      setFlow({ kind: "failed", message: error instanceof AdeliError ? error.message : "We couldn't reach Adeli. Try again in a minute." });
+      setFlow({ kind: "failed", message: startErrorMessage(error, method) });
     }
   }
 
-  /** Saves the account Instagram Login just connected and moves on. */
+  /** Saves the account the login just connected and moves on. */
   async function saveConnected(accountId: string) {
     setFlow({ kind: "saving" });
     const result = await connectAccount(accountId);
@@ -161,7 +168,7 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
           </div>
         ) : null}
 
-        <ConnectNew flow={flow} primary={!hasAccounts} hasAccounts={hasAccounts} onStart={() => void startConnect()} onCancel={cancel} />
+        <ConnectNew flow={flow} primary={!hasAccounts} hasAccounts={hasAccounts} onStart={(method) => void startConnect(method)} onCancel={cancel} />
 
         {hasAccounts ? (
           <div className="flex justify-end border-t pt-4">
@@ -203,7 +210,17 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
   );
 }
 
-function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: Flow; primary: boolean; hasAccounts: boolean; onStart: () => void; onCancel: () => void }) {
+/** A plain-language message for a connect that didn't start. */
+function startErrorMessage(error: unknown, method: AuthMethod): string {
+  if (!(error instanceof AdeliError)) return "We couldn't reach Adeli. Try again in a minute.";
+  if (error.code === "auth_method_conflict") {
+    const other = LOGINS[method === "instagram_login" ? "facebook_login" : "instagram_login"].name;
+    return `This Instagram account is already connected with ${other}. Use Connect with ${other} instead.`;
+  }
+  return error.message;
+}
+
+function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: Flow; primary: boolean; hasAccounts: boolean; onStart: (method: AuthMethod) => void; onCancel: () => void }) {
   if (flow.kind === "saving") {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-secondary/40 p-4 text-sm font-medium text-secondary-foreground" role="status" aria-live="polite">
@@ -212,17 +229,18 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
     );
   }
   if (flow.kind === "waiting") {
+    const login = LOGINS[flow.method];
     return (
       <div className="space-y-3 rounded-lg border border-primary/30 bg-secondary/40 p-4" role="status" aria-live="polite">
         <div className="flex items-center gap-2 text-sm font-medium text-secondary-foreground">
           <Loader2 className="size-4 animate-spin" />
-          {flow.processing ? "Finishing up with Adeli…" : "Waiting for Instagram…"}
+          {flow.processing ? "Finishing up with Adeli…" : `Waiting for ${login.name}…`}
         </div>
         <p className="text-sm text-muted-foreground">
-          {flow.processing ? "Almost there. Adeli is saving your connection." : "Finish logging in to Instagram in the tab we opened. This page updates by itself."}
+          {flow.processing ? "Almost there. Adeli is saving your connection." : `Finish logging in to ${login.name} in the tab we opened. This page updates by itself.`}
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <a href={flow.authUrl || "https://www.instagram.com/"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-link underline-offset-4 hover:underline">Open Instagram login again <ExternalLink className="size-3" /></a>
+          <a href={flow.authUrl || login.fallbackUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-link underline-offset-4 hover:underline">Open {login.name} login again <ExternalLink className="size-3" /></a>
           <button type="button" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -236,11 +254,22 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
           <span>{flow.message}</span>
         </div>
       ) : null}
-      <Button variant={primary ? "default" : "outline"} size="lg" onClick={onStart} disabled={flow.kind === "starting"}>
-        {flow.kind === "starting" ? <Loader2 className="animate-spin" /> : <Plus />}
-        {flow.kind === "failed" ? "Try again" : hasAccounts ? "Connect another account" : "Connect Instagram"}
-      </Button>
-      <p className="text-xs text-muted-foreground">Opens Instagram in a new tab. Adeli handles the login, so LedaChat never sees your password.</p>
+      {hasAccounts ? <p className="text-sm font-medium">Connect another account</p> : null}
+      <div className="flex flex-wrap gap-2">
+        {(Object.keys(LOGINS) as AuthMethod[]).map((method) => (
+          <Button
+            key={method}
+            variant={primary && method === "instagram_login" ? "default" : "outline"}
+            size="lg"
+            onClick={() => onStart(method)}
+            disabled={flow.kind === "starting"}
+          >
+            {flow.kind === "starting" && flow.method === method ? <Loader2 className="animate-spin" /> : <Plus />}
+            Connect with {LOGINS[method].name}
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">Log in with Instagram, or with the Facebook account that manages your Instagram. It opens in a new tab. Adeli handles the login, so LedaChat never sees your password.</p>
     </div>
   );
 }
