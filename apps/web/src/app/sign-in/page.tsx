@@ -1,9 +1,9 @@
 import { AlertTriangle } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { Wordmark } from "@/components/brand/wordmark";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
 import { signInWithGoogle } from "@/lib/actions";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { getCurrentUser } from "@/lib/auth/session";

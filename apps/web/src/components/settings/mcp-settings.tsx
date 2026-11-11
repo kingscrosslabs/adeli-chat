@@ -13,22 +13,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@adeli-chat/ui/components/alert-dialog";
 import { ConnectToAgent } from "@/components/settings/agent-connect";
 import { maskToken, RevealableToken, useTokenSecret } from "@/components/settings/revealable-token";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@adeli-chat/ui/components/dialog";
+import { Input } from "@adeli-chat/ui/components/input";
+import { Label } from "@adeli-chat/ui/components/label";
+import { RadioGroup, RadioGroupItem } from "@adeli-chat/ui/components/radio-group";
+import { Switch } from "@adeli-chat/ui/components/switch";
 import { createApiToken, disconnectMcpApp, revokeApiToken } from "@/lib/actions";
 import { relativeTime, shortDate } from "@/lib/format";
 import type { ConnectedApp } from "@/lib/mcp/connections";
 import type { ApiToken, TokenExpiry } from "@/lib/mcp/tokens";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /**
  * Settings for the MCP endpoint: the server URL, a setup guide per agent

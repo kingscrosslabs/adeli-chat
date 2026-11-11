@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { KeyBanner } from "@/components/shell/key-banner";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Wordmark } from "@/components/brand/wordmark";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@adeli-chat/ui/components/sidebar";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { serverKeyRejected } from "@/lib/adeli/client";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { requireUserPage } from "@/lib/auth/session";

@@ -1,6 +1,6 @@
 import type { AdeliMedia } from "@/lib/adeli/types";
 
-import type { MediaSnapshot } from "./schemas";
+import type { MediaSnapshot } from "@adeli-chat/ui/automation/schemas";
 
 /** What an automation keeps about its post, so lists render without calling Adeli. */
 export function snapshotOf(media: AdeliMedia): MediaSnapshot {

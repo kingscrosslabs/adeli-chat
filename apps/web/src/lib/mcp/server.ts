@@ -9,7 +9,7 @@ import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { LIMITS, automationTypeSchema, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+import { LIMITS, automationTypeSchema, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";

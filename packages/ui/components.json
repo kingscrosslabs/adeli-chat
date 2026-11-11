@@ -5,7 +5,7 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/app/globals.css",
+    "css": "src/theme.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
@@ -13,11 +13,11 @@
   "iconLibrary": "lucide",
   "rtl": false,
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "@adeli-chat/ui/components",
+    "utils": "@adeli-chat/ui/lib/utils",
+    "ui": "@adeli-chat/ui/components",
+    "lib": "@adeli-chat/ui/lib",
+    "hooks": "@adeli-chat/ui/hooks"
   },
   "menuColor": "default",
   "menuAccent": "subtle",

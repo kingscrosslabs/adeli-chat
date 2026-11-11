@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 
 /** Adeli logo mark + "Adeli Chat", set like the Adeli dashboard's sidebar header (brand.md §4). */
 export function Wordmark({ size = "lg", className }: { size?: "sm" | "lg"; className?: string }) {

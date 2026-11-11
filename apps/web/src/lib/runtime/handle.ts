@@ -6,7 +6,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { adeliCall } from "@/lib/adeli/client";
 import { listMedia } from "@/lib/adeli/instagram";
 import { AdeliError } from "@/lib/adeli/types";
-import { emailCaptureOf, type Automation } from "@/lib/automations/schemas";
+import { emailCaptureOf, type Automation } from "@adeli-chat/ui/automation/schemas";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { toAutomation } from "@/lib/data";
 import { db, schema } from "@/lib/db";

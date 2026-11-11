@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@adeli-chat/ui/components/avatar";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
+import { Skeleton } from "@adeli-chat/ui/components/skeleton";
 import { adeli } from "@/lib/adeli/browser";
 import { AdeliError, type AdeliAccount } from "@/lib/adeli/types";
 import { connectAccount } from "@/lib/actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 type Flow =
   | { kind: "idle" }

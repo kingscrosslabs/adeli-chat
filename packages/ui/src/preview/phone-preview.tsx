@@ -2,11 +2,15 @@
 
 import { Bookmark, ChevronLeft, ExternalLink, Heart, ImageOff, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 
-import type { PreviewTab } from "@/components/editor/fields";
-import type { AdeliAccount } from "@/lib/adeli/types";
-import { PREVIEW_FALLBACK_KEYWORD } from "@/lib/automations/defaults";
-import { emailCaptureOf, type AutomationContent } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import { PREVIEW_FALLBACK_KEYWORD } from "../automation/defaults";
+import { emailCaptureOf, type AutomationContent } from "../automation/schemas";
+import { cn } from "../lib/utils";
+
+/** Which screen the phone shows. The editor focuses the tab for the section being edited. */
+export type PreviewTab = "post" | "comments" | "dm";
+
+/** The connected account the preview shows as the poster. `AdeliAccount` fits. */
+export type PreviewAccount = { displayName: string; displayIdentifier: string; avatarUrl: string | null };
 
 /**
  * iPhone-style preview using Instagram's general visual language, with no
@@ -33,7 +37,7 @@ function sampleText(content: AutomationContent) {
   return `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
 }
 
-export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true }: { content: AutomationContent; account: AdeliAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean }) {
+export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true }: { content: AutomationContent; account: PreviewAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean }) {
   const story = content.type === "story_reply";
   const tabs = story ? STORY_TABS : TABS;
   const tab = tabs.some((item) => item.id === requested) ? requested : "post";
@@ -82,11 +86,11 @@ function StatusBar() {
   );
 }
 
-function Handle({ account }: { account: AdeliAccount | null }) {
+function Handle({ account }: { account: PreviewAccount | null }) {
   return <>{account?.displayIdentifier ?? "yourhandle"}</>;
 }
 
-function MiniAvatar({ account, size = "size-7" }: { account: AdeliAccount | null; size?: string }) {
+function MiniAvatar({ account, size = "size-7" }: { account: PreviewAccount | null; size?: string }) {
   if (account?.avatarUrl) {
     // eslint-disable-next-line @next/next/no-img-element -- data URI / Instagram CDN avatar.
     return <img src={account.avatarUrl} alt="" className={cn(size, "shrink-0 rounded-full object-cover")} />;
@@ -118,7 +122,7 @@ function PostImage({ content, className, compact = false }: { content: Automatio
   return <img src={thumb} alt="" className={cn("object-cover", className)} />;
 }
 
-function PostView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+function PostView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
   const caption = content.trigger.mediaSnapshot?.caption;
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -141,7 +145,7 @@ function PostView({ content, account }: { content: AutomationContent; account: A
   );
 }
 
-function StoryView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+function StoryView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
   const thumb = content.trigger.postScope === "specific" ? content.trigger.mediaSnapshot?.thumbUrl : null;
   return (
     <div className="relative mx-1.5 mb-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-[#52525B] to-[#18181B] text-white">
@@ -168,7 +172,7 @@ function StoryView({ content, account }: { content: AutomationContent; account: 
   );
 }
 
-function CommentsView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+function CommentsView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
   const comment = sampleText(content);
   const reply = content.commentReply.enabled ? content.commentReply.variants.find((variant) => variant.trim()) : null;
   return (
@@ -226,7 +230,7 @@ function OtherComment({ handle, text, time }: { handle: string; text: string; ti
   );
 }
 
-function DmView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+function DmView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
   const finalButton = content.finalDm.buttons[0];
   const email = emailCaptureOf(content);
   return (
@@ -273,7 +277,7 @@ function OutgoingBubble({ text }: { text: string }) {
   );
 }
 
-function IncomingBubble({ account, text, button, link }: { account: AdeliAccount | null; text: string; button?: string; link?: string }) {
+function IncomingBubble({ account, text, button, link }: { account: PreviewAccount | null; text: string; button?: string; link?: string }) {
   let host: string | null = null;
   if (link) {
     try {

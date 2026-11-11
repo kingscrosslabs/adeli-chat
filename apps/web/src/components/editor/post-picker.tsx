@@ -4,13 +4,13 @@ import { Check, ExternalLink, Loader2, Play, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { MEDIA_TYPE_LABEL, MediaTypeIcon, PostThumb } from "@/components/automations/post-thumb";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Skeleton } from "@adeli-chat/ui/components/skeleton";
 import { adeli } from "@/lib/adeli/browser";
 import type { AdeliMedia } from "@/lib/adeli/types";
-import { STORY_LIFETIME_MS, type MediaSnapshot } from "@/lib/automations/schemas";
+import { STORY_LIFETIME_MS, type MediaSnapshot } from "@adeli-chat/ui/automation/schemas";
 import { shortDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /**
  * Grid of the account's posts (FR-5.3 to FR-5.6), or with `stories` its live

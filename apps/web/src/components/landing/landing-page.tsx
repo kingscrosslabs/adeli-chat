@@ -4,13 +4,13 @@ import type { IconType } from "react-icons";
 import { AiFillOpenAI } from "react-icons/ai";
 import { SiClaude, SiGithub, SiPerplexity } from "react-icons/si";
 
-import { CursorLogo } from "@/components/brand/cursor-logo";
-import { Wordmark } from "@/components/brand/wordmark";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
+import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { buttonVariants } from "@adeli-chat/ui/components/button";
 import { ADELI_URL, GITHUB_URL } from "@/lib/landing";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
 

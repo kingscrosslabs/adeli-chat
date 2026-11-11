@@ -1,4 +1,4 @@
-import { LIMITS, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "./schemas";
+import { LIMITS, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 
 /**
  * Field paths double as DOM anchors: the editor gives each field

@@ -1,4 +1,4 @@
-import type { Automation } from "@/lib/automations/schemas";
+import type { Automation } from "@adeli-chat/ui/automation/schemas";
 
 export type IncomingComment = {
   mediaId: string;

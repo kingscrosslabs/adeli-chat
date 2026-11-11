@@ -1,6 +1,6 @@
 import { LogOut } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@adeli-chat/ui/components/button";
 import { signOut } from "@/lib/actions";
 import type { CurrentUser } from "@/lib/auth/session";
 

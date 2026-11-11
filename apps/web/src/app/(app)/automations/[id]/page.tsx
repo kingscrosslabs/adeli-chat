@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AutomationEditor } from "@/components/editor/automation-editor";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@adeli-chat/ui/components/button";
 import { requireUserPage } from "@/lib/auth/session";
 import { getAutomation, requireAccount } from "@/lib/data";
 

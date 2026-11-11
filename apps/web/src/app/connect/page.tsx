@@ -3,7 +3,7 @@ import { AlertTriangle, ServerCog } from "lucide-react";
 import { ConnectCard } from "@/components/onboarding/connect-card";
 import { OnboardingLayout } from "@/components/onboarding/onboarding-layout";
 import { SignedInAs } from "@/components/onboarding/signed-in-as";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { ensureUserProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";

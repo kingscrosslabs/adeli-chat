@@ -1,7 +1,7 @@
 import { Clapperboard, Copy, Film, ImageIcon, ImageOff } from "lucide-react";
 
-import type { MediaType } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import type { MediaType } from "@adeli-chat/ui/automation/schemas";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 export const MEDIA_TYPE_LABEL: Record<MediaType, string> = {
   IMAGE: "Photo",

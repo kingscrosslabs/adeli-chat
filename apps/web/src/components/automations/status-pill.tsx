@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import type { AutomationStatus } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import type { AutomationStatus } from "@adeli-chat/ui/automation/schemas";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /** Status pills per brand.md §6. */
 export function StatusPill({ status, className }: { status: AutomationStatus; className?: string }) {

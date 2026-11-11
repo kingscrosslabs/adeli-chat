@@ -1,4 +1,4 @@
-import type { MediaType } from "@/lib/automations/schemas";
+import type { MediaType } from "@adeli-chat/ui/automation/schemas";
 
 /**
  * View types for Adeli data, mapped from `@adeli/sdk` responses in

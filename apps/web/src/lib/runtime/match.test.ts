@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { newDraftAutomation } from "@/lib/automations/defaults";
-import type { Automation } from "@/lib/automations/schemas";
+import { newDraftAutomation } from "@adeli-chat/ui/automation/defaults";
+import type { Automation } from "@adeli-chat/ui/automation/schemas";
 
 import { matchComment, matchesKeywords, matchStoryReply, nextPostAfter } from "./match";
 

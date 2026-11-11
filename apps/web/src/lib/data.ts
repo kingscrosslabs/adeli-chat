@@ -4,7 +4,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import type { AdeliAccount } from "@/lib/adeli/types";
-import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationStats } from "@/lib/automations/schemas";
+import { DEFAULT_EMAIL_CAPTURE, type Automation, type AutomationStats } from "@adeli-chat/ui/automation/schemas";
 import { NO_STATS, statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 

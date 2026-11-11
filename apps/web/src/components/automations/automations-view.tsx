@@ -9,8 +9,8 @@ import { CreateAutomationDialog } from "@/components/automations/create-automati
 import { PostThumb } from "@/components/automations/post-thumb";
 import { StatusPill } from "@/components/automations/status-pill";
 import { PageHeading } from "@/components/page-heading";
-import { Button } from "@/components/ui/button";
-import type { Automation } from "@/lib/automations/schemas";
+import { Button } from "@adeli-chat/ui/components/button";
+import type { Automation } from "@adeli-chat/ui/automation/schemas";
 import { triggerSummary } from "@/lib/automations/validate";
 import { compactNumber, relativeTime } from "@/lib/format";
 

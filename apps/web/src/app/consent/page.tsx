@@ -3,10 +3,10 @@ import { AlertTriangle, Eye, PencilLine, ShieldCheck } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { Wordmark } from "@/components/brand/wordmark";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
+import { Switch } from "@adeli-chat/ui/components/switch";
 import { answerConsent } from "@/lib/actions";
 import { authEnabled } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";

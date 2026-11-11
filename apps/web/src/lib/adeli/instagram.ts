@@ -3,7 +3,7 @@ import "server-only";
 import type { Account, ConnectionSession } from "@adeli/sdk";
 import { and, eq } from "drizzle-orm";
 
-import type { MediaType } from "@/lib/automations/schemas";
+import type { MediaType } from "@adeli-chat/ui/automation/schemas";
 import { db, schema } from "@/lib/db";
 
 import { adeliCall } from "./client";

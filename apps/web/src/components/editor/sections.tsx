@@ -4,18 +4,19 @@ import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 
 import { PostPicker } from "@/components/editor/post-picker";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Input } from "@adeli-chat/ui/components/input";
+import { Label } from "@adeli-chat/ui/components/label";
+import { Switch } from "@adeli-chat/ui/components/switch";
 import type { AdeliMedia } from "@/lib/adeli/types";
-import { LIMITS, emailCaptureOf, type AutomationContent, type PostScope } from "@/lib/automations/schemas";
+import { LIMITS, emailCaptureOf, type AutomationContent, type PostScope } from "@adeli-chat/ui/automation/schemas";
 import type { FieldErrors } from "@/lib/automations/validate";
 import { snapshotOf } from "@/lib/automations/snapshot";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
-import { ChoiceRow, Counter, FieldError, Section, TextField, type PreviewTab } from "./fields";
+import { ChoiceRow, Counter, FieldError, Section, TextField } from "./fields";
+import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
 import { KeywordInput } from "./keyword-input";
 
 export type SectionProps = {

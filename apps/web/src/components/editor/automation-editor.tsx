@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { DeleteAutomationDialog, ResetRunsDialog } from "@/components/automations/automation-actions";
 import { StatusPill } from "@/components/automations/status-pill";
-import { PhonePreview } from "@/components/preview/phone-preview";
+import { PhonePreview } from "@adeli-chat/ui/preview/phone-preview";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,17 +17,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@/lib/automations/schemas";
+} from "@adeli-chat/ui/components/alert-dialog";
+import { Button } from "@adeli-chat/ui/components/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@adeli-chat/ui/components/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@adeli-chat/ui/components/sheet";
+import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import { goLive as goLiveAction, pauseAutomation, saveAutomation, type ActionResult } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import { errorCount, firstErrorField, validateForLive, type FieldErrors } from "@/lib/automations/validate";
 import { compactNumber, relativeTime } from "@/lib/format";
 
-import type { PreviewTab } from "./fields";
+import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
 import { EmailSection, FinalDmSection, FollowSection, OpeningDmSection, PostSection, ReplySection, TriggerSection } from "./sections";
 
 function contentOf(automation: Automation): AutomationContent {

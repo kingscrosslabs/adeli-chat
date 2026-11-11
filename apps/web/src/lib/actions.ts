@@ -11,7 +11,7 @@ import { AdeliError } from "@/lib/adeli/types";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { requireUserId, SignedOutError } from "@/lib/auth/session";
-import { automationTypeSchema, type AutomationContent } from "@/lib/automations/schemas";
+import { automationTypeSchema, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import * as service from "@/lib/automations/service";
 import { pauseLive, requireAccount, ServiceError, type ActionResult } from "@/lib/automations/service";
 import { db, schema } from "@/lib/db";

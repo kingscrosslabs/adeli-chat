@@ -3,9 +3,9 @@
 import { X } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { LIMITS } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { LIMITS } from "@adeli-chat/ui/automation/schemas";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /**
  * Chip input (FR-5.8): Enter, comma or Tab turns text into a chip, × removes,

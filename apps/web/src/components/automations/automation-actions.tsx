@@ -14,10 +14,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Automation } from "@/lib/automations/schemas";
+} from "@adeli-chat/ui/components/alert-dialog";
+import { Button } from "@adeli-chat/ui/components/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@adeli-chat/ui/components/dropdown-menu";
+import type { Automation } from "@adeli-chat/ui/automation/schemas";
 import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, pauseAutomation, resetRuns, type ActionResult } from "@/lib/actions";
 import { errorCount, validateForLive } from "@/lib/automations/validate";
 

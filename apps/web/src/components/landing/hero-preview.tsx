@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import type { PreviewTab } from "@/components/editor/fields";
-import { PhonePreview } from "@/components/preview/phone-preview";
+import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
+import { PhonePreview } from "@adeli-chat/ui/preview/phone-preview";
 import type { AdeliAccount } from "@/lib/adeli/types";
-import { defaultAutomationContent } from "@/lib/automations/defaults";
-import type { AutomationContent } from "@/lib/automations/schemas";
+import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
+import type { AutomationContent } from "@adeli-chat/ui/automation/schemas";
 
 const base = defaultAutomationContent(0);
 

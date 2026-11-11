@@ -4,9 +4,9 @@ import { Check, Copy, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@adeli-chat/ui/components/button";
 import { revealApiToken } from "@/lib/actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /** The token's prefix, then dots: enough to recognise it without exposing it (as Adeli's `maskApiKey`). */
 export function maskToken(prefix: string, dots = 16) {

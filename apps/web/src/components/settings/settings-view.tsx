@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { PageHeading } from "@/components/page-heading";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,13 +16,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@adeli-chat/ui/components/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@adeli-chat/ui/components/avatar";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
+import { Input } from "@adeli-chat/ui/components/input";
+import { Label } from "@adeli-chat/ui/components/label";
 import { checkAdeliConnection, disconnectAccount, renameLocalProfile, signOut } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import type { CurrentUser } from "@/lib/auth/session";

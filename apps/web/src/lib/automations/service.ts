@@ -5,8 +5,8 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
 
-import { defaultAutomationContent } from "./defaults";
-import { automationContentSchema, type Automation, type AutomationContent, type AutomationType } from "./schemas";
+import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
+import { automationContentSchema, type Automation, type AutomationContent, type AutomationType } from "@adeli-chat/ui/automation/schemas";
 import { errorCount, findConflict, validateForLive, validateLimits, type FieldErrors } from "./validate";
 
 /**

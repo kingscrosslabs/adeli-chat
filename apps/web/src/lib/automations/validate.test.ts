@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultAutomationContent, newDraftAutomation } from "./defaults";
-import { STORY_LIFETIME_MS, storyExpired, type Automation } from "./schemas";
+import { defaultAutomationContent, newDraftAutomation } from "@adeli-chat/ui/automation/defaults";
+import { STORY_LIFETIME_MS, storyExpired, type Automation } from "@adeli-chat/ui/automation/schemas";
 import { findConflict, triggerSummary, validateForLive } from "./validate";
 
 function live(id: string, content: Partial<Automation>): Automation {

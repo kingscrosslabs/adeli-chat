@@ -4,7 +4,7 @@ import { count, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/db";
 
-import type { AutomationStats } from "./schemas";
+import type { AutomationStats } from "@adeli-chat/ui/automation/schemas";
 
 export const NO_STATS: AutomationStats = { triggered: 0, commentReplies: 0, openingDms: 0, buttonTaps: 0, emails: 0, finalDms: 0 };
 

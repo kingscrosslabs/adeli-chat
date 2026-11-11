@@ -7,9 +7,9 @@ import { useState } from "react";
 
 import { CreateAutomationDialog } from "@/components/automations/create-automation-dialog";
 import { StatusDot } from "@/components/automations/status-pill";
-import { Wordmark } from "@/components/brand/wordmark";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
+import { Avatar, AvatarFallback, AvatarImage } from "@adeli-chat/ui/components/avatar";
+import { Button } from "@adeli-chat/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
@@ -24,10 +24,10 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar";
+} from "@adeli-chat/ui/components/sidebar";
 import type { AdeliAccount } from "@/lib/adeli/types";
-import type { Automation } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import type { Automation } from "@adeli-chat/ui/automation/schemas";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 type AutomationLink = Pick<Automation, "id" | "name" | "status">;
 

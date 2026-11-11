@@ -3,14 +3,13 @@
 import { Info } from "lucide-react";
 import { useId } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@adeli-chat/ui/components/input";
+import { Label } from "@adeli-chat/ui/components/label";
+import { Textarea } from "@adeli-chat/ui/components/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@adeli-chat/ui/components/tooltip";
+import type { PreviewTab } from "@adeli-chat/ui/preview/phone-preview";
 import type { FieldPath } from "@/lib/automations/validate";
-import { cn } from "@/lib/utils";
-
-export type PreviewTab = "post" | "comments" | "dm";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /**
  * One editor section (B to F). Focusing anything inside switches the phone

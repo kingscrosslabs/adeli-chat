@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { defaultAutomationContent } from "@/lib/automations/defaults";
+import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
 import { db, schema } from "@/lib/db";
 
 /** The server's `ADELI_API_KEY` in tests (set in `vitest.config.ts`). */

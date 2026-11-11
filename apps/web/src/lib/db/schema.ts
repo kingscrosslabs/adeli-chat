@@ -1,10 +1,10 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
-import type { CommentReply, EmailCapture, FinalDm, OpeningDm, Trigger } from "@/lib/automations/schemas";
+import type { CommentReply, EmailCapture, FinalDm, OpeningDm, Trigger } from "@adeli-chat/ui/automation/schemas";
 
 /**
  * Postgres tables (PRD §6, simplified). The JSON columns use the Zod shapes in
- * `src/lib/automations/schemas.ts`, so the editor and the runtime agree.
+ * `packages/ui/src/automation/schemas.ts`, so the editor and the runtime agree.
  */
 
 const timestamps = {

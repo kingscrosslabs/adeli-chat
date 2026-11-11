@@ -2,7 +2,7 @@ import type { CommentCreatedEvent, MessageCreatedEvent, MessagePostbackEvent } f
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { defaultAutomationContent } from "@/lib/automations/defaults";
+import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
 import { statsFor } from "@/lib/automations/stats";
 import { db, schema } from "@/lib/db";
 

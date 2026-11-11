@@ -7,17 +7,17 @@ import { SiClaude, SiPerplexity } from "react-icons/si";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CursorLogo } from "@/components/brand/cursor-logo";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { Button } from "@adeli-chat/ui/components/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@adeli-chat/ui/components/tabs";
 import type { ConnectedApp } from "@/lib/mcp/connections";
 import { MCP_DISPLAY_NAME } from "@/lib/mcp/config";
 import { claudeCodeCommand, claudeConnectorLink, codexCommands, cursorConfig, cursorInstallLink } from "@/lib/mcp/install-links";
 import type { ApiToken } from "@/lib/mcp/tokens";
 
 import { RevealableToken, useTokenSecret } from "./revealable-token";
-import { cn } from "@/lib/utils";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 type Step = { title: string; body: React.ReactNode };
 type Guide = { label: string; steps: Step[] };

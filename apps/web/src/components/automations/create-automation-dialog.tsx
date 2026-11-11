@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@adeli-chat/ui/components/badge";
+import { buttonVariants } from "@adeli-chat/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@adeli-chat/ui/components/dialog";
 import { createAutomation } from "@/lib/actions";
-import type { AutomationType } from "@/lib/automations/schemas";
-import { cn } from "@/lib/utils";
+import type { AutomationType } from "@adeli-chat/ui/automation/schemas";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 /** Only enabled templates create something, so only they need a real automation type. */
 type Template = { title: string; description: string; icon: LucideIcon } & ({ id: AutomationType; enabled: true } | { id: string; enabled: false });

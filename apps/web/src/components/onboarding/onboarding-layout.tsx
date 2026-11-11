@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
-import { Wordmark } from "@/components/brand/wordmark";
-import { cn } from "@/lib/utils";
+import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
+import { cn } from "@adeli-chat/ui/lib/utils";
 
 const STEPS = [
   { id: "account", label: "Instagram account" },
