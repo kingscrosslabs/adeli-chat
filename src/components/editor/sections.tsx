@@ -38,25 +38,44 @@ const SCOPES: Array<{ id: PostScope; title: string; description: string }> = [
   { id: "any", title: "Comments on any post or reel", description: "Every post. A post with its own automation uses that one instead." },
 ];
 
+const STORY_SCOPES: Array<{ id: PostScope; title: string; description: string }> = [
+  { id: "specific", title: "Replies to a specific story", description: "Pick one of your live stories below. It stops when the story expires after 24 hours." },
+  { id: "any", title: "Replies to any of your stories", description: "Every story you post. A story with its own automation uses that one instead." },
+];
+
 /** B. When someone (FR-5.2 to FR-5.6). */
 export function PostSection({ draft, patch, errors, onFocusTab, accountId }: SectionProps & { accountId: string }) {
   const errorId = useId();
-  if (draft.type === "story_reply") {
-    return (
-      <Section step={1} title="When someone" info="Replies to any of your stories start this automation, while the story is up. Each person gets the flow once." tab="post" onFocusTab={onFocusTab}>
-        <div className="grid gap-2">
-          <ChoiceRow name="story-scope" checked onSelect={() => {}} title="Replies to any of your stories" info="Every story you post. Replies are DMs, so there's no public reply." />
-          <ChoiceRow name="story-scope" checked={false} disabled title="Replies to a specific story" badge={soon} />
-        </div>
-      </Section>
-    );
-  }
   const scope = draft.trigger.postScope;
   const setScope = (postScope: PostScope) => patch((current) => ({
     ...current,
-    // Only a specific post keeps its pick. Next post fills it in once that post exists.
+    // Only a specific post or story keeps its pick. Next post fills it in once that post exists.
     trigger: postScope === "specific" ? { ...current.trigger, postScope } : { ...current.trigger, postScope, mediaId: null, mediaSnapshot: null },
   }));
+  if (draft.type === "story_reply") {
+    return (
+      <Section step={1} title="When someone" info="Choose which story starts this automation. Replies are DMs, so there's no public reply. Each person gets the flow once." tab="post" onFocusTab={onFocusTab}>
+        <div className="grid gap-2">
+          {STORY_SCOPES.map((item) => (
+            <ChoiceRow key={item.id} name="story-scope" checked={scope === item.id} onSelect={() => setScope(item.id)} title={item.title} info={item.description} />
+          ))}
+        </div>
+        {scope === "specific" ? (
+          <>
+            <PostPicker
+              stories
+              accountId={accountId}
+              mediaId={draft.trigger.mediaId}
+              snapshot={draft.trigger.mediaSnapshot}
+              error={errors["trigger.mediaId"]}
+              onSelect={(media: AdeliMedia) => patch((current) => ({ ...current, trigger: { ...current.trigger, mediaId: media.id, mediaSnapshot: snapshotOf(media) } }))}
+            />
+            <FieldError id={errorId} message={errors["trigger.mediaId"]} />
+          </>
+        ) : null}
+      </Section>
+    );
+  }
   return (
     <Section step={1} title="When someone" info="Choose what starts this automation. Each person gets the flow once, whichever post they comment on." tab="post" onFocusTab={onFocusTab}>
       <div className="grid gap-2">

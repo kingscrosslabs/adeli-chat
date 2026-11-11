@@ -27,6 +27,16 @@ async function connect(token: string) {
   return client;
 }
 
+const STORY_AT = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+const STORIES = {
+  platform: "instagram",
+  accountId: "acc_1",
+  profileId: "profile_1",
+  stories: [
+    { id: "story_1", mediaType: "VIDEO", mediaProductType: "STORY", mediaUrl: null, thumbnailUrl: "https://cdn.example.com/s1.jpg", permalink: "https://instagram.com/stories/birds/story_1", timestamp: STORY_AT, expiresAt: new Date(Date.parse(STORY_AT) + 86_400_000).toISOString() },
+  ],
+};
+
 function text(result: Awaited<ReturnType<Client["callTool"]>>) {
   const first = (result.content as Array<{ type: string; text?: string }>)[0];
   return first?.text ?? "";
@@ -42,7 +52,10 @@ beforeEach(async () => {
   await resetDatabase();
   await seedUser("user_1");
   await seedUser("user_2");
-  fakeAdeli([(sent) => (sent.method === "GET" && sent.path === "/posts" ? { status: 200, body: POSTS } : undefined)]);
+  fakeAdeli([
+    (sent) => (sent.method === "GET" && sent.path === "/posts" ? { status: 200, body: POSTS } : undefined),
+    (sent) => (sent.method === "GET" && sent.path === "/posts/instagram/stories" ? { status: 200, body: STORIES } : undefined),
+  ]);
 });
 
 afterEach(() => {
@@ -77,7 +90,7 @@ describe("/mcp tools", () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "create_automation", "delete_automation", "duplicate_automation", "get_automation", "get_workspace",
-      "go_live", "list_automations", "list_posts", "pause_automation", "reset_runs", "update_automation",
+      "go_live", "list_automations", "list_posts", "list_stories", "pause_automation", "reset_runs", "update_automation",
     ]);
     expect(tools.find((tool) => tool.name === "delete_automation")?.annotations?.destructiveHint).toBe(true);
   });
@@ -107,6 +120,35 @@ describe("/mcp tools", () => {
     expect(data(await client.callTool({ name: "pause_automation", arguments: { id: created.id } })).status).toBe("paused");
     expect(data(await client.callTool({ name: "delete_automation", arguments: { id: created.id } })).deleted).toBe(true);
     expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+  });
+
+  it("lists stories and creates a Story Reply on one of them", async () => {
+    await seedAccount("user_1");
+    const { token } = await createToken("user_1", { name: "test", readOnly: false, expiry: "never" });
+    const client = await connect(token);
+
+    const { stories } = data(await client.callTool({ name: "list_stories", arguments: {} }));
+    expect(stories).toEqual([{ id: "story_1", type: "VIDEO", permalink: "https://instagram.com/stories/birds/story_1", publishedAt: STORY_AT }]);
+
+    const created = data(await client.callTool({ name: "create_automation", arguments: { type: "story_reply", storyId: "story_1", keywords: ["guide"] } }));
+    expect(created).toMatchObject({ type: "story_reply", postScope: "specific", postId: "story_1", storyExpired: false, commentReplyEnabled: false });
+    expect(created.post).toMatchObject({ thumbUrl: "https://cdn.example.com/s1.jpg", mediaType: "VIDEO", publishedAt: STORY_AT });
+    expect(data(await client.callTool({ name: "go_live", arguments: { id: created.id } })).status).toBe("live");
+  });
+
+  it("refuses a story that isn't live, and storyId on a Comment to DM automation", async () => {
+    await seedAccount("user_1");
+    const { token } = await createToken("user_1", { name: "test", readOnly: false, expiry: "never" });
+    const client = await connect(token);
+
+    const missing = await client.callTool({ name: "create_automation", arguments: { type: "story_reply", storyId: "story_gone" } });
+    expect(missing.isError).toBe(true);
+    expect(text(missing)).toContain("Use list_stories");
+    expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+
+    const wrongType = await client.callTool({ name: "create_automation", arguments: { storyId: "story_1" } });
+    expect(wrongType.isError).toBe(true);
+    expect(text(wrongType)).toContain("only for Story Reply");
   });
 
   it("explains what to fix when an automation can't go live", async () => {

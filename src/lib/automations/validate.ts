@@ -1,4 +1,4 @@
-import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "./schemas";
+import { LIMITS, emailCaptureOf, storyExpired, type Automation, type AutomationContent } from "./schemas";
 
 /**
  * Field paths double as DOM anchors: the editor gives each field
@@ -68,7 +68,7 @@ export function validateForLive(content: AutomationContent): FieldErrors {
   const errors: FieldErrors = { ...validateLimits(content) };
   if (!content.name.trim()) errors.name = "Give this automation a name.";
   const story = content.type === "story_reply";
-  if (!story && content.trigger.postScope === "specific" && !content.trigger.mediaId) errors["trigger.mediaId"] = "Pick the post or reel people will comment on.";
+  if (content.trigger.postScope === "specific" && !content.trigger.mediaId) errors["trigger.mediaId"] = story ? "Pick the story people will reply to." : "Pick the post or reel people will comment on.";
   if (content.trigger.match === "keywords" && content.trigger.keywords.length === 0) errors["trigger.keywords"] = `Add at least one keyword, or choose ${story ? "Any reply" : "Any comment"}.`;
   if (!story && content.commentReply.enabled && !content.commentReply.variants.some((variant) => variant.trim())) errors["commentReply.variants"] = "Write at least one reply, or turn replies off.";
   if (!content.openingDm.text.trim()) errors["openingDm.text"] = "The opening DM needs a message.";
@@ -97,7 +97,8 @@ export function firstErrorField(errors: FieldErrors): FieldPath | null {
  * either one using Any comment. Automations of different scopes don't
  * conflict, since a comment goes to the most specific one (see `matchComment`).
  * Two Next post automations wait for the same post, so they count as the same.
- * Story Reply automations only conflict with each other: they all watch every story.
+ * Story Reply automations only conflict with each other, with the same rule:
+ * one story is its own scope, and every story is another.
  */
 export function findConflict(content: AutomationContent, selfId: string, others: Automation[]) {
   const { postScope, mediaId } = content.trigger;
@@ -115,9 +116,15 @@ export function findConflict(content: AutomationContent, selfId: string, others:
 
 const SCOPE_LABEL = { specific: null, next: "Next post", any: "Any post" } as const;
 
+function storyScope(automation: Pick<Automation, "type" | "trigger">) {
+  if (automation.trigger.postScope !== "specific") return "Any story";
+  if (!automation.trigger.mediaId) return "No story yet";
+  return storyExpired(automation) ? "Expired story" : "One story";
+}
+
 export function triggerSummary(automation: Pick<Automation, "type" | "trigger">) {
   const story = automation.type === "story_reply";
-  const scope = story ? "Any story" : SCOPE_LABEL[automation.trigger.postScope];
+  const scope = story ? storyScope(automation) : SCOPE_LABEL[automation.trigger.postScope];
   let words: string;
   if (automation.trigger.match === "any") words = story ? "Any reply" : "Any comment";
   else if (!automation.trigger.keywords.length) words = "No keywords yet";

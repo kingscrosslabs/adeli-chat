@@ -210,7 +210,19 @@ describe("story replies", () => {
   beforeEach(async () => {
     const [account] = await db().select().from(schema.accounts);
     const { type, trigger, commentReply } = defaultAutomationContent(1, "story_reply");
-    storyAutomationId = (await seedLiveAutomation(account.id, { type, name: "Story guide", trigger: { ...trigger, keywords: ["guide"] }, commentReply })).id;
+    storyAutomationId = (await seedLiveAutomation(account.id, { type, name: "Story guide", trigger: { ...trigger, postScope: "any", keywords: ["guide"] }, commentReply })).id;
+  });
+
+  it("sends a specific-story automation only for replies to its story, ahead of Any story", async () => {
+    const [account] = await db().select().from(schema.accounts);
+    const { type, trigger, commentReply } = defaultAutomationContent(2, "story_reply");
+    const picked = await seedLiveAutomation(account.id, { type, name: "This story", trigger: { ...trigger, mediaId: "story_1", keywords: ["guide"] }, commentReply });
+    fakeAdeli();
+    await handleEvent(USER, messageEvent("guide", "ig_fan", STORY));
+    await handleEvent(USER, messageEvent("guide", "ig_other", { type: "reply", id: "story_2", url: null }));
+    const runs = await db().select().from(schema.runs);
+    expect(runs.find((run) => run.igUserId === "ig_fan")?.automationId).toBe(picked.id);
+    expect(runs.find((run) => run.igUserId === "ig_other")?.automationId).toBe(storyAutomationId);
   });
 
   it("sends the opening DM straight to whoever replied, with no public reply", async () => {

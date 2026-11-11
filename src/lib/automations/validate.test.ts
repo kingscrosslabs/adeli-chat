@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { defaultAutomationContent, newDraftAutomation } from "./defaults";
-import type { Automation } from "./schemas";
+import { STORY_LIFETIME_MS, storyExpired, type Automation } from "./schemas";
 import { findConflict, triggerSummary, validateForLive } from "./validate";
 
 function live(id: string, content: Partial<Automation>): Automation {
@@ -9,9 +9,18 @@ function live(id: string, content: Partial<Automation>): Automation {
 }
 
 describe("Story Reply validation", () => {
-  it("needs no post and ignores the public reply", () => {
+  it("starts on a specific story and needs one picked", () => {
     const content = defaultAutomationContent(0, "story_reply");
     content.trigger.keywords = ["guide"];
+    expect(content.trigger.postScope).toBe("specific");
+    expect(validateForLive(content)).toEqual({ "trigger.mediaId": "Pick the story people will reply to." });
+    content.trigger.mediaId = "story_1";
+    expect(validateForLive(content)).toEqual({});
+  });
+
+  it("needs no story on Any story, and ignores the public reply", () => {
+    const content = defaultAutomationContent(0, "story_reply");
+    content.trigger = { ...content.trigger, postScope: "any", keywords: ["guide"] };
     content.commentReply.variants = [""];
     expect(validateForLive(content)).toEqual({});
   });
@@ -22,20 +31,40 @@ describe("Story Reply validation", () => {
 
   it("only conflicts with other Story Reply automations", () => {
     const content = defaultAutomationContent(0, "story_reply");
-    content.trigger.match = "any";
+    content.trigger = { ...content.trigger, postScope: "any", match: "any" };
     const story = defaultAutomationContent(1, "story_reply");
     const comment = defaultAutomationContent(2);
     const others = [
       live("comment", { ...comment, trigger: { ...comment.trigger, postScope: "any", match: "any" } }),
     ];
     expect(findConflict(content, "self", others)).toBeNull();
-    others.push(live("story", { ...story, trigger: { ...story.trigger, keywords: ["guide"] } }));
+    others.push(live("story", { ...story, trigger: { ...story.trigger, postScope: "any", keywords: ["guide"] } }));
     expect(findConflict(content, "self", others)?.automation.id).toBe("story");
   });
 
-  it("summarizes the trigger", () => {
+  it("only conflicts on the same story when one is picked", () => {
     const content = defaultAutomationContent(0, "story_reply");
-    expect(triggerSummary({ type: content.type, trigger: { ...content.trigger, keywords: ["guide"] } })).toBe("Any story · GUIDE");
-    expect(triggerSummary({ type: content.type, trigger: { ...content.trigger, match: "any" } })).toBe("Any story · Any reply");
+    content.trigger = { ...content.trigger, mediaId: "story_a", keywords: ["guide"] };
+    const other = defaultAutomationContent(1, "story_reply");
+    const onB = live("b", { ...other, trigger: { ...other.trigger, mediaId: "story_b", keywords: ["guide"] } });
+    const onA = live("a", { ...other, trigger: { ...other.trigger, mediaId: "story_a", keywords: ["guide"] } });
+    const anyStory = live("any", { ...other, trigger: { ...other.trigger, postScope: "any", match: "any" } });
+    expect(findConflict(content, "self", [onB, anyStory])).toBeNull();
+    expect(findConflict(content, "self", [onA])?.automation.id).toBe("a");
+  });
+
+  it("summarizes the trigger, including an expired story", () => {
+    const content = defaultAutomationContent(0, "story_reply");
+    const anyStory = { ...content.trigger, postScope: "any" as const };
+    expect(triggerSummary({ type: content.type, trigger: { ...anyStory, keywords: ["guide"] } })).toBe("Any story · GUIDE");
+    expect(triggerSummary({ type: content.type, trigger: { ...anyStory, match: "any" } })).toBe("Any story · Any reply");
+    expect(triggerSummary({ type: content.type, trigger: { ...content.trigger, keywords: ["guide"] } })).toBe("No story yet · GUIDE");
+    const snapshot = (publishedAt: string) => ({ thumbUrl: null, mediaType: "IMAGE" as const, caption: "", permalink: null, publishedAt });
+    const fresh = { ...content.trigger, mediaId: "s", mediaSnapshot: snapshot(new Date(Date.now() - 60_000).toISOString()), keywords: ["guide"] };
+    expect(triggerSummary({ type: content.type, trigger: fresh })).toBe("One story · GUIDE");
+    const old = { ...fresh, mediaSnapshot: snapshot(new Date(Date.now() - STORY_LIFETIME_MS - 1).toISOString()) };
+    expect(triggerSummary({ type: content.type, trigger: old })).toBe("Expired story · GUIDE");
+    expect(storyExpired({ type: content.type, trigger: old })).toBe(true);
+    expect(storyExpired({ type: "comment_to_dm", trigger: old })).toBe(false);
   });
 });

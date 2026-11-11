@@ -97,7 +97,7 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
  */
 async function handleStoryReply(userId: string, event: MessageCreatedEvent, account: AccountRow) {
   const { data } = event;
-  const automation = matchStoryReply({ text: data.text, fromId: data.from.id }, account.igUserId, await liveAutomations(account.id));
+  const automation = matchStoryReply({ text: data.text, fromId: data.from.id, storyId: data.story?.id ?? null }, account.igUserId, await liveAutomations(account.id));
   if (!automation) return false;
 
   const [run] = await db().insert(schema.runs).values({

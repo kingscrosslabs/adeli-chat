@@ -141,21 +141,25 @@ function PostView({ content, account }: { content: AutomationContent; account: A
 }
 
 function StoryView({ content, account }: { content: AutomationContent; account: AdeliAccount | null }) {
+  const thumb = content.trigger.postScope === "specific" ? content.trigger.mediaSnapshot?.thumbUrl : null;
   return (
     <div className="relative mx-1.5 mb-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-[#52525B] to-[#18181B] text-white">
-      <div className="flex gap-1 px-3 pt-2.5" aria-hidden>
+      {/* eslint-disable-next-line @next/next/no-img-element -- snapshot thumbnail. */}
+      {thumb ? <img src={thumb} alt="" className="absolute inset-0 size-full object-cover" /> : null}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/50" aria-hidden />
+      <div className="relative flex gap-1 px-3 pt-2.5" aria-hidden>
         <span className="h-0.5 flex-1 rounded-full bg-white" /><span className="h-0.5 flex-1 rounded-full bg-white/40" />
       </div>
-      <div className="flex items-center gap-2 px-3 py-2 text-[0.75rem]">
+      <div className="relative flex items-center gap-2 px-3 py-2 text-[0.75rem]">
         <MiniAvatar account={account} size="size-6" />
         <span className="truncate font-semibold"><Handle account={account} /></span>
         <span className="text-white/70">2h</span>
         <MoreHorizontal className="ml-auto size-4" />
       </div>
-      <div className="grid flex-1 place-items-center px-8 text-center text-xs text-white/80">
-        <span className="flex flex-col items-center gap-2"><ImageOff className="size-6" /> Any of your stories</span>
+      <div className="relative grid flex-1 place-items-center px-8 text-center text-xs text-white/80">
+        {thumb ? null : <span className="flex flex-col items-center gap-2"><ImageOff className="size-6" /> {content.trigger.postScope === "specific" ? "Pick a story to see it here" : "Any of your stories"}</span>}
       </div>
-      <div className="flex items-center gap-2 px-3 pb-3 text-[0.75rem]">
+      <div className="relative flex items-center gap-2 px-3 pb-3 text-[0.75rem]">
         <span className="flex-1 truncate rounded-full border border-white/70 px-3 py-2">{sampleText(content)}</span>
         <Heart className="size-5 shrink-0" /><Send className="size-5 shrink-0" />
       </div>

@@ -20,7 +20,8 @@ export const LIMITS = {
 /**
  * What starts an automation. `comment_to_dm` is a comment on a post.
  * `story_reply` is a DM replying to one of the account's stories: it has no
- * public reply, and its trigger always watches every story (`postScope: "any"`).
+ * public reply, and its trigger watches one story (`postScope: "specific"`, the
+ * story's id in `mediaId`) or every story (`"any"`), never `"next"`.
  * Everything after the trigger, from the Opening DM on, is the same flow.
  */
 export const automationTypeSchema = z.enum(["comment_to_dm", "story_reply"]);
@@ -37,6 +38,16 @@ export const mediaSnapshotSchema = z.object({
   publishedAt: z.string().nullable(),
 });
 export type MediaSnapshot = z.infer<typeof mediaSnapshotSchema>;
+
+/** Instagram keeps a story up for 24 hours. */
+export const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
+
+/** Whether an automation's picked story has expired, so it can't get new replies. False when nothing is picked. */
+export function storyExpired(automation: { type: AutomationType; trigger: { postScope: PostScope; mediaSnapshot: MediaSnapshot | null } }, now = Date.now()) {
+  const publishedAt = automation.trigger.mediaSnapshot?.publishedAt;
+  if (automation.type !== "story_reply" || automation.trigger.postScope !== "specific" || !publishedAt) return false;
+  return Date.parse(publishedAt) + STORY_LIFETIME_MS <= now;
+}
 
 /**
  * Which posts an automation watches. `specific` is the post in `mediaId`.
