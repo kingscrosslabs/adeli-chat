@@ -21,7 +21,8 @@ const FREE_AUTOMATIONS = 10;
 
 /** "Adeli", linked with the UTM for this spot on the page (docs/brand.md section 6). */
 function AdeliLink({ spot, children = "Adeli" }: { spot: keyof typeof ADELI_LINKS; children?: React.ReactNode }) {
-  return <a href={ADELI_LINKS[spot]} target="_blank" rel="noreferrer" className="font-medium text-link underline-offset-4 hover:underline">{children}</a>;
+  const location = spot.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+  return <a href={ADELI_LINKS[spot]} data-ph-event="adeli_link_clicked" data-ph-location={location} target="_blank" rel="noreferrer" className="font-medium text-link underline-offset-4 hover:underline">{children}</a>;
 }
 
 export function LandingPage() {
@@ -62,17 +63,18 @@ function SectionHeading({ title, lead }: { title: string; lead?: string }) {
   );
 }
 
-function StartFree({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
+/** `location` names where on the page a link is, for PostHog (`data-ph-*`, see src/instrumentation-client.ts). */
+function StartFree({ location, size = "lg", variant = "default", className }: { location: string; size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
   return (
-    <a href={SIGN_IN_URL} className={cn(buttonVariants({ size, variant }), className)}>
+    <a href={SIGN_IN_URL} data-ph-event="start_free_clicked" data-ph-location={location} className={cn(buttonVariants({ size, variant }), className)}>
       Start free <ArrowRight data-icon="inline-end" />
     </a>
   );
 }
 
-function GitHubButton({ className }: { className?: string }) {
+function GitHubButton({ location, className }: { location: string; className?: string }) {
   return (
-    <a href={GITHUB_URL} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline", size: "lg" }), className)}>
+    <a href={GITHUB_URL} data-ph-event="github_clicked" data-ph-location={location} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline", size: "lg" }), className)}>
       <SiGithub data-icon="inline-start" /> View on GitHub
     </a>
   );
@@ -90,11 +92,11 @@ function Header() {
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
         <Link href="/" aria-label="LedaChat home"><Wordmark size="sm" /></Link>
         <nav aria-label="Sections" className="hidden flex-1 items-center gap-5 text-sm text-muted-foreground md:flex">
-          {links.map((link) => <a key={link.href} href={link.href} className="hover:text-foreground">{link.label}</a>)}
+          {links.map((link) => <a key={link.href} href={link.href} data-ph-event="nav_link_clicked" data-ph-section={link.label} className="hover:text-foreground">{link.label}</a>)}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <a href={SIGN_IN_URL} className={buttonVariants({ variant: "ghost" })}>Sign in</a>
-          <StartFree size="default" />
+          <a href={SIGN_IN_URL} data-ph-event="sign_in_clicked" data-ph-location="header" className={buttonVariants({ variant: "ghost" })}>Sign in</a>
+          <StartFree location="header" size="default" />
         </div>
       </div>
     </header>
@@ -112,8 +114,8 @@ function Hero() {
             Comment-to-DM workflow, with an MCP. Free &amp; open source.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <StartFree />
-            <GitHubButton />
+            <StartFree location="hero" />
+            <GitHubButton location="hero" />
           </div>
         </div>
         <HeroPreview />
@@ -294,7 +296,7 @@ function Options() {
       price: "$0",
       period: "forever",
       points: [`${FREE_AUTOMATIONS} live automations`, "Access to all features", "MCP access for AI agents", "LedaChat branding in the last DM"],
-      action: <StartFree size="lg" className="w-full" />,
+      action: <StartFree location="options_free" size="lg" className="w-full" />,
       featured: true,
     },
     {
@@ -302,7 +304,7 @@ function Options() {
       price: "$25",
       period: "per month",
       points: ["Everything in Free", "Remove branding"],
-      action: <StartFree variant="outline" className="w-full" />,
+      action: <StartFree location="options_pro" variant="outline" className="w-full" />,
       featured: false,
     },
     {
@@ -310,7 +312,7 @@ function Options() {
       price: "Free",
       period: "MIT license",
       points: ["Unlimited automations", "Deploy to Vercel in a few steps", <>Bring your <AdeliLink spot="options" /> API key. Adeli&apos;s free plan covers your own account</>],
-      action: <GitHubButton className="w-full" />,
+      action: <GitHubButton location="options_self_host" className="w-full" />,
       featured: false,
     },
   ];
@@ -343,7 +345,7 @@ function OfficialApi() {
         </p>
       </div>
       <div className="mx-auto mt-8 max-w-md">
-        <a href={ADELI_LINKS.officialApiDocs} target="_blank" rel="noreferrer" className="group block rounded-xl border bg-card p-5 transition hover:border-link">
+        <a href={ADELI_LINKS.officialApiDocs} data-ph-event="adeli_link_clicked" data-ph-location="official_api_docs" target="_blank" rel="noreferrer" className="group block rounded-xl border bg-card p-5 transition hover:border-link">
           <span className="text-xs font-medium text-muted-foreground">Powered by</span>
           <span className="mt-2 flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -389,7 +391,7 @@ function Faq() {
       <div className="divide-y rounded-xl border bg-card">
         {items.map((item) => (
           <details key={item.q} className="group px-5 py-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            <summary data-ph-event="faq_question_toggled" data-ph-question={item.q} className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
               {item.q}
               <ChevronDown className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" aria-hidden />
             </summary>
@@ -406,7 +408,7 @@ function FinalCta() {
     <Section className="text-center">
       <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Your next comment could be a lead</h2>
       <p className="mt-3 text-base text-muted-foreground">Set up your first automation in a few minutes. Free for {FREE_AUTOMATIONS} automations.</p>
-      <div className="mt-7 flex justify-center"><StartFree /></div>
+      <div className="mt-7 flex justify-center"><StartFree location="final_cta" /></div>
     </Section>
   );
 }
@@ -415,9 +417,9 @@ function Footer() {
   return (
     <footer className="border-t px-4 py-8 sm:px-6">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-muted-foreground">
-        <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
-        <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
-        <a href={SIGN_IN_URL} className="hover:text-foreground">Sign in</a>
+        <a href={ADELI_LINKS.footer} data-ph-event="adeli_link_clicked" data-ph-location="footer" target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
+        <a href={GITHUB_URL} data-ph-event="github_clicked" data-ph-location="footer" target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
+        <a href={SIGN_IN_URL} data-ph-event="sign_in_clicked" data-ph-location="footer" className="hover:text-foreground">Sign in</a>
         <span>© King&apos;s Cross Labs</span>
         <ThemeToggle className="ml-auto" compact />
       </div>
