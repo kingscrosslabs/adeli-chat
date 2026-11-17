@@ -59,7 +59,8 @@ function scrollToField(errors: FieldErrors) {
  * Split-screen editor (FR-4.x). Left: the form. Right: a sticky phone
  * preview. Below 1024px the preview moves into a drawer.
  */
-export function AutomationEditor({ automation, account }: { automation: Automation; account: AdeliAccount }) {
+/** `branding`: this user's Final DMs are followed by "Powered by LedaChat.com", so the preview shows it. */
+export function AutomationEditor({ automation, account, branding }: { automation: Automation; account: AdeliAccount; branding: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [draft, setDraft] = useState<AutomationContent>(() => contentOf(automation));
@@ -176,7 +177,7 @@ export function AutomationEditor({ automation, account }: { automation: Automati
     else router.push(href);
   }
 
-  const preview = <PhonePreview content={draft} account={account} tab={tab} onTabChange={setTab} />;
+  const preview = <PhonePreview content={draft} account={account} tab={tab} onTabChange={setTab} branding={branding} />;
   const sectionProps = { draft, patch, errors, onFocusTab: setTab };
 
   return (

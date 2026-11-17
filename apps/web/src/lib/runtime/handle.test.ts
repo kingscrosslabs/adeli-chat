@@ -65,6 +65,8 @@ const USER = "user_1";
 let automationId: string;
 
 beforeEach(async () => {
+  // Most tests count the messages a run sends; the branding tests turn it back on.
+  vi.stubEnv("LEDACHAT_BRANDING", "off");
   await resetDatabase();
   await seedUser(USER);
   const account = await seedAccount(USER);
@@ -200,6 +202,64 @@ describe("message.postback", () => {
     const adeli = fakeAdeli();
     await handleEvent(USER, postbackEvent("not-a-run"));
     expect(adeli.sent).toHaveLength(0);
+  });
+});
+
+describe("Final DM links and branding", () => {
+  async function tap() {
+    fakeAdeli();
+    await handleEvent(USER, commentEvent());
+    const run = await onlyRun();
+    const adeli = fakeAdeli();
+    await handleEvent(USER, postbackEvent(run.id));
+    return adeli;
+  }
+
+  it("sends every link button on the Final DM", async () => {
+    await db().update(schema.automations).set({
+      finalDm: { type: "text_buttons", text: "Links", buttons: [{ label: "One", url: "https://example.com/1" }, { label: "Two", url: "https://example.com/2" }, { label: "Three", url: "https://example.com/3" }] },
+    }).where(eq(schema.automations.id, automationId));
+    const adeli = await tap();
+    expect(adeli.messages()[0].body).toMatchObject({
+      buttons: [{ type: "url", title: "One", url: "https://example.com/1" }, { type: "url", title: "Two", url: "https://example.com/2" }, { type: "url", title: "Three", url: "https://example.com/3" }],
+    });
+  });
+
+  it("follows the Final DM with Powered by LedaChat.com on the free plan", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    const adeli = await tap();
+    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat.com"]);
+    expect((await onlyRun()).state).toBe("final_sent");
+  });
+
+  it("sends no branding on the pro plan", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    await db().insert(schema.userSettings).values({ userId: USER, plan: "pro" }).onConflictDoUpdate({ target: schema.userSettings.userId, set: { plan: "pro" } });
+    const adeli = await tap();
+    expect(adeli.messages()).toHaveLength(1);
+  });
+
+  it("sends no branding when the Final DM fails", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    fakeAdeli();
+    await handleEvent(USER, commentEvent());
+    const run = await onlyRun();
+    const adeli = fakeAdeli([(sent) => sent.path === "/messages/instagram" ? apiError(409, "window_closed") : undefined]);
+    await handleEvent(USER, postbackEvent(run.id));
+    expect(adeli.messages()).toHaveLength(1);
+    expect((await onlyRun()).state).toBe("failed");
+  });
+
+  it("keeps the run sent when only the branding message fails", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    fakeAdeli();
+    await handleEvent(USER, commentEvent());
+    const run = await onlyRun();
+    fakeAdeli([(sent) => sent.path === "/messages/instagram" && (sent.body as { text: string }).text === "Powered by LedaChat.com" ? apiError(500, "server_error") : undefined]);
+    await handleEvent(USER, postbackEvent(run.id));
+    const done = await onlyRun();
+    expect(done.state).toBe("final_sent");
+    expect(done.error).toContain("Branding message failed");
   });
 });
 

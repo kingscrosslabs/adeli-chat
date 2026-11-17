@@ -51,6 +51,6 @@ The automation runtime (`src/lib/runtime/handle.ts`) records each run's steps on
 | `invalid_email_received` | |
 | `lead_captured` | |
 | `final_dm_sent` | `buttons` |
-| `automation_step_failed` | `step` (`comment_reply`, `opening_dm`, `follow_gate`, `email_request`, `email_retry`, `final_dm`), `error_code` |
+| `automation_step_failed` | `step` (`comment_reply`, `opening_dm`, `follow_gate`, `email_request`, `email_retry`, `final_dm`, `branding`), `error_code` |
 
 Webhook handling errors go to PostHog error tracking (`trackError`), with `adeli_event_type`.

@@ -71,6 +71,13 @@
       "when": 1794424677624,
       "tag": "0009_follow_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794938180473,
+      "tag": "0010_plan",
+      "breakpoints": true
     }
   ]
 }

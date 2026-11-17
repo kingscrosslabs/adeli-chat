@@ -297,6 +297,8 @@ export const userSettings = pgTable("user_settings", {
   adeliProfileName: text("adeli_profile_name"),
   adeliWebhookId: text("adeli_webhook_id"),
   adeliWebhookSecret: text("adeli_webhook_secret"),
+  /** "free" or "pro". Free sends "Powered by LedaChat.com" after the Final DM (`apps/web/src/lib/plan.ts`). There's no billing yet, so everyone is on free. */
+  plan: text("plan", { enum: ["free", "pro"] }).notNull().default("free"),
   updatedAt: timestamps.updatedAt,
 });
 

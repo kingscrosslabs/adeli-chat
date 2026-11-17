@@ -15,6 +15,8 @@ export const LIMITS = {
   dmText: 640,
   buttonLabel: 20,
   url: 2048,
+  /** Instagram allows up to 3 buttons on one message. */
+  finalDmButtons: 3,
 } as const;
 
 /**
@@ -112,8 +114,8 @@ export type LinkButton = z.infer<typeof linkButtonSchema>;
 export const finalDmSchema = z.object({
   type: z.literal("text_buttons"),
   text: z.string(),
-  /** The data model allows up to 3 buttons. The v1 UI edits only the first. */
-  buttons: z.array(linkButtonSchema).min(1).max(3),
+  /** One to three link buttons, Instagram's limit for one message. */
+  buttons: z.array(linkButtonSchema).min(1).max(LIMITS.finalDmButtons),
 });
 export type FinalDm = z.infer<typeof finalDmSchema>;
 

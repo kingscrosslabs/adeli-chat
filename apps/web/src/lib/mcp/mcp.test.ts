@@ -110,6 +110,9 @@ describe("/mcp tools", () => {
     const updated = data(await client.callTool({ name: "update_automation", arguments: { id: created.id, keywords: ["guide", "free"], finalDmText: "Here you go" } }));
     expect(updated).toMatchObject({ keywords: ["guide", "free"], finalDmText: "Here you go", name: "Guide" });
 
+    const linked = data(await client.callTool({ name: "update_automation", arguments: { id: created.id, extraLinks: [{ label: "Course", url: " https://example.com/course " }] } }));
+    expect(linked).toMatchObject({ linkUrl: "https://example.com/guide", extraLinks: [{ label: "Course", url: "https://example.com/course" }] });
+
     const live = data(await client.callTool({ name: "go_live", arguments: { id: created.id } }));
     expect(live.status).toBe("live");
 

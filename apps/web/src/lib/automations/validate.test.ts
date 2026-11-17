@@ -96,3 +96,23 @@ describe("follow gate validation", () => {
     expect(validateForLive(content)).toEqual({});
   });
 });
+
+describe("Final DM link validation", () => {
+  function withButtons(buttons: Array<{ label: string; url: string }>) {
+    const content = defaultAutomationContent(0);
+    content.trigger = { ...content.trigger, postScope: "any", keywords: ["guide"] };
+    content.finalDm.buttons = buttons;
+    return content;
+  }
+
+  it("accepts up to 3 complete link buttons", () => {
+    expect(validateForLive(withButtons([{ label: "One", url: "https://example.com/1" }, { label: "Two", url: "https://example.com/2" }, { label: "Three", url: "https://example.com/3" }]))).toEqual({});
+  });
+
+  it("checks every extra button, not just the first", () => {
+    expect(validateForLive(withButtons([{ label: "One", url: "https://example.com/1" }, { label: "", url: "http://example.com" }]))).toEqual({
+      "finalDm.buttons.1.label": "Add a button label.",
+      "finalDm.buttons.1.url": "Use a full link that starts with https://",
+    });
+  });
+});
