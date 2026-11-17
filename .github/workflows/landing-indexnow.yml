@@ -1,0 +1,59 @@
+name: Landing IndexNow
+
+# After each production deploy of the landing page (Vercel project
+# landing-page-ledachat, www.ledachat.com), submit its sitemap URLs to
+# IndexNow so Bing and the other IndexNow engines recrawl them soon. The
+# script only logs a failed ping, so this job never fails on one.
+#
+# Two ways Vercel reports a deploy, and we listen to both:
+# - `status`: the commit status Vercel posts today, context
+#   "Vercel <dash> landing-page-ledachat". A success on a commit on main is the
+#   production deploy (previews are on other branches).
+# - `deployment_status`: only fires if GitHub Deployments are turned on for
+#   the Vercel project. In this monorepo the environment is
+#   "Production <dash> landing-page-ledachat", never plain "Production", so
+#   match its start and its project name, not equality.
+# Both checks avoid the dash character itself and the app project (ledachat).
+
+on:
+  status:
+  deployment_status:
+  workflow_dispatch:
+
+concurrency:
+  group: landing-indexnow
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping IndexNow
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'status' &&
+        github.event.state == 'success' &&
+        startsWith(github.event.context, 'Vercel') &&
+        endsWith(github.event.context, 'landing-page-ledachat') &&
+        contains(github.event.branches.*.name, 'main')) ||
+      (github.event_name == 'deployment_status' &&
+        github.event.deployment_status.state == 'success' &&
+        startsWith(github.event.deployment_status.environment, 'Production') &&
+        endsWith(github.event.deployment_status.environment, 'landing-page-ledachat'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Standard library only, so no install step.
+      - name: Submit sitemap URLs to IndexNow
+        run: node apps/landing-page/scripts/indexnow.mjs

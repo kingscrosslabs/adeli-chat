@@ -16,6 +16,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Pages only: API routes, `/mcp` and OAuth discovery answer errors themselves, static files need no session, and `/ingest` is PostHog.
-  matcher: ["/((?!api/|mcp(?:/|$)|\\.well-known/|_next/|ingest/|brand/|icon.png|apple-icon.png|favicon.ico).*)"],
+  // Pages only: API routes, `/mcp` and OAuth discovery answer errors themselves, static files need no session, `/ingest` is PostHog,
+  // and `/robots.txt` must reach crawlers instead of redirecting to sign-in.
+  matcher: ["/((?!api/|mcp(?:/|$)|\\.well-known/|_next/|ingest/|brand/|icon.png|apple-icon.png|favicon.ico|robots\\.txt$).*)"],
 };

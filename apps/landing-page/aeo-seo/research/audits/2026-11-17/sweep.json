@@ -1,0 +1,65 @@
+{
+  "sitemap": "https://www.ledachat.com/sitemap.xml",
+  "summary": {
+    "pages": 1,
+    "errors": 0,
+    "non_200": 0,
+    "redirected": 0,
+    "missing_description": 0,
+    "description_equals_title": 0,
+    "description_out_of_range": 1,
+    "duplicate_descriptions": 0,
+    "missing_canonical": 1,
+    "canonical_not_self": 0,
+    "og_url_not_canonical": 0,
+    "missing_og_image": 1,
+    "most_shared_og_image": null,
+    "h1_not_one": 0,
+    "no_jsonld": 1,
+    "jsonld_parse_errors": 0,
+    "images_missing_alt": 0,
+    "thin_under_150_words": [],
+    "noindex": [],
+    "orphans": []
+  },
+  "pages": [
+    {
+      "url": "https://www.ledachat.com",
+      "status": 200,
+      "final_url": "https://www.ledachat.com",
+      "redirected": false,
+      "title": "LedaChat: Free, Open-Source ManyChat Alternative for Instagram",
+      "title_len": 62,
+      "description": "Comment-to-DM workflow, with an MCP. Free & open source.",
+      "description_len": 56,
+      "description_equals_title": false,
+      "canonical": "",
+      "robots": "",
+      "og_url": "",
+      "og_title": "",
+      "og_image": "",
+      "twitter_card": "",
+      "h1_count": 1,
+      "h2": [
+        "How it works",
+        "Create automations with AI",
+        "Features",
+        "LedaChat vs ManyChat",
+        "Why we built LedaChat",
+        "Options",
+        "Built on Instagram's official API",
+        "FAQ",
+        "Your next comment could be a lead"
+      ],
+      "h2_questions": 0,
+      "jsonld_types": [],
+      "jsonld_parse_errors": 0,
+      "images": 2,
+      "images_missing_alt": 0,
+      "raw_html_words": 932,
+      "internal_links_out": [
+        "https://www.ledachat.com"
+      ]
+    }
+  ]
+}

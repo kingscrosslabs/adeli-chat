@@ -2,14 +2,27 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 
+import { siteUrl } from "@/lib/site-url";
+
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const TITLE = "LedaChat: Free, Open-Source ManyChat Alternative for Instagram";
+/** The two lines Google shows under the title, and the share card text. 110 to 160 characters, only claims the page makes. */
+const DESCRIPTION =
+  "Free, open-source ManyChat alternative for Instagram. Turn comments into DMs, and run your automations from Claude or ChatGPT with the built-in MCP.";
+
 export const metadata: Metadata = {
-  title: { absolute: "LedaChat: Free, Open-Source ManyChat Alternative for Instagram" },
-  description: "Comment-to-DM workflow, with an MCP. Free & open source.",
+  metadataBase: new URL(siteUrl()),
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  // One URL for every tagged or shared copy (?utm_source=...) to credit.
+  alternates: { canonical: "/" },
+  // The image comes from opengraph-image.tsx; Next adds og:image and twitter:image for it.
+  openGraph: { type: "website", url: "/", siteName: "LedaChat", title: TITLE, description: DESCRIPTION },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

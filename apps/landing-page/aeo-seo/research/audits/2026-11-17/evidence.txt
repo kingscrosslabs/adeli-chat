@@ -1,0 +1,52 @@
+Evidence log, technical audit of https://www.ledachat.com, 2026-11-17 (plan only)
+
+== Crawl files
+/robots.txt -> 200 text/plain; charset=utf-8
+/sitemap.xml -> 200 application/xml
+/llms.txt -> 404 text/html; charset=utf-8
+/llms-full.txt -> 404 text/html; charset=utf-8
+/index.md -> 404 text/html; charset=utf-8
+
+== Bot user agents on the homepage
+Googlebot/2.1 -> 200
+bingbot/2.0 -> 200
+GPTBot/1.0 -> 200
+OAI-SearchBot/1.0 -> 200
+ClaudeBot/1.0 -> 200
+PerplexityBot/1.0 -> 200
+
+== Canonical with ?utm_source=test
+no canonical tag
+
+== Head tags in raw homepage HTML (og:, twitter:, canonical, JSON-LD)
+og:* 0 · twitter:* 0 · canonical 0 · ld+json 0
+
+== Rendered (browser, JS on, FAQ details opened): 910 words, 1 H1, 0 og:*, 0 canonical, 0 JSON-LD, no third-party scripts. Raw HTML (sweep): 932 words.
+
+== Analytics / verification in live HTML: none (no posthog, gtag, _vercel/insights, plausible, msvalidate, google-site-verification)
+
+== Routes on www (all should 404, landing is one page)
+www/sign-in -> 404
+www/login -> 404
+www/dashboard -> 404
+www/automations -> 404
+www/api -> 404
+www/privacy -> 404
+www/terms -> 404
+www/blog -> 404
+www/pricing -> 404
+www/does-not-exist-xyz -> 404
+
+== App host app.ledachat.com (apps/web)
+app/ -> 307 https://app.ledachat.com/sign-in
+app/sign-in -> 200 
+app/automations -> 307 https://app.ledachat.com/sign-in
+app/settings -> 307 https://app.ledachat.com/sign-in
+app/robots.txt -> 307 https://app.ledachat.com/sign-in
+app/sitemap.xml -> 307 https://app.ledachat.com/sign-in
+app/mcp -> 401 
+app /sign-in: X-Robots-Tag 0 headers, robots meta 0, ~10 visible words, title 'LedaChat'
+
+== PageSpeed Insights (mobile, homepage): HTTP 429 Quota exceeded (keyless API daily quota). B9 n/a.
+
+== Search Console: no property for ledachat.com on the connected Google account; no OpenSEO project (per user). OpenSEO whoami OK (hosted, 76 credits). No paid calls made.
