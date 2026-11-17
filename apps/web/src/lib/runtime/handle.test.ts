@@ -261,6 +261,22 @@ describe("Final DM links and branding", () => {
     expect(done.state).toBe("final_sent");
     expect(done.error).toContain("Branding message failed");
   });
+
+  it("sends no branding to a user with an active Pro subscription", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    vi.stubEnv("STRIPE_SECRET_KEY", "rk_test_ledachat");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    await db().insert(schema.billingCustomers).values({ userId: USER, stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1", subscriptionStatus: "active" });
+    const adeli = await tap();
+    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!"]);
+  });
+
+  it("brands again once the subscription has ended", async () => {
+    vi.stubEnv("LEDACHAT_BRANDING", "");
+    await db().insert(schema.billingCustomers).values({ userId: USER, stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1", subscriptionStatus: "canceled" });
+    const adeli = await tap();
+    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat.com"]);
+  });
 });
 
 describe("story replies", () => {

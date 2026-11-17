@@ -25,7 +25,7 @@ import { errorCount, validateForLive } from "@/lib/automations/validate";
  * Go Live from outside the editor: same validation and conflict rules as the
  * editor (FR-7.2, FR-7.3). Anything to fix sends you to the editor.
  */
-export async function goLive(automation: Automation, openEditor: () => void) {
+export async function goLive(automation: Automation, openEditor: () => void, openPlan: () => void) {
   const count = errorCount(validateForLive(automation));
   if (count) {
     toast.error(`${count} ${count === 1 ? "thing" : "things"} to fix before going live`, { action: { label: "Open editor", onClick: openEditor } });
@@ -34,6 +34,7 @@ export async function goLive(automation: Automation, openEditor: () => void) {
   const result = await goLiveAction(automation.id);
   if (!result.ok) {
     if (result.reason === "invalid") toast.error(`${result.count} ${result.count === 1 ? "thing" : "things"} to fix before going live`, { action: { label: "Open editor", onClick: openEditor } });
+    else if (result.reason === "limit") toast.error(result.message, { action: { label: "Upgrade", onClick: openPlan } });
     else toast.error(result.message);
     return false;
   }
@@ -62,7 +63,7 @@ export function AutomationRowActions({ automation }: { automation: Automation })
           {automation.status === "live" ? (
             <DropdownMenuItem onClick={async () => { const result = await pauseAutomation(automation.id); if (result.ok) toast(`${automation.name} is paused`); else toast.error(failure(result)); }}><Pause /> Pause</DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={() => void goLive(automation, () => router.push(`${editHref}?validate=1`))}><Play /> Go Live</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void goLive(automation, () => router.push(`${editHref}?validate=1`), () => router.push("/settings#plan"))}><Play /> Go Live</DropdownMenuItem>
           )}
           <DropdownMenuItem
             onClick={async () => {

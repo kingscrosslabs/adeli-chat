@@ -8,6 +8,7 @@
     "./brand/*": "./src/brand/*.tsx",
     "./preview/*": "./src/preview/*.tsx",
     "./automation/*": "./src/automation/*.ts",
+    "./billing/*": "./src/billing/*.ts",
     "./hooks/*": "./src/hooks/*.ts",
     "./lib/utils": "./src/lib/utils.ts",
     "./theme-toggle": "./src/theme-toggle.tsx",

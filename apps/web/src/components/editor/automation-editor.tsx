@@ -120,6 +120,8 @@ export function AutomationEditor({ automation, account, branding }: { automation
         description: "Pause it, or change your keywords, so each comment only triggers one automation.",
         action: { label: "Open it", onClick: () => router.push(`/automations/${result.conflictId}`) },
       });
+    } else if (result.reason === "limit") {
+      toast.error(result.message, { description: "Your changes aren't saved yet.", action: { label: "Upgrade", onClick: () => router.push("/settings#plan") } });
     } else toast.error(result.message);
     return true;
   }

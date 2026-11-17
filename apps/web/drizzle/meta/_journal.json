@@ -78,6 +78,13 @@
       "when": 1794938180473,
       "tag": "0010_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794940429913,
+      "tag": "0011_stripe_billing",
+      "breakpoints": true
     }
   ]
 }

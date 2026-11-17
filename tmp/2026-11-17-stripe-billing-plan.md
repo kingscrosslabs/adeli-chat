@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: implemented
 date: 2026-11-17
 ---
 
@@ -257,3 +257,7 @@ Manual, against a Stripe sandbox and a local Adeli dev server (`docs/local-devel
 - **A missed webhook leaves a payer on Free.** Reconcile on Settings load is the repair, but a payer who never opens Settings stays limited. If that shows up, also reconcile inside `goLive` when it is about to refuse (one Stripe call, only at the limit).
 - **Stripe outage.** Nothing at request time calls Stripe except Checkout and the portal, so automations keep running and limits keep using the last mirrored state.
 - **The `2026-10-28.endive` pin** must exist in the installed `stripe` package. If the package doesn't support it, pin to the version the package ships with and note it here.
+
+## Amendment (2026-11-17, rebase onto #27)
+
+#27 landed free-plan branding first: "Powered by LedaChat.com" as its own message after the Final DM, a manual `user_settings.plan` column and `LEDACHAT_BRANDING`. This plan's branding (a line appended inside the Final DM, the 603-character limit, and "unbranded without Stripe keys") was dropped in favour of it. Billing now feeds it: Pro is an active subscription or `user_settings.plan = 'pro'` (`isPro`), and `showsBranding` reads that. The migration became `0011_stripe_billing`.

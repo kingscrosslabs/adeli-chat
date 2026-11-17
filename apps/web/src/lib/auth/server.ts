@@ -11,6 +11,7 @@ import { jwt } from "better-auth/plugins";
 
 import { ensureUserProfile } from "@/lib/adeli/profile";
 import { identifyUser, track } from "@/lib/analytics/server";
+import { alertSignup } from "@/lib/alerts/dopamine";
 import { appUrl } from "@/lib/app-url";
 import { db, schema } from "@/lib/db";
 import { MCP_SCOPES, mcpResourceUrl } from "@/lib/mcp/config";
@@ -69,6 +70,7 @@ function create() {
           async after(user) {
             identifyUser(user.id, { email: user.email, name: user.name });
             track(user.id, "user_signed_up", { provider: "google" });
+            await alertSignup(user);
             await ensureUserProfile(user.id, user).catch((error: unknown) => console.warn(`Couldn't create the Adeli profile for ${user.id}: ${error instanceof Error ? error.message : String(error)}`));
           },
         },
