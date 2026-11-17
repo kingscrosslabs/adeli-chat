@@ -59,7 +59,7 @@ function scrollToField(errors: FieldErrors) {
  * Split-screen editor (FR-4.x). Left: the form. Right: a sticky phone
  * preview. Below 1024px the preview moves into a drawer.
  */
-/** `branding`: this user's Final DMs are followed by "Powered by LedaChat.com", so the preview shows it. */
+/** `branding`: this user's Final DMs are followed by "Powered by LedaChat", so the preview shows it. */
 export function AutomationEditor({ automation, account, branding }: { automation: Automation; account: AdeliAccount; branding: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();

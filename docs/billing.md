@@ -8,7 +8,7 @@ How LedaChat's Stripe billing works. The design and its reasoning are in [`tmp/2
 | --- | --- | --- |
 | Price | $0 | $25 a month, plus tax where it applies |
 | Live automations | 10 at once | Unlimited |
-| Branding | "Powered by LedaChat.com" is sent as its own message after the Final DM | None |
+| Branding | "Powered by LedaChat" is sent as its own message after the Final DM | None |
 
 Plans live in `packages/ui/src/billing/plans.ts`, which both the app and the landing page read. Drafts and paused automations are never limited.
 
@@ -98,7 +98,7 @@ When Pro ends, nothing is paused. Everything live stays live, and nothing more c
 
 ## Branding
 
-After a Free user's Final DM is sent, `sendFinalDm` (`apps/web/src/lib/runtime/handle.ts`) sends "Powered by LedaChat.com" (`BRANDING_TEXT`) as its own message, when `showsBranding` (`apps/web/src/lib/plan.ts`) says so: `LEDACHAT_BRANDING` isn't `off`, and the user isn't Pro. A failed branding send doesn't fail the run. Nothing else is branded. The editor preview shows the message for the same users (PRD FR-5.22).
+After a Free user's Final DM is sent, `sendFinalDm` (`apps/web/src/lib/runtime/handle.ts`) sends "Powered by LedaChat" (`BRANDING_TEXT`) as its own message, when `showsBranding` (`apps/web/src/lib/plan.ts`) says so: `LEDACHAT_BRANDING` isn't `off`, and the user isn't Pro. A failed branding send doesn't fail the run. Nothing else is branded. The editor preview shows the message for the same users (PRD FR-5.22).
 
 ## Settings
 
