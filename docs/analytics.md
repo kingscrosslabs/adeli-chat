@@ -1,33 +1,17 @@
 # Analytics
 
-Both apps send product analytics to PostHog, each to its own project. It's optional: without `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` nothing is sent (local development logs a reminder in the console). Self-hosters can leave it empty.
+The web app (`apps/web`) sends product analytics to PostHog. The landing page has no analytics. It's optional: without `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` nothing is sent (local development logs a reminder in the console). Self-hosters can leave it empty.
 
-| App | Variables | Where |
-| --- | --- | --- |
-| `apps/web` | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_UI_HOST` | `apps/web/.env.local` and the app's Vercel project |
-| `apps/landing-page` | The same three, with the landing page project's token | The landing page's Vercel project (or `apps/landing-page/.env.local`) |
+Set `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` and `NEXT_PUBLIC_POSTHOG_UI_HOST` in `apps/web/.env.local` and the app's Vercel project.
 
-`NEXT_PUBLIC_` values are built into the page, so redeploy after changing them. Browser events go through `/ingest` on each site (rewrites in `next.config.ts`), so ad blockers don't drop them.
+`NEXT_PUBLIC_` values are built into the page, so redeploy after changing them. Browser events go through `/ingest` on the app's domain (rewrites in `apps/web/next.config.ts`), so ad blockers don't drop them.
 
 ## How it's wired
 
-- Browser: `src/instrumentation-client.ts` in each app starts PostHog (pageviews, page leave, autocapture, and in the app, exceptions).
-- Click events from markup: any element with `data-ph-event="name"` sends that event when clicked, with its other `data-ph-*` attributes as properties (`data-ph-location="hero"` becomes `location: "hero"`). The landing page uses only this, so it stays a server component.
-- Server (app only): `apps/web/src/lib/analytics/server.ts` (`track`, `identifyUser`, `trackError`). Events are keyed by the LedaChat user id, the same id `<PostHogIdentify>` uses in the browser, so both land on one person. The sign-in page resets PostHog, so the next person on that browser starts fresh.
+- Browser: `apps/web/src/instrumentation-client.ts` starts PostHog (pageviews, page leave, autocapture, exceptions).
+- Click events from markup: any element with `data-ph-event="name"` sends that event when clicked, with its other `data-ph-*` attributes as properties (`data-ph-for-mcp="true"` becomes `for_mcp: "true"`).
+- Server: `apps/web/src/lib/analytics/server.ts` (`track`, `identifyUser`, `trackError`). Events are keyed by the LedaChat user id, the same id `<PostHogIdentify>` uses in the browser, so both land on one person. The sign-in page resets PostHog, so the next person on that browser starts fresh.
 - Never put commenters' or leads' details (usernames, message text, emails) in event properties. Only ids, counts and outcomes.
-
-## Landing page events
-
-| Event | Properties |
-| --- | --- |
-| `start_free_clicked` | `location`: `header`, `hero`, `options_free`, `options_pro`, `final_cta` |
-| `sign_in_clicked` | `location`: `header`, `footer` |
-| `github_clicked` | `location`: `hero`, `options_self_host`, `footer` |
-| `adeli_link_clicked` | `location`: `official_strip`, `options`, `official_api`, `official_api_docs`, `faq`, `footer` |
-| `nav_link_clicked` | `section` |
-| `faq_question_toggled` | `question` |
-
-Every link event also has `href`. Plus PostHog's own `$pageview`, `$pageleave` (with scroll depth) and `$autocapture`.
 
 ## App events
 

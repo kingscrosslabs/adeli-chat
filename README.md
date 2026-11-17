@@ -65,7 +65,7 @@ Google sign-in only works on domains registered in the OAuth client, so preview 
 
 ### Landing page (optional)
 
-Self-hosting needs only the app. The marketing site in `apps/landing-page` is a second Vercel project: Root Directory `apps/landing-page`, Ignored Build Step `sh scripts/vercel-ignored-build-step.sh`, and `APP_URL` set to the app's address (for example `https://app.example.com`), which its sign-in links point to. A production build without `APP_URL` fails. For analytics, set the same three `NEXT_PUBLIC_POSTHOG_*` variables, with the token of a separate PostHog project for the landing page.
+Self-hosting needs only the app. The marketing site in `apps/landing-page` is a second Vercel project: Root Directory `apps/landing-page`, Ignored Build Step `sh scripts/vercel-ignored-build-step.sh`, and `APP_URL` set to the app's address (for example `https://app.example.com`), which its sign-in links point to. A production build without `APP_URL` fails.
 
 To test the whole flow against a local Adeli dev server, with a real comment triggering a real DM, follow [docs/local-development.md](docs/local-development.md).
 
