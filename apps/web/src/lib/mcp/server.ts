@@ -39,7 +39,7 @@ How an automation works:
 3. They get an Opening DM: a message with one button. Instagram only allows this one message until they tap.
 4. Comment to DM only, optionally: after the tap we check that they follow the account (followGateEnabled). If they don't, they get followGateText with a followGateButtonLabel button that checks again; each later tap that still finds no follow gets followGateRetryText. Nothing else is sent until they follow.
 5. Optionally, after that we ask for their email (emailCaptureEnabled). The Final DM waits until they reply with a valid email, which is saved as a lead the user can export in the app.
-6. They get the Final DM: a message with a link button (https only).
+6. They get the Final DM: a message with one to three link buttons (https only): linkButtonLabel and linkUrl, plus extraLinks.
 Each person gets the flow once per automation.
 
 Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, replies ${LIMITS.replyVariant} chars each, DM text ${LIMITS.dmText} chars, button labels ${LIMITS.buttonLabel} chars.
@@ -105,6 +105,7 @@ function detail(automation: Automation) {
     finalDmText: automation.finalDm.text,
     linkButtonLabel: button?.label ?? "",
     linkUrl: button?.url ?? "",
+    extraLinks: automation.finalDm.buttons.slice(1),
     stats: automation.stats,
     createdAt: automation.createdAt,
     updatedAt: automation.updatedAt,
@@ -134,6 +135,8 @@ const fieldsSchema = {
   finalDmText: z.string().max(LIMITS.dmText).optional().describe("Final DM, sent after they tap the button (or send their email, when that step is on)."),
   linkButtonLabel: z.string().max(LIMITS.buttonLabel).optional().describe("Label of the link button on the final DM."),
   linkUrl: z.string().max(LIMITS.url).optional().describe("Where the link button goes. Must start with https://"),
+  extraLinks: z.array(z.object({ label: z.string().max(LIMITS.buttonLabel), url: z.string().max(LIMITS.url) })).max(LIMITS.finalDmButtons - 1).optional()
+    .describe(`Up to ${LIMITS.finalDmButtons - 1} more link buttons on the final DM, after the first. Each url must start with https://. Replaces the whole list; [] removes them.`),
 };
 const fieldsObject = z.object(fieldsSchema);
 type Fields = z.infer<typeof fieldsObject>;
@@ -195,6 +198,10 @@ async function applyFields(userId: string, account: ConnectedAccount, content: A
   if (fields.linkButtonLabel !== undefined || fields.linkUrl !== undefined) {
     const [first, ...rest] = next.finalDm.buttons;
     next.finalDm.buttons = [{ label: fields.linkButtonLabel ?? first?.label ?? "", url: fields.linkUrl?.trim() ?? first?.url ?? "" }, ...rest];
+  }
+  if (fields.extraLinks !== undefined) {
+    const [first] = next.finalDm.buttons;
+    next.finalDm.buttons = [first ?? { label: "", url: "" }, ...fields.extraLinks.map((link) => ({ label: link.label, url: link.url.trim() }))];
   }
   return next;
 }

@@ -4,6 +4,7 @@ import { AutomationEditor } from "@/components/editor/automation-editor";
 import { buttonVariants } from "@adeli-chat/ui/components/button";
 import { requireUserPage } from "@/lib/auth/session";
 import { getAutomation, requireAccount } from "@/lib/data";
+import { showsBranding } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +24,5 @@ export default async function AutomationPage({ params }: { params: Promise<{ id:
     );
   }
   // Keyed by id so switching automations resets the draft.
-  return <AutomationEditor key={automation.id} automation={automation} account={account} />;
+  return <AutomationEditor key={automation.id} automation={automation} account={account} branding={await showsBranding(user.id)} />;
 }

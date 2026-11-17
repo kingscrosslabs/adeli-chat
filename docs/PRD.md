@@ -192,7 +192,8 @@ Onboarding is a two-step checklist shown on `/connect`: **1. Instagram account Â
 - **FR-5.18** DM type selector: **Text + Buttons** (selected), the only type for now. Other types aren't shown until they work (changed 2026-11-11).
 - **FR-5.19** Message, default "Here it is! Enjoy!". Max 640 chars.
 - **FR-5.20** Button #1: label default "Click for link!" (max 20 chars), URL default `https://tryadeli.com` (must be a valid `https://` URL).
-- **FR-5.21** The data model supports up to 3 buttons. The v1 UI shows 1.
+- **FR-5.21** Up to 3 link buttons, Instagram's limit for one message (updated 2026-11-17, was 1 in the v1 UI). "Add link" adds one, each extra has a delete button, and every button needs a label and an `https://` URL to go live. MCP sets the extras with `extraLinks`.
+- **FR-5.22** Free plan branding (added 2026-11-17): after the Final DM, users on the free plan send a plain "Powered by LedaChat.com" message, shown in the preview. The plan is `user_settings.plan` (`free` by default, `pro` removes it; no billing yet). `LEDACHAT_BRANDING=off` turns it off for the whole install. A failed branding send doesn't fail the run.
 
 ### 5.6 Phone preview (right side)
 - **FR-6.1** iPhone-style frame using Instagram's general visual language. No Meta logos or copied assets.

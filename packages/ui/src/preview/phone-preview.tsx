@@ -37,7 +37,8 @@ function sampleText(content: AutomationContent) {
   return `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
 }
 
-export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true }: { content: AutomationContent; account: PreviewAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean }) {
+/** `branding` shows the "Powered by LedaChat.com" message free plans get after the Final DM. */
+export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true, branding = false }: { content: AutomationContent; account: PreviewAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean; branding?: boolean }) {
   const story = content.type === "story_reply";
   const tabs = story ? STORY_TABS : TABS;
   const tab = tabs.some((item) => item.id === requested) ? requested : "post";
@@ -63,7 +64,7 @@ export function PhonePreview({ content, account, tab: requested, onTabChange, di
           <div role="tabpanel" aria-label={`${tabs.find((item) => item.id === tab)?.label} preview`} className="flex min-h-0 flex-1 flex-col">
             {tab === "post" ? story ? <StoryView content={content} account={account} /> : <PostView content={content} account={account} /> : null}
             {tab === "comments" ? <CommentsView content={content} account={account} /> : null}
-            {tab === "dm" ? <DmView content={content} account={account} /> : null}
+            {tab === "dm" ? <DmView content={content} account={account} branding={branding} /> : null}
           </div>
           <div className="mx-auto mb-2 h-1 w-28 shrink-0 rounded-full bg-black/80" aria-hidden />
         </div>
@@ -230,8 +231,8 @@ function OtherComment({ handle, text, time }: { handle: string; text: string; ti
   );
 }
 
-function DmView({ content, account }: { content: AutomationContent; account: PreviewAccount | null }) {
-  const finalButton = content.finalDm.buttons[0];
+function DmView({ content, account, branding }: { content: AutomationContent; account: PreviewAccount | null; branding: boolean }) {
+  const finalButtons = content.finalDm.buttons.length ? content.finalDm.buttons : [{ label: "", url: "" }];
   const email = emailCaptureOf(content);
   const follow = followGateOf(content);
   return (
@@ -253,11 +254,11 @@ function DmView({ content, account }: { content: AutomationContent; account: Pre
         ) : (
           <p className="pb-1 text-center text-[0.62rem] text-[var(--pv-subtle)]">Replied to your comment</p>
         )}
-        <IncomingBubble account={account} text={content.openingDm.text || "Your opening message"} button={content.openingDm.buttonLabel || "Button"} />
+        <IncomingBubble account={account} text={content.openingDm.text || "Your opening message"} buttons={[{ label: content.openingDm.buttonLabel || "Button" }]} />
         <OutgoingBubble text={content.openingDm.buttonLabel || "Button"} />
         {follow.enabled ? (
           <>
-            <IncomingBubble account={account} text={follow.text || "Your follow message"} button={follow.buttonLabel || "Button"} />
+            <IncomingBubble account={account} text={follow.text || "Your follow message"} buttons={[{ label: follow.buttonLabel || "Button" }]} />
             <OutgoingBubble text={follow.buttonLabel || "Button"} />
           </>
         ) : null}
@@ -267,7 +268,8 @@ function DmView({ content, account }: { content: AutomationContent; account: Pre
             <OutgoingBubble text="alex@example.com" />
           </>
         ) : null}
-        <IncomingBubble account={account} text={content.finalDm.text || "Your final message"} button={finalButton?.label || "Button"} link={finalButton?.url} />
+        <IncomingBubble account={account} text={content.finalDm.text || "Your final message"} buttons={finalButtons.map((button) => ({ label: button.label || "Button", link: button.url }))} />
+        {branding ? <IncomingBubble account={account} text="Powered by LedaChat.com" /> : null}
       </div>
       <div className="flex items-center gap-2 border-t border-[var(--pv-divider)] px-3 py-2">
         <span className="flex-1 rounded-full bg-[var(--pv-divider)] px-3 py-1.5 text-[0.7rem] text-[var(--pv-subtle)]">Message…</span>
@@ -284,27 +286,31 @@ function OutgoingBubble({ text }: { text: string }) {
   );
 }
 
-function IncomingBubble({ account, text, button, link }: { account: PreviewAccount | null; text: string; button?: string; link?: string }) {
-  let host: string | null = null;
-  if (link) {
-    try {
-      host = new URL(link).hostname;
-    } catch {
-      host = null;
-    }
-  }
+function IncomingBubble({ account, text, buttons = [] }: { account: PreviewAccount | null; text: string; buttons?: Array<{ label: string; link?: string }> }) {
   return (
     <div className="flex items-end gap-1.5">
       <MiniAvatar account={account} size="size-5" />
       <div className="max-w-[78%] overflow-hidden rounded-2xl rounded-bl-md border border-[var(--pv-bubble-in)] bg-[var(--pv-bubble-in)]">
         <p className="px-3 py-2 break-words whitespace-pre-wrap">{text}</p>
-        {button ? (
-          <div className="border-t border-black/5 bg-[var(--pv-button)] px-3 py-2 text-center font-semibold text-[#3B5BDB]">
-            <span className="inline-flex items-center gap-1 break-all">{button}{link ? <ExternalLink className="size-3 shrink-0" /> : null}</span>
-            {host ? <span className="block text-[0.6rem] font-normal text-[var(--pv-subtle)]">{host}</span> : null}
-          </div>
-        ) : null}
+        {buttons.map((button, index) => {
+          const host = hostOf(button.link);
+          return (
+            <div key={index} className="border-t border-black/5 bg-[var(--pv-button)] px-3 py-2 text-center font-semibold text-[#3B5BDB]">
+              <span className="inline-flex items-center gap-1 break-all">{button.label}{button.link ? <ExternalLink className="size-3 shrink-0" /> : null}</span>
+              {host ? <span className="block text-[0.6rem] font-normal text-[var(--pv-subtle)]">{host}</span> : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
+}
+
+function hostOf(link?: string) {
+  if (!link) return null;
+  try {
+    return new URL(link).hostname;
+  } catch {
+    return null;
+  }
 }

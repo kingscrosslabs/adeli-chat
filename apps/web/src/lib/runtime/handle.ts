@@ -11,6 +11,7 @@ import { emailCaptureOf, followGateOf, type Automation } from "@adeli-chat/ui/au
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { toAutomation } from "@/lib/data";
 import { db, schema } from "@/lib/db";
+import { BRANDING_TEXT, showsBranding } from "@/lib/plan";
 
 import { matchComment, matchStoryReply, nextPostAfter } from "./match";
 
@@ -339,7 +340,14 @@ async function sendFinalDm(userId: string, runId: string, automationId: string, 
   } catch (error) {
     await updateRun(runId, { state: "failed", error: errorText(error) });
     trackFailure(userId, automationId, "final_dm", error);
+    return;
   }
+  // Free plan: a short branding message after the Final DM. The link already went out, so a failure here only shows on the run.
+  if (!(await showsBranding(userId))) return;
+  await sendText(userId, adeliAccountId, recipientId, BRANDING_TEXT).catch(async (error) => {
+    trackFailure(userId, automationId, "branding", error);
+    await updateRun(runId, { error: `Branding message failed. ${errorText(error)}`.slice(0, 500) });
+  });
 }
 
 async function updateRun(id: string, values: Partial<typeof schema.runs.$inferInsert>) {

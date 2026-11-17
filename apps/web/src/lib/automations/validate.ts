@@ -17,8 +17,12 @@ export type FieldPath =
   | "emailCapture.text"
   | "emailCapture.retryText"
   | "finalDm.text"
-  | "finalDm.buttons.0.label"
-  | "finalDm.buttons.0.url";
+  | `finalDm.buttons.${ButtonIndex}.label`
+  | `finalDm.buttons.${ButtonIndex}.url`;
+
+/** The Final DM has up to `LIMITS.finalDmButtons` buttons. */
+type ButtonIndex = 0 | 1 | 2;
+const BUTTON_INDEXES: ButtonIndex[] = [0, 1, 2];
 
 export type FieldErrors = Partial<Record<FieldPath, string>>;
 
@@ -36,8 +40,7 @@ export const FIELD_ORDER: FieldPath[] = [
   "emailCapture.text",
   "emailCapture.retryText",
   "finalDm.text",
-  "finalDm.buttons.0.label",
-  "finalDm.buttons.0.url",
+  ...BUTTON_INDEXES.flatMap((index) => [`finalDm.buttons.${index}.label`, `finalDm.buttons.${index}.url`] as const),
 ];
 
 export function isValidHttpsUrl(value: string) {
@@ -68,8 +71,9 @@ export function validateLimits(content: AutomationContent): FieldErrors {
   if (email.text.length > LIMITS.dmText) errors["emailCapture.text"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
   if (email.retryText.length > LIMITS.dmText) errors["emailCapture.retryText"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
   if (content.finalDm.text.length > LIMITS.dmText) errors["finalDm.text"] = `Instagram allows up to ${LIMITS.dmText} characters.`;
-  const button = content.finalDm.buttons[0];
-  if (button && button.label.length > LIMITS.buttonLabel) errors["finalDm.buttons.0.label"] = `Button labels can be up to ${LIMITS.buttonLabel} characters.`;
+  content.finalDm.buttons.forEach((button, index) => {
+    if (button.label.length > LIMITS.buttonLabel) errors[`finalDm.buttons.${index as ButtonIndex}.label`] = `Button labels can be up to ${LIMITS.buttonLabel} characters.`;
+  });
   return errors;
 }
 
@@ -91,9 +95,12 @@ export function validateForLive(content: AutomationContent): FieldErrors {
   if (email.enabled && !email.text.trim()) errors["emailCapture.text"] = "Write the message that asks for their email.";
   if (email.enabled && !email.retryText.trim()) errors["emailCapture.retryText"] = "Write the message for when the email doesn't look right.";
   if (!content.finalDm.text.trim()) errors["finalDm.text"] = "The final DM needs a message.";
-  const button = content.finalDm.buttons[0];
-  if (!button?.label.trim()) errors["finalDm.buttons.0.label"] = "Add a button label.";
-  if (!button || !isValidHttpsUrl(button.url.trim())) errors["finalDm.buttons.0.url"] = "Use a full link that starts with https://";
+  const buttons = content.finalDm.buttons.length ? content.finalDm.buttons : [{ label: "", url: "" }];
+  buttons.forEach((button, index) => {
+    const at = index as ButtonIndex;
+    if (!button.label.trim()) errors[`finalDm.buttons.${at}.label`] = "Add a button label.";
+    if (!isValidHttpsUrl(button.url.trim())) errors[`finalDm.buttons.${at}.url`] = "Use a full link that starts with https://";
+  });
   return errors;
 }
 

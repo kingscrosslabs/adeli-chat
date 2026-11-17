@@ -276,13 +276,11 @@ export function EmailSection({ draft, patch, errors, onFocusTab }: SectionProps)
 /** Only the DM types that work today are listed. */
 const DM_TYPES = [{ id: "text_buttons", label: "Text + Buttons" }] as const;
 
-/** F. Final DM (FR-5.18 to FR-5.21). The model allows 3 buttons; v1 edits one. */
+/** F. Final DM (FR-5.18 to FR-5.21). One to three link buttons, Instagram's limit for one message. */
 export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProps) {
-  const button = draft.finalDm.buttons[0] ?? { label: "", url: "" };
-  const setButton = (next: Partial<typeof button>) => patch((current) => ({
-    ...current,
-    finalDm: { ...current.finalDm, buttons: [{ ...button, ...next }, ...current.finalDm.buttons.slice(1)] },
-  }));
+  const buttons = draft.finalDm.buttons.length ? draft.finalDm.buttons : [{ label: "", url: "" }];
+  const setButtons = (next: typeof buttons) => patch((current) => ({ ...current, finalDm: { ...current.finalDm, buttons: next } }));
+  const setButton = (index: number, next: Partial<(typeof buttons)[number]>) => setButtons(buttons.map((button, i) => i === index ? { ...button, ...next } : button));
   return (
     <Section step={stepOf(draft, 7)} title="Final DM" info="Sent when they tap the button, or once they send their email. This is where your link goes." tab="dm" onFocusTab={onFocusTab}>
       <div className="space-y-1.5">
@@ -305,9 +303,30 @@ export function FinalDmSection({ draft, patch, errors, onFocusTab }: SectionProp
         </div>
       </div>
       <TextField field="finalDm.text" label="Message" multiline value={draft.finalDm.text} max={LIMITS.dmText} error={errors["finalDm.text"]} onChange={(text) => patch((current) => ({ ...current, finalDm: { ...current.finalDm, text } }))} />
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <TextField field="finalDm.buttons.0.label" label="Button label" value={button.label} max={LIMITS.buttonLabel} error={errors["finalDm.buttons.0.label"]} onChange={(label) => setButton({ label })} />
-        <TextField field="finalDm.buttons.0.url" label="Link" type="url" inputMode="url" placeholder="https://" value={button.url} max={LIMITS.url} showCounter={false} error={errors["finalDm.buttons.0.url"]} onChange={(url) => setButton({ url })} />
+      {buttons.map((button, index) => {
+        const at = index as 0 | 1 | 2;
+        return (
+          <div key={index} className="space-y-2">
+            {buttons.length > 1 ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Button {index + 1}</span>
+                <Button variant="ghost" size="icon-sm" aria-label={`Delete button ${index + 1}`} onClick={() => setButtons(buttons.filter((_, i) => i !== index))}>
+                  <Trash2 />
+                </Button>
+              </div>
+            ) : null}
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <TextField field={`finalDm.buttons.${at}.label`} label="Button label" value={button.label} max={LIMITS.buttonLabel} error={errors[`finalDm.buttons.${at}.label`]} onChange={(label) => setButton(index, { label })} />
+              <TextField field={`finalDm.buttons.${at}.url`} label="Link" type="url" inputMode="url" placeholder="https://" value={button.url} max={LIMITS.url} showCounter={false} error={errors[`finalDm.buttons.${at}.url`]} onChange={(url) => setButton(index, { url })} />
+            </div>
+          </div>
+        );
+      })}
+      <div className="flex items-center justify-between">
+        <Button variant="secondary" size="sm" onClick={() => setButtons([...buttons, { label: "", url: "" }])} disabled={buttons.length >= LIMITS.finalDmButtons}>
+          <Plus /> Add link
+        </Button>
+        <span className="text-xs text-muted-foreground">{buttons.length} of {LIMITS.finalDmButtons}</span>
       </div>
     </Section>
   );
