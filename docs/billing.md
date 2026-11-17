@@ -70,6 +70,8 @@ Checkout accepts promotion codes (`allow_promotion_codes`). Live mode has a test
 
 `getPlan(userId)` (`apps/web/src/lib/billing/state.ts`) reads only that row: Pro while the status is `active`, `trialing` or `past_due`. `past_due` is deliberate: while Stripe retries a card, the user keeps Pro.
 
+**Cancelling.** The portal cancels at the end of the paid period: Stripe keeps the subscription `active` and sets `cancel_at` (or `cancel_at_period_end`), which LedaChat stores as `cancel_at_period_end` with the end date in `current_period_end`, and Settings shows "Pro until <date>". At that date Stripe ends it and sends `customer.subscription.deleted`, which makes the user Free. `planOf` also stops counting a cancelled subscription as Pro once its end date passes, so Pro ends on time even if that webhook is missed.
+
 ## Webhook
 
 `POST /api/stripe/webhook` (`apps/web/src/app/api/stripe/webhook/route.ts`, logic in `apps/web/src/lib/billing/webhook.ts`). Subscribe the endpoint to:
@@ -82,7 +84,11 @@ Checkout accepts promotion codes (`allow_promotion_codes`). Live mode has a test
 
 Subscription and invoice events re-read the subscription from Stripe and mirror it (Stripe doesn't guarantee event order). An event for an older subscription never overwrites a newer active one. **One subscription per user:** a second active one (two checkouts finished at once) is cancelled with `invoice_now: false, prorate: false` once Stripe confirms the recorded one is still active. `startCheckout` also asks Stripe whether the user already subscribes, sending them to the portal if so, and expires their open checkouts before creating one.
 
-**A missed webhook** would leave a payer on Free. Opening Settings calls `reconcileSubscription`, which, at most once a minute per user and only when no active subscription is on record, asks Stripe and mirrors an active one. A repair logs `Stripe subscription ... was never mirrored by a webhook`: fix the endpoint rather than relying on it.
+**A missed webhook** is repaired when the user opens Settings, by `reconcileSubscription`, at most once a minute per user, in both directions:
+- no active subscription on record: it asks Stripe for an active one and mirrors it, so a payer isn't left on Free (logs `was never mirrored by a webhook`);
+- an active subscription more than a day past its period end: it re-reads that subscription, which either renews the period or ends Pro (logs `is past its period end with no webhook since`).
+
+Either log means the endpoint is broken: fix it rather than relying on the repair.
 
 ## The live automation limit
 

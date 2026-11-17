@@ -19,8 +19,15 @@ export async function getBillingCustomer(userId: string): Promise<BillingCustome
   return row ?? null;
 }
 
-export function planOf(customer: Pick<BillingCustomer, "subscriptionStatus"> | null): PlanId {
-  return isActiveSubscriptionStatus(customer?.subscriptionStatus) ? "pro" : "free";
+/**
+ * Pro while the subscription is active, except that a cancelled one (Stripe's
+ * `cancel_at` or `cancel_at_period_end`) stops counting at its end date even
+ * if the webhook that ends it never arrives.
+ */
+export function planOf(customer: Pick<BillingCustomer, "subscriptionStatus" | "cancelAtPeriodEnd" | "currentPeriodEnd"> | null, now = new Date()): PlanId {
+  if (!customer || !isActiveSubscriptionStatus(customer.subscriptionStatus)) return "free";
+  if (customer.cancelAtPeriodEnd && customer.currentPeriodEnd && customer.currentPeriodEnd <= now) return "free";
+  return "pro";
 }
 
 /**

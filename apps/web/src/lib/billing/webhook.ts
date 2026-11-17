@@ -123,19 +123,32 @@ export async function syncSubscription(stripe: Stripe, subscriptionId: string): 
 }
 
 const RECONCILE_INTERVAL_MS = 60_000;
+/** How long past its period end an "active" subscription may go unrenewed before we ask Stripe. */
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const lastReconciled = new Map<string, number>();
 
 /**
- * Mirrors a subscription no webhook told us about, so a missed webhook can't
- * leave a paying user on Free. Only when the user has a customer but no
- * active subscription on record, and at most once a minute per user.
+ * Repairs what a missed webhook would leave wrong, in both directions, at
+ * most once a minute per user:
+ * - a paying user recorded as Free (no active subscription on record): find
+ *   an active subscription in Stripe and mirror it;
+ * - a user recorded as Pro whose period ended more than a day ago (the
+ *   renewal, failed payment or end was never mirrored): re-read that
+ *   subscription, which renews the period, or ends Pro.
  */
 export async function reconcileSubscription(stripe: Stripe, userId: string, now = Date.now()): Promise<boolean> {
   const [row] = await db().select().from(schema.billingCustomers).where(eq(schema.billingCustomers.userId, userId)).limit(1);
-  if (!row || isActiveSubscriptionStatus(row.subscriptionStatus)) return false;
+  if (!row) return false;
+  const stale = isActiveSubscriptionStatus(row.subscriptionStatus) && row.stripeSubscriptionId !== null && row.currentPeriodEnd !== null && row.currentPeriodEnd.getTime() + STALE_AFTER_MS < now;
+  if (isActiveSubscriptionStatus(row.subscriptionStatus) && !stale) return false;
   const last = lastReconciled.get(userId);
   if (last !== undefined && now - last < RECONCILE_INTERVAL_MS) return false;
   lastReconciled.set(userId, now);
+  if (stale) {
+    console.error(`Stripe subscription ${row.stripeSubscriptionId} is past its period end with no webhook since; re-read it from Stripe. Check the webhook endpoint.`);
+    await syncSubscription(stripe, row.stripeSubscriptionId!);
+    return true;
+  }
   const subscriptions = await stripeCall("subscriptions.list", () => stripe.subscriptions.list({ customer: row.stripeCustomerId, status: "all", limit: 10 }));
   const live = subscriptions.data.find((subscription) => isActiveSubscriptionStatus(subscription.status));
   if (!live) return false;
