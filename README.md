@@ -1,10 +1,50 @@
-# LedaChat
+<p align="center">
+  <a href="https://www.ledachat.com">
+    <img src="./.github/assets/logo.svg" width="120" height="120" alt="LedaChat logo" />
+  </a>
+  <h1 align="center">LedaChat</h1>
+  <p align="center">
+    Free, open-source Instagram Comment to DM automations. A ManyChat alternative you can run yourself.
+  </p>
+</p>
 
-Free, open-source Instagram Comment to DM automations (a ManyChat alternative), built on the [Adeli](https://www.tryadeli.com/) API. Hosted at [ledachat.com](https://ledachat.com).
+<p align="center">
+  <a href="https://github.com/kingscrosslabs/adeli-chat/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/kingscrosslabs/adeli-chat/ci.yml?branch=main&label=CI" alt="CI status" /></a>
+  <a href="https://github.com/kingscrosslabs/adeli-chat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kingscrosslabs/adeli-chat?color=702EC7" alt="MIT license" /></a>
+  <img src="https://img.shields.io/github/package-json/v/kingscrosslabs/adeli-chat?color=702EC7&label=version" alt="LedaChat version" />
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fkingscrosslabs%2Fadeli-chat%2Fmain%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=nodedotjs&logoColor=white" alt="Node.js version" />
+  <a href="https://www.npmjs.com/package/@adeli/sdk"><img src="https://img.shields.io/npm/v/@adeli/sdk?label=%40adeli%2Fsdk&color=0a807a" alt="@adeli/sdk on npm" /></a>
+  <a href="https://www.tryadeli.com"><img src="https://img.shields.io/badge/powered%20by-Adeli-0a807a" alt="Powered by Adeli" /></a>
+</p>
 
-When someone comments a keyword on your post, LedaChat replies to their comment and sends them a DM with your link.
+<p align="center">
+  <a href="https://www.ledachat.com">Website</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="#deploy-to-vercel">Self-host</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="#use-with-claude-mcp">MCP server</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://www.tryadeli.com">Powered by Adeli</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://www.tryadeli.com/docs/api">Adeli API reference</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="docs/PRD.md">Spec</a>
+</p>
 
-**Status:** the full Comment to DM flow runs against the Adeli API: a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link. Automations and their stats live in Postgres, or in a local PGlite database if you don't set one up. See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) and [docs/design.md](docs/design.md) for the brand and design system.
+<br />
+
+## Introduction
+
+When someone comments a keyword on your post, LedaChat replies to their comment and sends them a DM with your link. Use it at [ledachat.com](https://www.ledachat.com), or deploy your own copy to Vercel in a few minutes.
+
+- **Comment to DM:** a matching comment gets a public reply and an opening DM with a button, and a tap sends the final DM with your link
+- **Follow gate:** ask people to follow you before the link arrives
+- **Your own workspace:** every person who signs in gets their own Instagram account, automations, stats and webhook
+- **Works with AI agents:** an MCP server lets Claude, ChatGPT, Cursor and others build and manage your automations
+- **Nothing to sign up for but Google:** Instagram calls run through the [Adeli](https://www.tryadeli.com) API, so the people using your install never need an Adeli account
+- **Open source:** MIT licensed, Next.js and Postgres (or PGlite locally)
+
+See [docs/PRD.md](docs/PRD.md) for the spec and build plan, and [docs/brand.md](docs/brand.md) and [docs/design.md](docs/design.md) for the brand and design system.
 
 ## Run it locally
 
@@ -101,4 +141,4 @@ Never commit a key. If Adeli stops accepting it, LedaChat shows a banner on ever
 ## Notes
 
 - Follow Meta's Platform Terms and Instagram's messaging policies when you run automations.
-- The code is MIT licensed. The Adeli logo in `apps/landing-page/public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.
+- The code is [MIT licensed](LICENSE). The Adeli logo in `apps/landing-page/public/brand/` is used with permission and isn't covered by the MIT license; forks should swap it.
