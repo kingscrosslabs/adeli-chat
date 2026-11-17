@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: { default: "LedaChat", template: "%s · LedaChat" },
   description: "Open-source Instagram Comment to DM automations, built on the Adeli API.",
+  // The app is behind sign-in; the marketing site is the page search engines should show.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
