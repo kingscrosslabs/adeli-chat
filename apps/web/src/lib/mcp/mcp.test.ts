@@ -178,6 +178,22 @@ describe("/mcp tools", () => {
     expect(text(result)).toContain(existing.id);
   });
 
+  it("explains the Free limit at go live, and reports the plan", async () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "rk_test_ledachat");
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const account = await seedAccount("user_1");
+    for (let index = 0; index < 10; index += 1) await seedLiveAutomation(account.id, { trigger: { postScope: "specific", mediaId: `media_live_${index}`, mediaSnapshot: null, match: "keywords", keywords: [`live${index}`] } });
+    const { token } = await createToken("user_1", { name: "test", readOnly: false, expiry: "never" });
+    const client = await connect(token);
+    const created = data(await client.callTool({ name: "create_automation", arguments: { postId: "media_2", keywords: ["NEW"], linkUrl: "https://example.com" } }));
+
+    const result = await client.callTool({ name: "go_live", arguments: { id: created.id } });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain("10 live automations, the most on Free");
+    expect(text(result)).toContain("http://localhost:3030/settings#plan");
+    expect(data(await client.callTool({ name: "get_workspace", arguments: {} }))).toMatchObject({ plan: "free", liveAutomationLimit: 10, finalDmBranded: true, upgradeUrl: "http://localhost:3030/settings#plan" });
+  });
+
   it("rejects a post that isn't on the account", async () => {
     await seedAccount("user_1");
     const { token } = await createToken("user_1", { name: "test", readOnly: false, expiry: "never" });

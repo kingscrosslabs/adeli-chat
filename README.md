@@ -98,6 +98,10 @@ One LedaChat install uses one Adeli organization, through the API key in `ADELI_
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
 | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | No | PostHog project token (`phc_...`) for product analytics. Empty: nothing is sent. See [docs/analytics.md](docs/analytics.md). |
 | `NEXT_PUBLIC_POSTHOG_HOST` | No | `https://us.i.posthog.com` (default) or `https://eu.i.posthog.com`. |
+| `STRIPE_SECRET_KEY` | No | Hosted LedaChat only. **Leave empty to self-host**: without it nothing is limited (turn branding off with `LEDACHAT_BRANDING`). See [docs/billing.md](docs/billing.md). |
+| `STRIPE_WEBHOOK_SECRET` | No | Hosted only, with `STRIPE_SECRET_KEY`: the signing secret of the `https://<app>/api/stripe/webhook` endpoint. |
+| `SLACK_BILLING_ALERT_WEBHOOK_URL` | No | Slack incoming webhook for billing alerts. Empty: none are sent. |
+| `SLACK_SIGNUP_WEBHOOK_URL` | No | Slack incoming webhook for sign-ups and automations going live. Empty: none are sent. |
 | `NEXT_PUBLIC_POSTHOG_UI_HOST` | No | `https://us.posthog.com` (default) or `https://eu.posthog.com`, for links from the toolbar. |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.

@@ -381,3 +381,34 @@ export const leads = pgTable("leads", {
   email: text("email").notNull(),
   ...timestamps,
 }, (table) => [unique("leads_automation_user").on(table.automationId, table.igUserId)]);
+
+/**
+ * A user's Stripe billing, mirrored from Stripe's webhooks (and repaired by
+ * `reconcileSubscription`) so the plan is read without calling Stripe. A row
+ * exists from the first time the user starts checkout; Free users who never
+ * did have none. See docs/billing.md.
+ */
+export const billingCustomers = pgTable("billing_customers", {
+  userId: text("user_id").primaryKey().references(() => authUser.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  /** Stripe's subscription status, verbatim: `active`, `past_due`, `unpaid`, `canceled`, ... */
+  subscriptionStatus: text("subscription_status"),
+  /** The user cancelled in the portal; Pro lasts until `current_period_end`. */
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  /** Set when Stripe Tax can't place the customer, so their invoices can't finalize. */
+  taxLocationInvalid: boolean("tax_location_invalid").notNull().default(false),
+  /** When the first-payment Slack alert was sent. Set once, after Slack accepts it. */
+  firstPaymentAlertedAt: timestamp("first_payment_alerted_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("billing_customers_stripe_customer_unique").on(table.stripeCustomerId),
+  uniqueIndex("billing_customers_stripe_subscription_unique").on(table.stripeSubscriptionId),
+]);
+
+/** Stripe event ids already handled, so a redelivery is skipped. Released when handling fails, so Stripe's retry runs. */
+export const processedStripeEvents = pgTable("processed_stripe_events", {
+  eventId: text("event_id").primaryKey(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});

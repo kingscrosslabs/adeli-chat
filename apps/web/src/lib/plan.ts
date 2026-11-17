@@ -1,9 +1,10 @@
 import "server-only";
 
-import { getUserSettings } from "@/lib/user-settings";
+import { isPro } from "@/lib/billing/state";
+import { BRANDING_TEXT } from "@adeli-chat/ui/billing/plans";
 
 /** Sent after the Final DM for users on the free plan. */
-export const BRANDING_TEXT = "Powered by LedaChat.com";
+export { BRANDING_TEXT };
 
 /**
  * Whether this install adds branding at all. On unless `LEDACHAT_BRANDING` is
@@ -14,9 +15,11 @@ export function brandingEnabled() {
   return !value || !["off", "false", "0"].includes(value);
 }
 
-/** Whether this user's Final DMs get the branding message: free plan, and branding on for the install. */
+/**
+ * Whether this user's Final DMs get the branding message: branding on for the
+ * install, and not Pro (an active Stripe subscription or `user_settings.plan`).
+ */
 export async function showsBranding(userId: string) {
   if (!brandingEnabled()) return false;
-  const settings = await getUserSettings(userId);
-  return settings.plan !== "pro";
+  return !(await isPro(userId));
 }

@@ -88,6 +88,7 @@ __metadata:
     react-icons: "npm:^5.7.0"
     shadcn: "npm:^4.20.1"
     sonner: "npm:^2.0.8"
+    stripe: "npm:^23.1.0"
     tailwindcss: "npm:^4"
     tw-animate-css: "npm:^1.4.0"
     typescript: "npm:^5"
@@ -7633,6 +7634,18 @@ __metadata:
   version: 3.1.1
   resolution: "strip-json-comments@npm:3.1.1"
   checksum: 10c0/9681a6257b925a7fa0f285851c0e613cc934a50661fa7bb41ca9cbbff89686bb4a0ee366e6ecedc4daafd01e83eee0720111ab294366fe7c185e935475ebcecd
+  languageName: node
+  linkType: hard
+
+"stripe@npm:^23.1.0":
+  version: 23.1.0
+  resolution: "stripe@npm:23.1.0"
+  peerDependencies:
+    "@types/node": ">=20"
+  peerDependenciesMeta:
+    "@types/node":
+      optional: true
+  checksum: 10c0/9f17a0317824e499297efcf89e37cecdab456b019005efb54f62e3a932f59dc44663e8eac01cd04034c68d73d8748cc04d169308536c8098a273a3066b7caf4b
   languageName: node
   linkType: hard
 

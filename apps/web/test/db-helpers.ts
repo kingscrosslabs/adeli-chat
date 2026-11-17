@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/db";
 export const TEST_KEY = `rk_live_${"a".repeat(43)}`;
 
 export async function resetDatabase() {
-  await db().execute(sql`truncate runs, automations, accounts, user_settings, auth_user cascade`);
+  await db().execute(sql`truncate runs, automations, accounts, user_settings, billing_customers, processed_stripe_events, auth_user cascade`);
 }
 
 /** A signed-in user whose Adeli profile was already created. Pass `profileId: null` for a user without one yet. */

@@ -8,10 +8,13 @@ import { findMedia, listMedia, listStories } from "@/lib/adeli/instagram";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { trackWentLive } from "@/lib/analytics/automations";
+import { getPlan, liveAutomationLimit } from "@/lib/billing/state";
+import { showsBranding } from "@/lib/plan";
 import { track } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
+import { FREE_LIVE_AUTOMATIONS } from "@adeli-chat/ui/billing/plans";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
@@ -45,6 +48,7 @@ Each person gets the flow once per automation.
 Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, replies ${LIMITS.replyVariant} chars each, DM text ${LIMITS.dmText} chars, button labels ${LIMITS.buttonLabel} chars.
 
 Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation of the same type and scope (and, for "specific", the same post) shares a keyword (or matches anything).
+On the hosted LedaChat, the Free plan allows ${FREE_LIVE_AUTOMATIONS} live automations at once and sends "Powered by LedaChat.com" after the Final DM; Pro removes both. get_workspace reports the plan. go_live at the limit fails: tell the user rather than retrying.
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -212,6 +216,7 @@ function rejected(result: Exclude<service.ActionResult, { ok: true }>): CallTool
     return fail(`This automation can't be live yet. Fix ${result.count === 1 ? "this field" : "these fields"} and try again:\n${lines.join("\n")}`);
   }
   if (result.reason === "conflict") return fail(`${result.message} Pause that one (id ${result.conflictId}) or use different keywords.`);
+  if (result.reason === "limit") return fail(`${result.message} Don't retry: tell the user, who can pause one with pause_automation or upgrade at ${result.upgradeUrl}.`);
   return fail(result.message);
 }
 
@@ -245,7 +250,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   server.registerTool("get_workspace", {
     title: "Get workspace",
-    description: "The connected Instagram account, whether the server has a working Adeli key, and how many automations there are by status. Call this first if other tools say setup isn't done.",
+    description: "The connected Instagram account, whether the server has a working Adeli key, how many automations there are by status, and the plan (free, pro, or unlimited when self-hosted) with its live automation limit. Call this first if other tools say setup isn't done.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, () => run("get_workspace", false, async () => {
@@ -253,10 +258,15 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     const automations = connected ? await listAutomations(connected.id) : [];
     const counts = { draft: 0, live: 0, paused: 0 };
     for (const automation of automations) counts[automation.status] += 1;
+    const plan = await getPlan(userId);
     return json({
       instagram: connected ? { handle: `@${connected.displayIdentifier}`, name: connected.displayName } : null,
       adeliKey: !findAdeliConfig() ? "missing" : serverKeyRejected() ? "rejected" : "configured",
       automations: counts,
+      plan,
+      liveAutomationLimit: liveAutomationLimit(plan),
+      finalDmBranded: await showsBranding(userId),
+      upgradeUrl: plan === "free" ? service.upgradeUrl() : null,
       settingsUrl: `${appUrl()}/settings`,
       setupNeeded: connected ? null : `Connect an Instagram account at ${appUrl()}/connect first.`,
     });
@@ -349,7 +359,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   }, ({ id }) => run("go_live", true, async () => {
-    const result = await service.goLive(userId, id);
+    const result = await service.goLive(userId, id, undefined, "mcp");
     if (!result.ok) {
       track(userId, "automation_go_live_rejected", { automation_id: id, source: "mcp", reason: result.reason });
       return rejected(result);

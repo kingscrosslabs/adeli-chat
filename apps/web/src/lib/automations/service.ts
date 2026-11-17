@@ -1,7 +1,11 @@
 import "server-only";
 
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, ne, sql } from "drizzle-orm";
 
+import { alertWentLive } from "@/lib/alerts/dopamine";
+import type { Source } from "@/lib/analytics/server";
+import { appUrl } from "@/lib/app-url";
+import { getPlan, liveAutomationLimit } from "@/lib/billing/state";
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
 
@@ -20,7 +24,8 @@ export type ActionResult<T = object> =
   | ({ ok: true } & T)
   | { ok: false; reason: "error"; message: string }
   | { ok: false; reason: "invalid"; count: number; errors: FieldErrors }
-  | { ok: false; reason: "conflict"; message: string; conflictId: string };
+  | { ok: false; reason: "conflict"; message: string; conflictId: string }
+  | { ok: false; reason: "limit"; message: string; limit: number; upgradeUrl: string };
 
 /** A problem the user can fix, shown to them as is. */
 export class ServiceError extends Error {}
@@ -101,17 +106,43 @@ export async function saveAutomation(userId: string, id: string, input: unknown)
   return { ok: true };
 }
 
-/** Saves `input` when given (the editor), then goes live. */
-export async function goLive(userId: string, id: string, input?: unknown): Promise<ActionResult> {
+/** Where a Free user upgrades. */
+export function upgradeUrl() {
+  return `${appUrl()}/settings#plan`;
+}
+
+/**
+ * Saves `input` when given (the editor), then goes live. An automation that
+ * wasn't live already counts toward the plan's live limit (Free: 10). The
+ * count and the update run under a per-user lock, so two Go Lives at 9
+ * can't both pass. Drafts, saves and live edits are never limited.
+ */
+export async function goLive(userId: string, id: string, input?: unknown, source: Source = "app"): Promise<ActionResult> {
   const { account, automation } = await loadOwn(userId, id);
   const content = input ? keepShape({ ...parseContent(input), type: automation.type }) : automation;
   const rejected = await checkLive(account.id, id, content);
   if (rejected) return rejected;
+  const wasLive = automation.status === "live";
+  const limit = wasLive ? null : liveAutomationLimit(await getPlan(userId));
   const now = new Date();
   const { name, commentReply, openingDm, emailCapture, followGate, finalDm } = content;
   // A Next post automation starts waiting again from now: forget any post an earlier run bound.
   const trigger = content.trigger.postScope === "next" ? { ...content.trigger, mediaId: null, mediaSnapshot: null } : content.trigger;
-  await db().update(schema.automations).set({ name, trigger, commentReply, openingDm, emailCapture, followGate, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
+  const refused = await db().transaction(async (tx) => {
+    if (limit !== null) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`live:${userId}`}))`);
+      const [{ live }] = await tx.select({ live: count() }).from(schema.automations)
+        .innerJoin(schema.accounts, eq(schema.automations.accountId, schema.accounts.id))
+        .where(and(eq(schema.accounts.userId, userId), eq(schema.automations.status, "live"), ne(schema.automations.id, id)));
+      if (live >= limit) return true;
+    }
+    await tx.update(schema.automations).set({ name, trigger, commentReply, openingDm, emailCapture, followGate, finalDm, status: "live", liveAt: now, updatedAt: now }).where(eq(schema.automations.id, id));
+    return false;
+  });
+  if (refused && limit !== null) {
+    return { ok: false, reason: "limit", limit, upgradeUrl: upgradeUrl(), message: `You have ${limit} live automations, the most on Free. Pause one, or upgrade to Pro for unlimited live automations.` };
+  }
+  if (!wasLive) await alertWentLive(userId, { ...automation, ...content, trigger, status: "live" }, source);
   return { ok: true };
 }
 

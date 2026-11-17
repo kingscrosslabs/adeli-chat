@@ -12,7 +12,10 @@ import { trackWentLive } from "@/lib/analytics/automations";
 import { track } from "@/lib/analytics/server";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
-import { requireUserId, SignedOutError } from "@/lib/auth/session";
+import { getCurrentUser, requireUserId, SignedOutError } from "@/lib/auth/session";
+import * as billing from "@/lib/billing/checkout";
+import { billingEnabled } from "@/lib/billing/config";
+import { getBillingCustomer } from "@/lib/billing/state";
 import { automationTypeSchema, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import * as service from "@/lib/automations/service";
 import { pauseLive, requireAccount, ServiceError, type ActionResult } from "@/lib/automations/service";
@@ -77,6 +80,39 @@ export async function signInWithGoogle(form?: FormData): Promise<void> {
 export async function signOut(): Promise<void> {
   if (authEnabled()) await auth().api.signOut({ headers: await headers() }).catch(() => undefined);
   redirect("/sign-in");
+}
+
+/**
+ * "Upgrade to Pro": Stripe Checkout, or the Customer Portal when the user
+ * already pays. The payer is the signed-in user, never anyone the browser names.
+ */
+export async function startCheckout(): Promise<ActionResult<{ url: string }>> {
+  return guard(async (userId) => {
+    if (!billingEnabled()) throw new ActionError("Billing isn't set up on this server.");
+    const user = await getCurrentUser();
+    if (!user) throw new SignedOutError();
+    const opened = await billing.startCheckout({ userId, email: user.email, name: user.name }).catch((error: unknown) => {
+      console.error(`Couldn't start checkout: ${error instanceof Error ? error.message : String(error)}`);
+      throw new ActionError("Couldn't open checkout. Try again in a moment.");
+    });
+    track(userId, opened.kind === "checkout" ? "checkout_started" : "billing_portal_opened", { source: "upgrade" });
+    return { ok: true, url: opened.url };
+  });
+}
+
+/** "Manage billing": a Customer Portal session for the signed-in user. */
+export async function openBillingPortal(): Promise<ActionResult<{ url: string }>> {
+  return guard(async (userId) => {
+    if (!billingEnabled()) throw new ActionError("Billing isn't set up on this server.");
+    const customer = await getBillingCustomer(userId);
+    if (!customer) throw new ActionError("You don't have a subscription yet.");
+    const url = await billing.openPortal(customer.stripeCustomerId).catch((error: unknown) => {
+      console.error(`Couldn't open the billing portal: ${error instanceof Error ? error.message : String(error)}`);
+      throw new ActionError("Couldn't open billing. Try again in a moment.");
+    });
+    track(userId, "billing_portal_opened", { source: "manage" });
+    return { ok: true, url };
+  });
 }
 
 /** Local development only: renames the local user's Adeli profile. `renameLocalProfile` refuses any other user. */

@@ -29,7 +29,7 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `automation_created` | Server | `automation_type` |
 | `automation_saved` / `automation_save_rejected` | Server | `reason`, `invalid_fields` on rejection |
 | `automation_went_live` | Server | `automation_type`, `post_scope`, `trigger_match`, `keyword_count`, `comment_reply_enabled`, `email_capture_enabled`, `follow_gate_enabled`, `final_dm_buttons` |
-| `automation_go_live_rejected` | Server | `reason` (`invalid`, `conflict`, `error`) |
+| `automation_go_live_rejected` | Server | `reason` (`invalid`, `conflict`, `limit`, `error`) |
 | `automation_paused`, `automation_duplicated`, `automation_deleted`, `automation_runs_reset` | Server | |
 | `leads_exported` | Server | `lead_count` |
 | `agent_setup_opened` | Browser, Connect to AI Agent | `agent` |
@@ -37,6 +37,10 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `mcp_oauth_consent_allowed` / `mcp_oauth_consent_denied` | Server | `allow_write` |
 | `mcp_app_disconnected` | Server | |
 | `mcp_tool_called` | Server, every MCP tool call | `tool`, `write`, `ok` |
+| `checkout_started` | Server, Upgrade to Pro | `source` |
+| `billing_portal_opened` | Server, Manage billing (or Upgrade when already subscribed) | `source` (`manage`, `upgrade`) |
+| `subscription_started` / `subscription_ended` | Server, Stripe webhook | `status` |
+| `subscription_cancel_scheduled` | Server, Stripe webhook | |
 
 The automation runtime (`src/lib/runtime/handle.ts`) records each run's steps on the workspace owner, which gives the Comment to DM funnel:
 

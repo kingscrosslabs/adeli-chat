@@ -8,6 +8,7 @@ import { SiClaude, SiPerplexity } from "react-icons/si";
 import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
 import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
+import { FREE_LIVE_AUTOMATIONS, PRO_MONTHLY_DOLLARS } from "@adeli-chat/ui/billing/plans";
 import { Badge } from "@adeli-chat/ui/components/badge";
 import { buttonVariants } from "@adeli-chat/ui/components/button";
 import { ADELI_LINKS, CONTACT_EMAIL, WAITLIST_URL } from "@/lib/links";
@@ -17,7 +18,7 @@ import { HeroPreview } from "./hero-preview";
 import { SamplePrompts } from "./sample-prompts";
 
 /** Free plan size, shown in the hero, Options and FAQ. One place to change it. */
-const FREE_AUTOMATIONS = 10;
+const FREE_AUTOMATIONS = FREE_LIVE_AUTOMATIONS;
 
 /** "Adeli", linked with the UTM for this spot on the page (docs/brand.md section 6). */
 /** Leda Pink as a pen, not a fill (docs/design.md): title underlines, outlines, hover underlines and borders. */
@@ -242,7 +243,7 @@ function Features() {
 type Cell = true | false | string;
 
 const COMPARISON: Array<{ label: string; adeli: Cell; manychat: Cell }> = [
-  { label: "Price", adeli: `Free for ${FREE_AUTOMATIONS} automations, then $25/month`, manychat: "Pro from $39/month, or $29/month billed yearly" },
+  { label: "Price", adeli: `Free for ${FREE_AUTOMATIONS} automations, then $${PRO_MONTHLY_DOLLARS}/month`, manychat: "Pro from $39/month, or $29/month billed yearly" },
   { label: "Graduated pricing", adeli: "No. One flat price whether 50 or 50,000 people comment", manychat: "Yes. The price rises with your active contacts" },
   { label: "Open source", adeli: true, manychat: false },
   { label: "Self-host", adeli: true, manychat: false },
@@ -329,9 +330,9 @@ function Options() {
     },
     {
       name: "Pro",
-      price: "$25",
+      price: `$${PRO_MONTHLY_DOLLARS}`,
       period: "per month",
-      points: ["Everything in Free", "Remove branding"],
+      points: ["Everything in Free", "Unlimited automations", "Remove branding"],
       action: <JoinWaitlist variant="outline" className="w-full" />,
       featured: false,
     },
