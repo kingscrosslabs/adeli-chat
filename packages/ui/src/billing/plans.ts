@@ -17,4 +17,4 @@ export const FREE_LIVE_AUTOMATIONS = PLANS.free.liveAutomations;
 export const PRO_MONTHLY_DOLLARS = PLANS.pro.priceCents / 100;
 
 /** Sent as its own message after a Free user's Final DM (`apps/web/src/lib/plan.ts`). */
-export const BRANDING_TEXT = "Powered by LedaChat.com";
+export const BRANDING_TEXT = "Powered by LedaChat";

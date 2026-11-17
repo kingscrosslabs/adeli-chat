@@ -225,10 +225,10 @@ describe("Final DM links and branding", () => {
     });
   });
 
-  it("follows the Final DM with Powered by LedaChat.com on the free plan", async () => {
+  it("follows the Final DM with Powered by LedaChat on the free plan", async () => {
     vi.stubEnv("LEDACHAT_BRANDING", "");
     const adeli = await tap();
-    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat.com"]);
+    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat"]);
     expect((await onlyRun()).state).toBe("final_sent");
   });
 
@@ -255,7 +255,7 @@ describe("Final DM links and branding", () => {
     fakeAdeli();
     await handleEvent(USER, commentEvent());
     const run = await onlyRun();
-    fakeAdeli([(sent) => sent.path === "/messages/instagram" && (sent.body as { text: string }).text === "Powered by LedaChat.com" ? apiError(500, "server_error") : undefined]);
+    fakeAdeli([(sent) => sent.path === "/messages/instagram" && (sent.body as { text: string }).text === "Powered by LedaChat" ? apiError(500, "server_error") : undefined]);
     await handleEvent(USER, postbackEvent(run.id));
     const done = await onlyRun();
     expect(done.state).toBe("final_sent");
@@ -275,7 +275,7 @@ describe("Final DM links and branding", () => {
     vi.stubEnv("LEDACHAT_BRANDING", "");
     await db().insert(schema.billingCustomers).values({ userId: USER, stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1", subscriptionStatus: "canceled" });
     const adeli = await tap();
-    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat.com"]);
+    expect(adeli.messages().map((sent) => (sent.body as { text: string }).text)).toEqual(["Here it is!", "Powered by LedaChat"]);
   });
 });
 

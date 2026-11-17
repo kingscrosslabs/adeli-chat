@@ -182,6 +182,25 @@ describe("reconcileSubscription", () => {
     error.mockRestore();
   });
 
+  it("ends Pro whose period passed with no webhook, by re-reading the subscription", async () => {
+    const stripe = fakeStripe();
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const now = Date.now();
+    await db().update(schema.billingCustomers).set({ stripeSubscriptionId: "sub_1", subscriptionStatus: "active", currentPeriodEnd: new Date(now - 3 * 86_400_000) });
+    stripe.setSubscription({ id: "sub_1", customer: "cus_1", status: "canceled" });
+    expect(await reconcileSubscription(getStripe(), USER, now)).toBe(true);
+    expect(await getPlan(USER)).toBe("free");
+    expect(stripe.calls("GET", "/subscriptions/sub_1")).toHaveLength(1);
+    error.mockRestore();
+  });
+
+  it("leaves a current Pro subscription alone, without calling Stripe", async () => {
+    const stripe = fakeStripe();
+    await db().update(schema.billingCustomers).set({ stripeSubscriptionId: "sub_1", subscriptionStatus: "active", currentPeriodEnd: new Date(Date.now() + 86_400_000) });
+    expect(await reconcileSubscription(getStripe(), USER)).toBe(false);
+    expect(stripe.requests).toHaveLength(0);
+  });
+
   it("does nothing for a user who never started checkout", async () => {
     const stripe = fakeStripe();
     await db().delete(schema.billingCustomers);

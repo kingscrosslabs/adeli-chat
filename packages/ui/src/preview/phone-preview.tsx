@@ -37,7 +37,7 @@ function sampleText(content: AutomationContent) {
   return `${content.trigger.keywords[0] ?? PREVIEW_FALLBACK_KEYWORD} please! 🙏`;
 }
 
-/** `branding` shows the "Powered by LedaChat.com" message free plans get after the Final DM. */
+/** `branding` shows the "Powered by LedaChat" message free plans get after the Final DM. */
 export function PhonePreview({ content, account, tab: requested, onTabChange, disclaimer = true, branding = false }: { content: AutomationContent; account: PreviewAccount | null; tab: PreviewTab; onTabChange: (tab: PreviewTab) => void; disclaimer?: boolean; branding?: boolean }) {
   const story = content.type === "story_reply";
   const tabs = story ? STORY_TABS : TABS;
@@ -269,7 +269,7 @@ function DmView({ content, account, branding }: { content: AutomationContent; ac
           </>
         ) : null}
         <IncomingBubble account={account} text={content.finalDm.text || "Your final message"} buttons={finalButtons.map((button) => ({ label: button.label || "Button", link: button.url }))} />
-        {branding ? <IncomingBubble account={account} text="Powered by LedaChat.com" /> : null}
+        {branding ? <IncomingBubble account={account} text="Powered by LedaChat" /> : null}
       </div>
       <div className="flex items-center gap-2 border-t border-[var(--pv-divider)] px-3 py-2">
         <span className="flex-1 rounded-full bg-[var(--pv-divider)] px-3 py-1.5 text-[0.7rem] text-[var(--pv-subtle)]">Message…</span>
