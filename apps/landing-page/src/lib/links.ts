@@ -19,12 +19,8 @@ function appUrl(): string {
 export const APP_URL = appUrl();
 export const SIGN_IN_URL = `${APP_URL}/sign-in`;
 export const GITHUB_URL = "https://github.com/kingscrosslabs/adeli-chat";
-/**
- * Every "Join waitlist" button goes here. Placeholder until the Tally form
- * exists: swap in its share link (https://tally.so/r/...) and the buttons
- * open it in a new tab.
- */
-export const WAITLIST_URL: string = "#waitlist";
+/** Every "Join waitlist" button opens this Tally form ("Join the LedaChat waitlist") in a new tab. */
+export const WAITLIST_URL: string = "https://tally.so/r/RWoJY4";
 export const SITE_URL = "https://ledachat.com";
 export const CONTACT_EMAIL = "hello@ledachat.com";
 
