@@ -19,6 +19,12 @@ function appUrl(): string {
 export const APP_URL = appUrl();
 export const SIGN_IN_URL = `${APP_URL}/sign-in`;
 export const GITHUB_URL = "https://github.com/kingscrosslabs/adeli-chat";
+/**
+ * Every "Join waitlist" button goes here. Placeholder until the Tally form
+ * exists: swap in its share link (https://tally.so/r/...) and the buttons
+ * open it in a new tab.
+ */
+export const WAITLIST_URL: string = "#waitlist";
 export const SITE_URL = "https://ledachat.com";
 export const CONTACT_EMAIL = "hello@ledachat.com";
 
@@ -32,6 +38,7 @@ export const ADELI_LINKS = {
   options: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=options",
   officialApi: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=official-api",
   officialApiDocs: "https://www.tryadeli.com/docs?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=official-api-docs",
+  why: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=why",
   faq: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=faq",
   footer: "https://www.tryadeli.com/?utm_source=ledachat.com&utm_medium=referral&utm_campaign=ledachat-landing&utm_content=footer",
 } as const;

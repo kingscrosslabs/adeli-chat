@@ -1,8 +1,8 @@
 # LedaChat: Brand
 
-> Status: v2.0 · Last updated: 2026-11-11
+> Status: v2.1 · Last updated: 2026-11-17
 >
-> LedaChat's own brand: name, logo, colours, voice. How the colours become tokens and components is in [`design.md`](design.md). Both started as copies of Adeli's `BRAND.md` and `DESIGN.md` and no longer track them.
+> LedaChat's own brand: name, logo, colours, type, voice. How the colours become tokens and components is in [`design.md`](design.md). Both started as copies of Adeli's `BRAND.md` and `DESIGN.md` and no longer track them.
 
 **Copy rule: no em dashes anywhere** (UI text, defaults, docs, commit messages).
 
@@ -35,7 +35,7 @@ Two brand colours, with a blended range between them. Hex values live only in `p
 | Name | Hex | Role |
 |---|---|---|
 | **Leda Purple** | `#702EC7` | Primary. Fills the main button, the Live dot, selected states, the logo tile. White text on it passes AA (7.2:1). |
-| **Leda Pink** | `#F90EF5` | Secondary. Highlights: small badges, emphasis marks, a pellet of colour. Text on a pink fill is **Leda Ink**, never white (white is 3.3:1). |
+| **Leda Pink** | `#F90EF5` | Secondary. Used like a highlighter pen: outlines, underlines (including under section titles), hover borders, small badges. Rarely a large fill, which reads stark on white. Text on a pink fill is **Leda Ink**, never white (white is 3.3:1). |
 | Leda Ink | `#1C1426` | Body text in light mode, the phone bezel, text on pink. |
 | Paper | `#FFFFFF` | The default background. |
 
@@ -75,7 +75,7 @@ LedaChat defaults to **light** (Paper). Dark (Night Plum) is available from the 
 
 ---
 
-## 4. Logo
+## 4. Logo and type
 
 The mark is a white **chomper** (a disc with a quarter cut out) on a Leda Purple square. The mouth opens to the top right, so the cut reads as the letter **L**.
 
@@ -84,6 +84,16 @@ The mark is a white **chomper** (a disc with a quarter cut out) on a Leda Purple
 - Lockup: mark + "LedaChat" in Inter semibold, tracking tight (`Wordmark`, `packages/ui/src/brand/wordmark.tsx`).
 - Geometry (24 unit grid): disc radius 7.5, centred at (12.7, 11.3), nudged up and right so the missing quarter doesn't make the mark look off-centre.
 - Don't recolour the mark, rotate the mouth, add an eye, or put it on pink.
+
+### Type
+
+| Font | Role | Where |
+|---|---|---|
+| **Satoshi** | Headings (h1 to h3): the hero headline, section titles, card titles. Geometric and friendly, a step warmer than Inter. | Landing page. Served by [Fontshare](https://www.fontshare.com/fonts/satoshi) (free for commercial use), weights 500 and 700. |
+| **Inter** | Everything else: body copy, buttons, nav, the app UI, the wordmark. | Both apps, via `next/font/google`. |
+| Geist Mono | API keys, ids, code. | Both apps. |
+
+Body copy on the landing page is **Leda Ink**, not grey, so it reads easily. Grey (`muted-foreground`) is for small helper text in the app.
 
 ---
 

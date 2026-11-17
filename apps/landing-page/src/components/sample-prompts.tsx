@@ -17,7 +17,7 @@ const PROMPTS = [
 export function SamplePrompts({ className }: { className?: string }) {
   return (
     <div className={cn("flex flex-col gap-2.5", className)}>
-      <p className="text-xs font-medium text-muted-foreground">Try asking</p>
+      <p className="text-xs font-medium text-foreground">Try asking</p>
       <ul className="flex flex-col gap-2.5">
         {PROMPTS.map((prompt) => <PromptRow key={prompt} prompt={prompt} />)}
       </ul>
@@ -43,7 +43,7 @@ function PromptRow({ prompt }: { prompt: string }) {
       <button
         type="button"
         onClick={() => void copy()}
-        className="group flex w-full items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left text-sm transition-colors outline-none hover:border-link focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex w-full items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left text-sm transition-colors outline-none hover:border-highlight focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex-1 select-text">{prompt}</span>
         <span className="mt-0.5 shrink-0 text-muted-foreground group-hover:text-link">
