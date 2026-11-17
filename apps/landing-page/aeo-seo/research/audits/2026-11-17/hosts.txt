@@ -1,0 +1,42 @@
+=== http://ledachat.com
+HTTP/1.0 308 Permanent Redirect
+Content-Type: text/plain
+Location: https://ledachat.com/
+server: Vercel
+HTTP/2 308 
+content-type: text/plain
+location: https://www.ledachat.com/
+server: Vercel
+x-vercel-id: iad1::drglw-1794951356852-4c9552705999
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+server: Vercel
+x-vercel-cache: HIT
+x-vercel-id: iad1::6469z-1794951357072-9e180ccd4293
+=== https://ledachat.com
+HTTP/2 308 
+content-type: text/plain
+location: https://www.ledachat.com/
+server: Vercel
+x-vercel-id: iad1::rgtvl-1794951357166-8d6450e310b0
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+server: Vercel
+x-vercel-cache: HIT
+x-vercel-id: iad1::w5hwf-1794951357235-96b295a66ac8
+=== http://www.ledachat.com
+HTTP/1.0 308 Permanent Redirect
+Content-Type: text/plain
+Location: https://www.ledachat.com/
+server: Vercel
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+server: Vercel
+x-vercel-cache: HIT
+x-vercel-id: iad1::pjk9m-1794951357406-1a1d75373827
+=== https://www.ledachat.com
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+server: Vercel
+x-vercel-cache: HIT
+x-vercel-id: iad1::cr9wq-1794951357498-2054bbc550e8

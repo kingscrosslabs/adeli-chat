@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technical Audit · www.ledachat.com</title>
+<style>
+  :root {
+    --bg: #fbf8f3; --card: #ffffff; --ink: #1c1917; --muted: #6b6560; --border: #e8e1d7;
+    --accent: #c2410c; --accent-soft: #fdeee4;
+    --crit: #b91c1c; --crit-soft: #fdecec; --imp: #b45309; --imp-soft: #fef3e2; --pol: #1d4ed8; --pol-soft: #e8eefc;
+    --good: #15803d; --good-soft: #e8f5ec;
+    --code-bg: #1f1b18; --code-ink: #f1ebe4;
+    --g-a: #15803d; --g-b: #4d7c0f; --g-c: #b45309; --g-d: #c2410c; --g-f: #b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151311; --card: #1e1b18; --ink: #f1ece6; --muted: #a8a09a; --border: #34302b;
+      --accent: #fb923c; --accent-soft: #3a2416;
+      --crit: #f87171; --crit-soft: #3b1a1a; --imp: #fbbf24; --imp-soft: #3a2c12; --pol: #93b4ff; --pol-soft: #1b2440;
+      --good: #4ade80; --good-soft: #15301f;
+      --code-bg: #0e0c0b; --code-ink: #f1ebe4;
+      --g-a: #4ade80; --g-b: #a3e635; --g-c: #fbbf24; --g-d: #fb923c; --g-f: #f87171;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151311; --card: #1e1b18; --ink: #f1ece6; --muted: #a8a09a; --border: #34302b;
+    --accent: #fb923c; --accent-soft: #3a2416;
+    --crit: #f87171; --crit-soft: #3b1a1a; --imp: #fbbf24; --imp-soft: #3a2c12; --pol: #93b4ff; --pol-soft: #1b2440;
+    --good: #4ade80; --good-soft: #15301f;
+    --code-bg: #0e0c0b; --code-ink: #f1ebe4;
+    --g-a: #4ade80; --g-b: #a3e635; --g-c: #fbbf24; --g-d: #fb923c; --g-f: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 16px 96px; }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(30px, 5vw, 44px); margin: 6px 0 8px; }
+  h2 { font-size: 26px; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 19px; margin: 0 0 8px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .sub { color: var(--muted); }
+
+  .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 28px 0; }
+  .score { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .score.overall { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; }
+  .score .grade { font-size: 40px; font-weight: 800; line-height: 1; }
+  .score.overall .grade { font-size: 64px; }
+  .score .label { font-weight: 600; margin-top: 6px; }
+  .score .meta { color: var(--muted); font-size: 14px; }
+  .delta { font-size: 14px; color: var(--good); font-weight: 600; }
+  .g-a { color: var(--g-a); } .g-b { color: var(--g-b); } .g-c { color: var(--g-c); } .g-d { color: var(--g-d); } .g-f { color: var(--g-f); }
+
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+  .toc ol { margin: 0; padding-left: 20px; }
+
+  .model { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .model div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+
+  .finding { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; }
+  .finding .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .b-crit { background: var(--crit-soft); color: var(--crit); } .b-imp { background: var(--imp-soft); color: var(--imp); } .b-pol { background: var(--pol-soft); color: var(--pol); }
+  .b-new { background: var(--accent-soft); color: var(--accent); } .b-fixed { background: var(--good-soft); color: var(--good); }
+  .ids { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+  .row-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 4px; }
+  .lesson { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; }
+  .prompt { position: relative; background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 14px 16px; font: 13.5px/1.55 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .copy { position: absolute; top: 8px; right: 8px; font: 12px system-ui, sans-serif; background: transparent; color: var(--code-ink); border: 1px solid #5a524b; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; color: var(--muted); margin-top: 12px; }
+
+  ul.good { list-style: none; padding: 0; }
+  ul.good li { padding: 6px 0 6px 26px; position: relative; border-bottom: 1px solid var(--border); }
+  ul.good li::before { content: "✓"; position: absolute; left: 4px; color: var(--good); font-weight: 700; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  .pkg { display: inline-block; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 1px 6px; }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .col { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .col.you { border-color: var(--accent); }
+  .col h3 { margin-bottom: 4px; }
+  .package, .todo-item { border-top: 1px solid var(--border); padding: 14px 0 6px; }
+  .package .head, .todo-item .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .todo-item h4 { margin: 0 0 6px; font-size: 16px; }
+  .todo-item ol { margin: 0 0 8px; padding-left: 20px; }
+  .time { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .why { font-size: 14px; color: var(--muted); }
+  .owner { font-weight: 600; }
+  .next { margin-top: 28px; background: var(--accent-soft); border-radius: 12px; padding: 18px 20px; }
+  .next p { margin: 4px 0 0; }
+  @media (max-width: 520px) { .score.overall { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">AEO/SEO technical audit · Audit</div>
+  <h1>www.ledachat.com</h1>
+  <p class="sub">2026-11-17 · 1 page swept from the sitemap · 2 sampled in depth (the homepage, and the app's sign-in page at <code>app.ledachat.com</code>) · Plan only: nothing in the site was changed by this audit.</p>
+  <p class="sub">The site is <code>apps/landing-page</code> in the <code>adeli-chat</code> repo, a one-page Next.js site on Vercel. The app (<code>apps/web</code>) runs separately at <code>app.ledachat.com</code>. There's no Search Console property yet, so this audit has no search baseline; the first one comes after you finish B3.</p>
+
+  <div class="scores">
+    <div class="score overall">
+      <div class="grade g-f">F</div>
+      <div>
+        <div class="label">Overall</div>
+        <div class="meta">44% of points (21.5 of 49) · 9 pass · 2 partial · 11 fail · 4 n/a</div>
+      </div>
+    </div>
+    <div class="score"><div class="grade g-f">F</div><div class="label">A · Quotable pages</div><div class="meta">3/6 pass · 36% (4 of 11) · 3 n/a</div></div>
+    <div class="score"><div class="grade g-f">F</div><div class="label">B · Found faster</div><div class="meta">3/8 pass · 48% (9.5 of 20) · 1 n/a</div></div>
+    <div class="score"><div class="grade g-f">F</div><div class="label">C · Consistent signals</div><div class="meta">2/5 pass · 50% (6 of 12)</div></div>
+    <div class="score"><div class="grade g-f">F</div><div class="label">D · Runs itself</div><div class="meta">1/3 pass · 33% (2 of 6)</div></div>
+  </div>
+  <p class="sub">Grades are directional, not a benchmark. They show where the biggest wins are, and the follow-up audit uses them to prove the fixes stuck. The F looks worse than the work behind it: the site's foundations (one host, crawlable server HTML, open robots.txt) are sound, and most of the failing checks trace back to one short metadata block in one file.</p>
+
+  <nav class="toc">
+    <ol>
+      <li><a href="#model">How search and AI search find you</a></li>
+      <li><a href="#critical">Critical findings</a></li>
+      <li><a href="#important">Important findings</a></li>
+      <li><a href="#polish">Polish</a></li>
+      <li><a href="#good">What's already good</a></li>
+      <li><a href="#rules">Rules for new pages</a></li>
+      <li><a href="#plan">Action plan: your agent vs. you</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="model">1 · How search and AI search find you</h2>
+  <div class="model">
+    <div><h3>Google</h3><p>Crawlers read your pages, add the ones they trust to the index, then rank them for each search. Where you land depends on whether the page answers the search, and how much Google trusts the domain.</p></div>
+    <div><h3>AI answer engines</h3><p>ChatGPT, Claude and Perplexity run their own searches on engines like Google and Bing, read the top results, and cite a few pages. If search engines can't find you, the AI can't either.</p></div>
+    <div><h3>What this audit checks</h3><p>That your pages are quotable (A), found fast (B), never contradict each other (C), and that the setup keeps itself right on every new page (D).</p></div>
+  </div>
+
+  <h2 id="critical">2 · Critical findings</h2>
+  <p class="sub">These break indexing or split your ranking credit. Fix them first.</p>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-crit">Critical</span>
+      <span class="ids">C2 · C3 · A6 · A1</span>
+      <span class="pkg">Head and metadata</span>
+    </div>
+    <h3>The homepage has no canonical, no share card, and a 56-character description</h3>
+    <div class="row-label">Evidence</div>
+    <p>The raw HTML of <code>https://www.ledachat.com/</code> has 0 <code>link rel="canonical"</code>, 0 <code>og:*</code> tags and 0 <code>twitter:*</code> tags. The same is true after JavaScript runs in a browser, and for the Googlebot, GPTBot and ClaudeBot user agents. <code>/?utm_source=test</code> also has no canonical, so every tagged link is a separate, unclaimed copy. The meta description is <em>"Comment-to-DM workflow, with an MCP. Free &amp; open source."</em>, 56 characters against a 110–160 target. Sweep: <code>missing_canonical 1/1</code>, <code>missing_og_image 1/1</code>, <code>description_out_of_range 1/1</code>.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/landing-page/src/app/layout.tsx</code>: the <code>metadata</code> export sets only <code>title</code> and <code>description</code>. No <code>metadataBase</code>, <code>alternates.canonical</code>, <code>openGraph</code> or <code>twitter</code>, and no <code>opengraph-image</code> file in <code>src/app/</code>. (<code>src/lib/site-url.ts</code> already resolves the production host, <code>https://www.ledachat.com</code>, from Vercel.)</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">A canonical tells search engines which address is the real one, so <code>?utm_source=…</code> copies and shared links all credit the same URL. The <code>og:*</code> tags are the card people see when the link lands in Slack, iMessage or LinkedIn; with none, every share shows a bare URL. The description is your two-line ad in Google, and at 56 characters you're leaving most of it blank, so Google writes its own from whatever text it picks.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>In apps/landing-page/src/app/layout.tsx, extend the metadata export: set metadataBase to new URL(siteUrl()) from src/lib/site-url.ts (don't edit that file), alternates.canonical "/", and openGraph (type "website", url "/", siteName "LedaChat", the page title, and a description) plus twitter (card "summary_large_image"). Rewrite the description to 110–160 characters using only claims already on the page (free, open source, Instagram comment-to-DM, MCP, ManyChat alternative), and use it in og:description too. Add src/app/opengraph-image.tsx that renders a 1200×630 card with the LedaChat name, the H1 "Turn Instagram comments into DMs, for free" and the brand colors from docs/design.md. Don't touch other files. Done when yarn workspace @adeli-chat/landing-page build passes and the built homepage HTML has one absolute canonical https://www.ledachat.com (no query string, also on /?utm_source=test), og:url equal to it, og:title, og:description, og:image (1200×630) and twitter:card summary_large_image. After deploy, curl https://www.ledachat.com/?utm_source=test and check the same tags.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-crit">Critical</span>
+      <span class="ids">A4</span>
+      <span class="pkg">Structured data</span>
+    </div>
+    <h3>No structured data at all, though the page already has a 7-question FAQ</h3>
+    <div class="row-label">Evidence</div>
+    <p>The homepage has 0 <code>application/ld+json</code> blocks (sweep: <code>no_jsonld 1/1</code>; confirmed in the browser). So there's no <code>Organization</code>, <code>WebSite</code> or <code>SoftwareApplication</code> telling machines what LedaChat is and who makes it. The FAQ section (#faq) shows 7 real questions in the server HTML, for example "Is this allowed by Instagram?" and "Why use LedaChat over ManyChat?", with no matching <code>FAQPage</code> markup.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/landing-page/src/components/landing-page.tsx</code> (the <code>Faq()</code> items are inline JSX); no JSON-LD helper exists yet, so add <code>apps/landing-page/src/components/json-ld.tsx</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">JSON-LD is a label written for machines: "this is a software product, made by this company, and here are its questions and answers." Without it, Google and AI tools have to guess from the layout. FAQ markup is the cheapest version of this, because the questions are already written; it only has to match the visible text word for word.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>In apps/landing-page, add src/components/json-ld.tsx that renders one script type="application/ld+json" with an @graph of: Organization (name "King's Cross Labs" as the publisher, url, logo from /icon.png, sameAs only the GitHub repo https://github.com/kingscrosslabs/adeli-chat unless I give you other profiles), WebSite (name "LedaChat", url https://www.ledachat.com), SoftwareApplication (name LedaChat, applicationCategory "BusinessApplication", operatingSystem "Web", a free Offer with price "0", using only facts already on the page; don't invent ratings or prices for Pro), and FAQPage. In src/components/landing-page.tsx, move the Faq() items into an exported array with a plain-text answer for each, so the visible FAQ and the FAQPage markup read from the same source and can't drift. Render JsonLd once from the landing page. Only change those two files. Done when the build passes, the homepage HTML has one JSON-LD block that parses with JSON.parse, the FAQPage answers match the visible text, and https://search.google.com/test/rich-results shows FAQ and Software App as valid after deploy.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-crit">Critical</span>
+      <span class="ids">B3</span>
+    </div>
+    <h3>Google Search Console has no property for ledachat.com</h3>
+    <div class="row-label">Evidence</div>
+    <p>The Google account connected to OpenSEO has no Search Console property for <code>ledachat.com</code>, and there's no <code>google-site-verification</code> tag in the live HTML or the repo. So the sitemap has never been submitted, and there's no first-party view of what Google has indexed.</p>
+    <div class="row-label">Where it lives</div>
+    <p>Your Google account and your DNS provider for <code>ledachat.com</code>. Nothing in the repo.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">A new domain with no links pointing to it can wait weeks for Google to find it. Submitting the sitemap in Search Console asks Google to come and look now, and Search Console is the only place Google tells you what it indexed, what it rejected, and which searches show you. It's also the baseline every future audit compares against.</p>
+    <div class="row-label">Steps</div>
+    <p>Click-by-click in the action plan, under "What needs you".</p>
+    <div class="facts"><span>Effort: S (about 10 minutes, plus DNS propagation)</span><span class="owner">Owner: you</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-crit">Critical</span>
+      <span class="ids">B1 (partial)</span>
+      <span class="pkg">Crawl files</span>
+    </div>
+    <h3>The sitemap works but carries no last-modified date</h3>
+    <div class="row-label">Evidence</div>
+    <p><code>/sitemap.xml</code> loads, is named in <code>robots.txt</code>, and lists the one indexable page on the right host (<code>https://www.ledachat.com</code>). It has no <code>&lt;lastmod&gt;</code>, only <code>changefreq</code> and <code>priority</code>, which Google ignores.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/landing-page/src/app/sitemap.ts</code></p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">The sitemap is the map you hand crawlers. <code>lastmod</code> is the one field on it Google actually uses: an honest date makes it re-check a page that changed. Leave it out and Google re-crawls on its own schedule; set it to "today" on every build and Google learns to ignore it.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>In apps/landing-page/src/app/sitemap.ts, add lastModified for the homepage from the last git commit that touched the page's content (src/components/ and src/app/page.tsx), read at build time with git log -1 --format=%cI. If git history isn't available (a shallow clone), leave lastModified out rather than using the build time. Drop changeFrequency and priority. Only change sitemap.ts. Done when the build passes and /sitemap.xml shows a lastmod equal to that commit's date, and it doesn't change on a rebuild with no content change.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <h2 id="important">3 · Important findings</h2>
+  <p class="sub">These lose you clicks, citations or crawl speed.</p>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">B2</span>
+      <span class="pkg">Crawl files</span>
+    </div>
+    <h3>No llms.txt</h3>
+    <div class="row-label">Evidence</div>
+    <p><code>/llms.txt</code>, <code>/llms-full.txt</code> and <code>/index.md</code> all return 404.</p>
+    <div class="row-label">Where it lives</div>
+    <p>Nothing generates it. Add <code>apps/landing-page/src/app/llms.txt/route.ts</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson"><code>llms.txt</code> is a short plain-text summary of the site written for AI tools: what it is, in one line, and links to the pages that matter. It's an unofficial convention that not every engine reads yet, but it takes minutes, and for a product AI tools get asked about ("free ManyChat alternative") it's a clean, quotable statement of what LedaChat does.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>Add apps/landing-page/src/app/llms.txt/route.ts that serves text/plain at /llms.txt, statically generated at build. Start with "# LedaChat" and a one-line summary, then a short section built from the landing page's own copy (what it does, the free plan, the MCP, self-hosting, the FAQ answers), and links to https://www.ledachat.com, the GitHub repo and the waitlist. Read the FAQ from the shared array the Structured data package exports from src/components/landing-page.tsx if it exists; don't edit that file. Use siteUrl() from src/lib/site-url.ts for absolute links. Done when the build passes and curl https://www.ledachat.com/llms.txt returns 200 text/plain with that content.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">B4</span>
+    </div>
+    <h3>No sign the site is in Bing Webmaster Tools</h3>
+    <div class="row-label">Evidence</div>
+    <p>No <code>msvalidate.01</code> tag in the live HTML or the repo, and with no Search Console property (B3) there's nothing to import from yet. If you verified it some other way (DNS), tell me and this flips to a pass.</p>
+    <div class="row-label">Where it lives</div>
+    <p>Your Microsoft account. Nothing in the repo.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">Bing's index feeds ChatGPT search and Microsoft Copilot. For an AI-adjacent product, being in Bing is an AI search step, not a nice-to-have.</p>
+    <div class="row-label">Steps</div>
+    <p>Click-by-click in the action plan. Do it after B3 so you can import the property in one click.</p>
+    <div class="facts"><span>Effort: S (about 5 minutes)</span><span class="owner">Owner: you</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">D3</span>
+      <span class="pkg">Measurement</span>
+    </div>
+    <h3>The landing page has no analytics, so AI and search visits are invisible</h3>
+    <div class="row-label">Evidence</div>
+    <p>The live HTML loads no analytics script (no PostHog, GA, Vercel Web Analytics or Plausible). PostHog was added to the landing page and then removed in the same PR (#14, "Remove PostHog from the landing page"), so this looks like a deliberate choice. The waitlist is a Tally form (<code>tally.so/r/RWoJY4</code>) that receives no source or UTM data from the page.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/landing-page/src/app/layout.tsx</code> (where a snippet would go) and <code>apps/landing-page/src/lib/links.ts</code> (<code>WAITLIST_URL</code>). The PostHog removal is in commit <code>33dba12</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">You can't grow a channel you can't see. Visits from ChatGPT, Perplexity, Claude, Gemini and Copilot arrive with those sites as the referrer; without analytics on the landing page, they're lost, and so is the answer to "is SEO working?". Passing the source into the waitlist form ties a signup back to where it came from.</p>
+    <div class="row-label">Prompt to fix it (after you decide)</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>Add analytics to apps/landing-page using [the tool I choose: Vercel Web Analytics, or PostHog with the setup removed in commit 33dba12]. Load it from src/app/layout.tsx on every page, production only. In src/lib/links.ts, make the Join waitlist link pass the visitor's referrer and any utm_* params to Tally as hidden fields (ref, utm_source, utm_medium, utm_campaign), read client-side at click time. Done when the build passes, a production pageview shows up in the dashboard, and a test waitlist entry from https://www.ledachat.com/?utm_source=test shows utm_source=test in Tally.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: you decide, then your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">C5 (partial)</span>
+      <span class="pkg">App host</span>
+    </div>
+    <h3>The app's sign-in page at app.ledachat.com can be indexed</h3>
+    <div class="row-label">Evidence</div>
+    <p><code>https://app.ledachat.com/sign-in</code> returns 200 with about 10 words, the generic title "LedaChat", and no <code>robots</code> meta or <code>X-Robots-Tag</code>. <code>app.ledachat.com/robots.txt</code> isn't a robots file: it 307-redirects to <code>/sign-in</code>. The signed-in routes (<code>/automations</code>, <code>/settings</code>) 307 to sign-in and <code>/mcp</code> returns 401, which is right. On <code>www</code>, the landing site itself is clean: <code>/sign-in</code>, <code>/dashboard</code> and unknown paths return a real 404 with <code>noindex</code>.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/web/src/app/layout.tsx</code> (no <code>robots</code> in metadata), <code>apps/web/src/proxy.ts</code> (the matcher sends <code>/robots.txt</code> to sign-in), and no <code>apps/web/src/app/robots.ts</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">A login screen is a thin page with no answer on it. If Google indexes it, it can show up for "LedaChat" next to the real homepage and dilute it. App pages should tell crawlers to stay out, and the marketing site should be the only LedaChat page in search.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>In apps/web: set robots { index: false, follow: false } in the root metadata in src/app/layout.tsx; add src/app/robots.ts that disallows all crawling (userAgent "*", disallow "/"); and in src/proxy.ts add robots.txt to the matcher's exclusions so it isn't redirected to /sign-in. Self-hosted installs get the same defaults, which is what they want too. Only change those three files. Done when yarn workspace @adeli-chat/web test and build pass, and after deploy curl https://app.ledachat.com/robots.txt returns 200 text/plain with Disallow: / and /sign-in has meta robots noindex. If Google has already indexed it, then use Search Console's Removals tool on app.ledachat.com.</div>
+    <div class="facts"><span>Effort: S</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">B5</span>
+      <span class="pkg">Build hooks and guardrails</span>
+    </div>
+    <h3>No IndexNow, so Bing and others only learn about changes when they next crawl</h3>
+    <div class="row-label">Evidence</div>
+    <p>Nothing in the repo mentions IndexNow, and there's no key file or deploy-time ping.</p>
+    <div class="row-label">Where it lives</div>
+    <p>Add <code>apps/landing-page/scripts/indexnow.mjs</code> and a key file in <code>apps/landing-page/public/</code>; wire it in <code>apps/landing-page/package.json</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">IndexNow is a ping that tells Bing, Yandex and others "this URL changed" the moment you deploy, so they don't wait for their next crawl. Google doesn't use it, which is why B3 still matters. With one page today it's a small win, but it's set-once plumbing that pays off as soon as you add pages.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>In apps/landing-page, generate an IndexNow key, put it in public/&lt;key&gt;.txt, and add scripts/indexnow.mjs that POSTs every URL in the built sitemap to https://api.indexnow.org/indexnow with host www.ledachat.com, the key and keyLocation. Run it only when VERCEL_ENV is "production", never locally or on preview builds, and never fail the build if the ping fails. Because a build-time ping fires before the deploy is live, prefer running it from a GitHub Action on Vercel's deployment_status success event for production; if that's too much, run it at the end of the production build and say so. Done when the key file loads on the live site and the next production deploy logs a 200 or 202 from IndexNow.</div>
+    <div class="facts"><span>Effort: M</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <article class="finding">
+    <div class="head">
+      <span class="badge b-imp">Important</span>
+      <span class="ids">D2</span>
+      <span class="pkg">Build hooks and guardrails</span>
+    </div>
+    <h3>Nothing stops the next page from shipping without its SEO basics</h3>
+    <div class="row-label">Evidence</div>
+    <p>The layout gives new pages no defaults (no canonical, share card or structured data; see the first finding), there's no SEO check in <code>package.json</code>, and the site has no AEO/SEO profile listing a check command.</p>
+    <div class="row-label">Where it lives</div>
+    <p><code>apps/landing-page/package.json</code> (scripts), and a new <code>apps/landing-page/scripts/check-seo.mjs</code>.</p>
+    <div class="row-label">The principle</div>
+    <p class="lesson">A fix that lives only in one sweep regresses on the next page someone adds. When the build fails a page with no description, canonical or share card, every new page is born right, and nobody has to remember the rules.</p>
+    <div class="row-label">Prompt to fix it</div>
+    <div class="prompt"><button class="copy" type="button">Copy</button>After the head, structured data and crawl-file changes are in, add apps/landing-page/scripts/check-seo.mjs that reads every built HTML page in .next/server/app and fails with a clear message when a page that isn't noindex lacks: exactly one H1, a 110–160 character description that isn't the title, a self-referencing absolute canonical on https://www.ledachat.com, og:url equal to the canonical, og:image, twitter:card, and at least one JSON-LD block that parses; or when the page is missing from sitemap.xml. Add a "check:seo" script to package.json and run it after next build in the build script. Done when the build passes on the current page and fails if you delete the description from layout.tsx.</div>
+    <div class="facts"><span>Effort: M</span><span class="owner">Owner: your agent</span></div>
+  </article>
+
+  <h2 id="polish">4 · Polish</h2>
+  <p class="sub">Small gains. Do them when you're in the files anyway.</p>
+  <p>No polish findings this run. Alt text (A8) and URLs (A9) pass.</p>
+
+  <h2 id="good">5 · What's already good</h2>
+  <p class="sub">Keep these working when you change things.</p>
+  <ul class="good">
+    <li><strong>One host.</strong> <code>ledachat.com</code> and <code>http://</code> redirect to <code>https://www.ledachat.com</code> with permanent 308s, and robots.txt and the sitemap both say <code>www</code>. (<code>http://ledachat.com</code> takes two hops, http→https then bare→www; that's how Vercel forces HTTPS and isn't worth fighting.)</li>
+    <li><strong>AI crawlers are welcome.</strong> robots.txt allows everything and names the sitemap; Googlebot, Bingbot, GPTBot, OAI-SearchBot, ClaudeBot and PerplexityBot all get a 200.</li>
+    <li><strong>Readable without JavaScript.</strong> The server HTML has 932 words against 910 rendered, including every FAQ answer inside <code>&lt;details&gt;</code>.</li>
+    <li><strong>Clean headings.</strong> One H1 ("Turn Instagram comments into DMs, for free") and a clear H2 outline.</li>
+    <li><strong>Real 404s.</strong> Unknown paths return 404 with <code>noindex</code>, not a soft 404.</li>
+    <li><strong>Decorative images are marked.</strong> Both images use <code>alt=""</code>, which is right for a mockup and a logo next to its name.</li>
+    <li><strong>App routes are gated.</strong> Signed-in pages 307 to sign-in and <code>/mcp</code> returns 401.</li>
+    <li><strong>Owned code, automatic deploys.</strong> The site is Next.js in the repo, robots.txt and the sitemap are generated from code, and Vercel deploys on push (D1).</li>
+    <li><strong>Tagged outbound links.</strong> Every Adeli link carries UTMs, so tryadeli.com's analytics sees what LedaChat sends.</li>
+  </ul>
+
+  <h2 id="rules">6 · Rules for new pages</h2>
+  <p class="sub">The page-level rules this site keeps missing. Bake them into the page template or the check command (finding D2) so every new page is born with them.</p>
+  <ol>
+    <li><strong>A real description.</strong> 110–160 characters, not the title, unique per page (A1).</li>
+    <li><strong>A self-referencing canonical and matching og:url.</strong> Comes free from <code>metadataBase</code> plus <code>alternates.canonical</code> in each page's metadata (C2, C3).</li>
+    <li><strong>A share card.</strong> An <code>opengraph-image</code> per page or route, 1200×630, with the page's own title (A6).</li>
+    <li><strong>Structured data.</strong> At least the site-wide graph, plus <code>FAQPage</code> wherever FAQs show, built from the same data as the visible FAQ (A4).</li>
+    <li><strong>Listed for crawlers.</strong> Every new indexable page goes in <code>sitemap.ts</code> with an honest <code>lastModified</code>, and in <code>llms.txt</code> (B1, B2).</li>
+    <li><strong>Answer first.</strong> When you add guides or comparison pages, open each section with a one- or two-sentence direct answer, and add 2–4 real FAQs (A3, A7).</li>
+  </ol>
+
+  <h2 id="plan">7 · Action plan</h2>
+  <p class="sub">Split by who has to act. Your AI coding agent can do the left column in the code; the right column needs your login and a few clicks.</p>
+  <div class="split">
+    <section class="col">
+      <h3>What your AI agent will do</h3>
+      <p class="sub">Ordered by severity, then effort. Packages 1–4 run in parallel; 5 and 6 wait as marked. No two packages change the same file. Pick the packages to implement.</p>
+      <div class="package">
+        <div class="head"><span class="pkg">1 · Head and metadata</span><span class="badge b-crit">Critical</span><span class="ids">C2 · C3 · A6 · A1</span></div>
+        <p>Canonical, og:url, og/twitter tags, a generated 1200×630 share card, and a 110–160 character description.</p>
+        <div class="facts"><span>Effort: S</span><span>Files: <code>apps/landing-page/src/app/layout.tsx</code>, new <code>src/app/opengraph-image.tsx</code></span></div>
+      </div>
+      <div class="package">
+        <div class="head"><span class="pkg">2 · Structured data</span><span class="badge b-crit">Critical</span><span class="ids">A4</span></div>
+        <p>Organization, WebSite, SoftwareApplication and FAQPage JSON-LD, with the FAQ moved to one shared array.</p>
+        <div class="facts"><span>Effort: S</span><span>Files: new <code>apps/landing-page/src/components/json-ld.tsx</code>, <code>src/components/landing-page.tsx</code></span></div>
+      </div>
+      <div class="package">
+        <div class="head"><span class="pkg">3 · Crawl files</span><span class="badge b-crit">Critical</span><span class="ids">B1 · B2</span></div>
+        <p>An honest <code>lastmod</code> in the sitemap, and a generated <code>/llms.txt</code>.</p>
+        <div class="facts"><span>Effort: S</span><span>Files: <code>apps/landing-page/src/app/sitemap.ts</code>, new <code>src/app/llms.txt/route.ts</code></span></div>
+      </div>
+      <div class="package">
+        <div class="head"><span class="pkg">4 · App host</span><span class="badge b-imp">Important</span><span class="ids">C5</span></div>
+        <p>Keep <code>app.ledachat.com</code> out of the index: noindex, a real robots.txt, and stop redirecting it to sign-in.</p>
+        <div class="facts"><span>Effort: S</span><span>Files: <code>apps/web/src/app/layout.tsx</code>, new <code>apps/web/src/app/robots.ts</code>, <code>apps/web/src/proxy.ts</code></span></div>
+      </div>
+      <div class="package">
+        <div class="head"><span class="pkg">5 · Build hooks and guardrails (after 1–3)</span><span class="badge b-imp">Important</span><span class="ids">B5 · D2</span></div>
+        <p>IndexNow on production deploys, and a <code>check:seo</code> step that fails the build when a page misses the rules above.</p>
+        <div class="facts"><span>Effort: M</span><span>Files: <code>apps/landing-page/package.json</code>, new <code>scripts/indexnow.mjs</code>, new <code>scripts/check-seo.mjs</code>, new <code>public/&lt;key&gt;.txt</code></span></div>
+      </div>
+      <div class="package">
+        <div class="head"><span class="pkg">6 · Measurement (after 1, and after your decision)</span><span class="badge b-imp">Important</span><span class="ids">D3</span></div>
+        <p>Analytics on the landing page and the visit's source passed into the Tally waitlist.</p>
+        <div class="facts"><span>Effort: S</span><span>Files: <code>apps/landing-page/src/app/layout.tsx</code> (after package 1), <code>src/lib/links.ts</code></span></div>
+      </div>
+    </section>
+    <section class="col you">
+      <h3>What needs you</h3>
+      <p class="sub">Account tasks an agent can't reach. Each one is a few clicks.</p>
+      <div class="todo-item">
+        <div class="head"><span class="badge b-crit">Critical</span><span class="ids">B3</span><span class="time">~10 min + DNS wait</span></div>
+        <h4>Add ledachat.com to Google Search Console and submit the sitemap</h4>
+        <ol>
+          <li>Open <a href="https://search.google.com/search-console">Search Console</a> with the Google account OpenSEO is connected to, so the agent can read the data later.</li>
+          <li>Click the property menu (top left) → <strong>Add property</strong> → choose <strong>Domain</strong>, type <code>ledachat.com</code>, click <strong>Continue</strong>.</li>
+          <li>Copy the <code>google-site-verification=…</code> TXT value it shows.</li>
+          <li>In the DNS settings for <code>ledachat.com</code> (Vercel → Domains, or your registrar if DNS lives there), add a <strong>TXT</strong> record: name <code>@</code>, value the string you copied.</li>
+          <li>Back in Search Console, click <strong>Verify</strong>. If it fails, wait 10–30 minutes and try again.</li>
+          <li>Go to <strong>Indexing → Sitemaps</strong>, paste <code>https://www.ledachat.com/sitemap.xml</code>, click <strong>Submit</strong>.</li>
+          <li>Go to <strong>URL inspection</strong>, paste <code>https://www.ledachat.com/</code>, click <strong>Request indexing</strong>.</li>
+          <li>Done when the sitemap status says <strong>Success</strong> (usually within a day). Then connect the property in the OpenSEO dashboard so the next audit has a baseline.</li>
+        </ol>
+        <p class="why">Why you: it needs your Google login and a DNS record.</p>
+      </div>
+      <div class="todo-item">
+        <div class="head"><span class="badge b-imp">Important</span><span class="ids">B4</span><span class="time">~5 min, after B3</span></div>
+        <h4>Import the site into Bing Webmaster Tools</h4>
+        <ol>
+          <li>Open <a href="https://www.bing.com/webmasters">Bing Webmaster Tools</a> and sign in.</li>
+          <li>Click <strong>Add site</strong> → <strong>Import from Google Search Console</strong>, sign in with the same Google account, tick <code>ledachat.com</code>, click <strong>Import</strong>. This brings the verification and the sitemap across.</li>
+          <li>Open <strong>Sitemaps</strong> and check <code>https://www.ledachat.com/sitemap.xml</code> is listed; if not, click <strong>Submit sitemap</strong> and paste it.</li>
+          <li>Done when the site shows as verified and the sitemap status is <strong>Success</strong>.</li>
+        </ol>
+        <p class="why">Why you: it needs your Microsoft and Google logins.</p>
+      </div>
+      <div class="todo-item">
+        <div class="head"><span class="badge b-imp">Important</span><span class="ids">D3</span><span class="time">~2 min to decide, ~10 min to set up</span></div>
+        <h4>Decide on landing-page analytics, then set up an AI-referrer view</h4>
+        <ol>
+          <li>Decide with Nick: PostHog was removed from the landing page on purpose in PR #14. Pick one: <strong>Vercel Web Analytics</strong> (no cookies, one toggle), <strong>PostHog</strong> again, or <strong>none</strong> for now. Tell your agent which, and it does package 6.</li>
+          <li>For Vercel: open the landing page's Vercel project → <strong>Analytics</strong> → <strong>Enable</strong>.</li>
+          <li>For PostHog: in the landing-page project, go to <strong>Web analytics</strong>, add a filter on <strong>Referring domain</strong> matching <code>chatgpt.com</code>, <code>perplexity.ai</code>, <code>claude.ai</code>, <code>gemini.google.com</code>, <code>copilot.microsoft.com</code>, and save it as "AI referrers".</li>
+          <li>In Tally, open the waitlist form → add hidden fields <code>ref</code>, <code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code> → <strong>Publish</strong>.</li>
+          <li>Done when a visit to <code>https://www.ledachat.com/?utm_source=test</code> shows up in analytics and a test waitlist entry carries <code>utm_source=test</code>.</li>
+        </ol>
+        <p class="why">Why you: it's a product decision you made once already, and it needs your Vercel, PostHog and Tally logins.</p>
+      </div>
+      <div class="todo-item">
+        <div class="head"><span class="badge b-pol">After deploy</span><span class="ids">B9</span><span class="time">~2 min</span></div>
+        <h4>Check page speed once (the free API was out of quota today)</h4>
+        <ol>
+          <li>Open <a href="https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.ledachat.com%2F">PageSpeed Insights for the homepage</a> and pick <strong>Mobile</strong>.</li>
+          <li>Note LCP, CLS, INP and the performance score. Pass is LCP under 2.5s, CLS under 0.1, INP under 200ms.</li>
+          <li>Next week's audit runs this automatically.</li>
+        </ol>
+        <p class="why">Why you: optional; it only fills in a gap until the next run.</p>
+      </div>
+    </section>
+  </div>
+
+  <p class="sub" style="margin-top:20px">Not scored this run: A3 FAQs on guides and posts, A5 author byline and dates, and A7 answer-first sections are n/a because the site has no articles or guides yet (the homepage FAQ is covered under A4). B9 speed is n/a because the PageSpeed Insights API returned "Quota exceeded".</p>
+
+  <div class="next">
+    <div class="eyebrow">Next audit</div>
+    <p><strong>Run this report again on 2026-11-24.</strong> Search engines need a few days to recrawl, so a week is the first useful check. The follow-up shows before and after grades, what's verified on the live site, and what's still open.</p>
+  </div>
+
+</div>
+<script>
+  document.querySelectorAll('.prompt .copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.parentElement.textContent.replace(/^Copy/, '').trim();
+      try {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+        });
+      } catch (e) { btn.textContent = 'Select and copy'; }
+    });
+  });
+</script>
+</body>
+</html>
