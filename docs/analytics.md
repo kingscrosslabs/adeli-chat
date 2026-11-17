@@ -2,6 +2,8 @@
 
 The web app (`apps/web`) sends product analytics to PostHog. The landing page has no analytics. It's optional: without `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` nothing is sent (local development logs a reminder in the console). Self-hosters can leave it empty.
 
+The hosted app also syncs a read-only picture of its users, accounts and automations into the same PostHog project; see [posthog-warehouse.md](posthog-warehouse.md).
+
 Set `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` and `NEXT_PUBLIC_POSTHOG_UI_HOST` in `apps/web/.env.local` and the app's Vercel project.
 
 `NEXT_PUBLIC_` values are built into the page, so redeploy after changing them. Browser events go through `/ingest` on the app's domain (rewrites in `apps/web/next.config.ts`), so ad blockers don't drop them.
