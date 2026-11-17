@@ -4,3 +4,8 @@
 @import "shadcn/tailwind.css";
 
 @import "../../../../packages/ui/src/theme.css";
+
+/* Headings use Satoshi (Fontshare stylesheet in layout.tsx), see docs/design.md. */
+:root {
+  --font-satoshi: "Satoshi";
+}

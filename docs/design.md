@@ -28,7 +28,7 @@
 | Icons | `lucide-react`; third-party brand marks from `react-icons`. |
 | Toasts | `sonner` |
 | Animation | `tw-animate-css` |
-| Fonts | Inter (`--font-inter`) for UI, Geist Mono (`--font-geist-mono`) for code and keys, via `next/font/google`. |
+| Fonts | Satoshi (`--font-satoshi`, from Fontshare) for h1 to h3 on the landing page through `--font-heading`, which falls back to Inter in the app. Inter (`--font-inter`) for UI, Geist Mono (`--font-geist-mono`) for code and keys, via `next/font/google`. |
 | Theme | `next-themes`, `defaultTheme="light"`, `storageKey="ledachat-theme"`, `.dark` class on `<html>`. Toggle: `packages/ui/src/theme-toggle.tsx`. |
 
 ---
@@ -66,6 +66,7 @@ Rules:
 - **Purple fills, purple text is `text-link`.** Not `text-primary`, so dark mode gets the lighter purple.
 - **Pink text is `text-highlight-text`.** Never raw pink 500 on white (3.3:1).
 - **Text on a pink fill is ink** (`text-highlight-foreground`), in both themes.
+- **Pink is a pen, not a paint bucket.** On the landing page it draws lines: a full-width pink underline under each section title (`decoration-4`, spanning the text), the pull quote bar, the outlined hero badge, the outline on the featured Options card, hover underlines on text links (`decoration-highlight decoration-2`) and hover borders on cards (`hover:border-highlight`). No large pink fills. The constants live at the top of `apps/landing-page/src/components/landing-page.tsx`.
 - **One primary button per view.**
 - **Status is `success`, `warning`, `destructive`**, as text on a wash, never a solid fill.
 - **Tokens, not palette colours.** `bg-card`, not `bg-white`. The phone preview and third-party logo tiles are the exceptions.
@@ -76,10 +77,11 @@ Rules:
 
 | Role | Font | Size / weight |
 |---|---|---|
-| Landing h1 | Inter | `text-4xl md:text-5xl font-semibold tracking-tight` |
-| Section title (landing h2) | Inter | `text-2xl md:text-3xl font-semibold tracking-tight`, **centred** with its lead |
+| Landing h1 | Satoshi | `text-4xl md:text-5xl font-semibold tracking-tight` |
+| Section title (landing h2) | Satoshi | `text-2xl md:text-3xl font-semibold tracking-tight`, **centred** with its lead |
 | Page title (app h1) | Inter | `text-2xl font-semibold tracking-tight` |
 | Section title (editor) | Inter | `text-base font-semibold` |
+| Landing body copy | Inter | `text-foreground` (ink) at `text-base` or `text-sm`. Not grey: legibility first |
 | Body, inputs | Inter | `text-sm` (inputs are `text-base` on mobile to stop iOS zoom, `md:text-sm`) |
 | Helper text, counters | Inter | `text-xs text-muted-foreground` |
 | API keys, ids, code | Geist Mono | `font-mono text-[0.82rem]` |

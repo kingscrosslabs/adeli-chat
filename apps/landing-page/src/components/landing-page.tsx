@@ -3,14 +3,14 @@ import Link from "next/link";
 import type { IconType } from "react-icons";
 import { AiFillOpenAI } from "react-icons/ai";
 import { RiGrokAiFill } from "react-icons/ri";
-import { SiClaude, SiGithub, SiPerplexity } from "react-icons/si";
+import { SiClaude, SiPerplexity } from "react-icons/si";
 
 import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
 import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 import { Badge } from "@adeli-chat/ui/components/badge";
 import { buttonVariants } from "@adeli-chat/ui/components/button";
-import { ADELI_LINKS, CONTACT_EMAIL, GITHUB_URL, SIGN_IN_URL } from "@/lib/links";
+import { ADELI_LINKS, CONTACT_EMAIL, WAITLIST_URL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
@@ -20,8 +20,13 @@ import { SamplePrompts } from "./sample-prompts";
 const FREE_AUTOMATIONS = 10;
 
 /** "Adeli", linked with the UTM for this spot on the page (docs/brand.md section 6). */
+/** Leda Pink as a pen, not a fill (docs/design.md): title underlines, outlines, hover underlines and borders. */
+const TITLE_UNDERLINE = "underline decoration-highlight decoration-4 underline-offset-8 [text-decoration-skip-ink:none]";
+const HOVER_UNDERLINE = "underline-offset-4 decoration-highlight decoration-2 hover:underline";
+const HOVER_BORDER = "transition-colors hover:border-highlight";
+
 function AdeliLink({ spot, children = "Adeli" }: { spot: keyof typeof ADELI_LINKS; children?: React.ReactNode }) {
-  return <a href={ADELI_LINKS[spot]} target="_blank" rel="noreferrer" className="font-medium text-link underline-offset-4 hover:underline">{children}</a>;
+  return <a href={ADELI_LINKS[spot]} target="_blank" rel="noreferrer" className={cn("font-medium text-link", HOVER_UNDERLINE)}>{children}</a>;
 }
 
 export function LandingPage() {
@@ -35,6 +40,7 @@ export function LandingPage() {
         <AskClaude />
         <Features />
         <Comparison />
+        <WhyWeBuilt />
         <Options />
         <OfficialApi />
         <Faq />
@@ -56,24 +62,17 @@ function Section({ id, className, children }: { id?: string; className?: string;
 function SectionHeading({ title, lead }: { title: string; lead?: string }) {
   return (
     <div className="mx-auto mb-10 max-w-2xl text-center">
-      <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">{title}</h2>
-      {lead ? <p className="mt-3 text-base text-muted-foreground">{lead}</p> : null}
+      <h2 className={cn("text-2xl font-semibold tracking-tight text-balance md:text-3xl", TITLE_UNDERLINE)}>{title}</h2>
+      {lead ? <p className="mt-3 text-base text-foreground">{lead}</p> : null}
     </div>
   );
 }
 
-function StartFree({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
+function JoinWaitlist({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
+  const external = WAITLIST_URL.startsWith("http");
   return (
-    <a href={SIGN_IN_URL} className={cn(buttonVariants({ size, variant }), className)}>
-      Start free <ArrowRight data-icon="inline-end" />
-    </a>
-  );
-}
-
-function GitHubButton({ className }: { className?: string }) {
-  return (
-    <a href={GITHUB_URL} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline", size: "lg" }), className)}>
-      <SiGithub data-icon="inline-start" /> View on GitHub
+    <a href={WAITLIST_URL} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className={cn(buttonVariants({ size, variant }), className)}>
+      Join waitlist <ArrowRight data-icon="inline-end" />
     </a>
   );
 }
@@ -81,6 +80,7 @@ function GitHubButton({ className }: { className?: string }) {
 function Header() {
   const links = [
     { href: "#how-it-works", label: "How it works" },
+    { href: "#why", label: "Why we built it" },
     { href: "#mcp", label: "MCP" },
     { href: "#options", label: "Options" },
     { href: "#faq", label: "FAQ" },
@@ -89,12 +89,11 @@ function Header() {
     <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
         <Link href="/" aria-label="LedaChat home"><Wordmark size="sm" /></Link>
-        <nav aria-label="Sections" className="hidden flex-1 items-center gap-5 text-sm text-muted-foreground md:flex">
-          {links.map((link) => <a key={link.href} href={link.href} className="hover:text-foreground">{link.label}</a>)}
+        <nav aria-label="Sections" className="hidden flex-1 items-center gap-5 text-sm text-foreground md:flex">
+          {links.map((link) => <a key={link.href} href={link.href} className={HOVER_UNDERLINE}>{link.label}</a>)}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <a href={SIGN_IN_URL} className={buttonVariants({ variant: "ghost" })}>Sign in</a>
-          <StartFree size="default" />
+          <JoinWaitlist size="default" />
         </div>
       </div>
     </header>
@@ -106,14 +105,13 @@ function Hero() {
     <section className="px-4 pt-14 pb-16 sm:px-6 md:pt-20">
       <div className="mx-auto grid max-w-5xl items-center gap-12 md:grid-cols-[1.1fr_1fr]">
         <div>
-          <Badge className="mb-5 bg-highlight text-highlight-foreground">Free and open source</Badge>
+          <Badge className="mb-5 h-6 border-highlight bg-transparent px-2.5 font-bold text-foreground">Free and open source</Badge>
           <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl">Turn Instagram comments into DMs, for free</h1>
-          <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+          <p className="mt-5 max-w-xl text-lg text-foreground">
             Comment-to-DM workflow, with an MCP. Free &amp; open source.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <StartFree />
-            <GitHubButton />
+            <JoinWaitlist />
           </div>
         </div>
         <HeroPreview />
@@ -125,7 +123,7 @@ function Hero() {
 function OfficialStrip() {
   return (
     <div className="border-t bg-muted px-4 py-4 sm:px-6">
-      <p className="mx-auto flex max-w-5xl items-center justify-center gap-2.5 text-center text-sm text-muted-foreground">
+      <p className="mx-auto flex max-w-5xl items-center justify-center gap-2.5 text-center text-sm text-foreground">
         <ShieldCheck className="size-4 shrink-0 text-link" aria-hidden />
         <span>Runs on Instagram&apos;s official API through <AdeliLink spot="officialStrip" />, a Meta Tech Provider. No passwords, no scraping, no browser bots.</span>
       </p>
@@ -144,10 +142,10 @@ function HowItWorks() {
       <SectionHeading title="How it works" />
       <ol className="grid gap-4 md:grid-cols-3">
         {steps.map((step, index) => (
-          <li key={step.title} className="rounded-xl border bg-card p-5">
+          <li key={step.title} className={cn("rounded-xl border bg-card p-5", HOVER_BORDER)}>
             <span className="flex size-7 items-center justify-center rounded-md bg-secondary text-sm font-semibold text-secondary-foreground">{index + 1}</span>
             <h3 className="mt-4 text-base font-semibold">{step.title}</h3>
-            <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
+            <p className="mt-1.5 text-sm text-foreground">{step.body}</p>
           </li>
         ))}
       </ol>
@@ -174,7 +172,8 @@ function AskClaude() {
   return (
     <Section id="mcp" className="bg-muted">
       <div className="mx-auto mb-10 max-w-2xl text-center">
-        <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">Ask your favorite AI agent to set up your automation for you</h2>
+        <h2 className={cn("text-2xl font-semibold tracking-tight text-balance md:text-3xl", TITLE_UNDERLINE)}>Create automations with AI</h2>
+        <p className="mt-3 text-base text-foreground">Ask your favorite AI agent to set up your automation for you</p>
         <ul className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Works with">
           {ASSISTANTS.map(({ name, icon: Icon, tile }) => (
             <li key={name} className="flex items-center gap-2 rounded-lg border bg-card py-1.5 pr-3 pl-1.5 text-sm font-medium">
@@ -187,7 +186,7 @@ function AskClaude() {
       <div className="grid items-start gap-6 md:grid-cols-[1fr_1.15fr]">
         <SamplePrompts />
         <figure className="rounded-xl border bg-card">
-          <figcaption className="flex items-center gap-2 border-b px-4 py-2.5 text-xs text-muted-foreground">
+          <figcaption className="flex items-center gap-2 border-b px-4 py-2.5 text-xs text-foreground">
             <MessagesSquare className="size-3.5" aria-hidden /> Example conversation in Claude
           </figcaption>
           <div className="space-y-3 p-4">
@@ -227,10 +226,10 @@ const FEATURES = [
 function Features() {
   return (
     <Section id="features">
-      <SectionHeading title="Everything a comment to DM needs" />
+      <SectionHeading title="Features" lead="Everything a comment to DM needs" />
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map(({ icon: Icon, title }) => (
-          <li key={title} className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3.5 text-sm font-medium">
+          <li key={title} className={cn("flex items-center gap-3 rounded-xl border bg-card px-4 py-3.5 text-sm font-medium", HOVER_BORDER)}>
             <Icon className="size-4 shrink-0 text-link" aria-hidden />
             {title}
           </li>
@@ -267,7 +266,7 @@ function Comparison() {
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="bg-muted">
             <tr>
-              <th scope="col" className="w-1/3 px-4 py-3 font-medium text-muted-foreground"><span className="sr-only">Feature</span></th>
+              <th scope="col" className="w-1/3 px-4 py-3 font-medium text-foreground"><span className="sr-only">Feature</span></th>
               <th scope="col" className="px-4 py-3 font-semibold">LedaChat</th>
               <th scope="col" className="px-4 py-3 font-semibold">ManyChat</th>
             </tr>
@@ -277,11 +276,42 @@ function Comparison() {
               <tr key={row.label} className="border-t">
                 <th scope="row" className="px-4 py-3 font-medium">{row.label}</th>
                 <td className="bg-secondary/40 px-4 py-3"><CellValue value={row.adeli} /></td>
-                <td className="px-4 py-3 text-muted-foreground"><CellValue value={row.manychat} /></td>
+                <td className="px-4 py-3 text-foreground"><CellValue value={row.manychat} /></td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+    </Section>
+  );
+}
+
+function WhyWeBuilt() {
+  return (
+    <Section id="why" className="bg-muted">
+      <div className="mx-auto max-w-2xl">
+        <h2 className={cn("text-center text-2xl font-semibold tracking-tight text-balance md:text-3xl", TITLE_UNDERLINE)}>Why we built LedaChat</h2>
+        <div className="mt-8 space-y-4 text-base text-foreground">
+          <p>
+            I ran my Instagram on ManyChat, the biggest name in comment to DM. I upgraded to Pro at $29 a month.
+            Then a bill for over $100 showed up.
+          </p>
+          <p>ManyChat prices by active contacts. The more people comment, the more you pay.</p>
+        </div>
+        <blockquote className="my-8 border-l-4 border-highlight pl-5 text-xl font-semibold tracking-tight text-foreground text-balance md:text-2xl">
+          Go viral, and your bill goes viral with you.
+        </blockquote>
+        <div className="space-y-4 text-base text-foreground">
+          <p>
+            I also wanted an MCP. Every reel I post comes with a guide, and I wanted to set up each one by asking my AI agent,
+            not by clicking through a flow builder.
+          </p>
+          <p>
+            So we built <AdeliLink spot="why" />, an API for ads and social media, and used it to solve our own problem.
+            LedaChat is the ManyChat replacement I wanted: one flat price, with an MCP built in.
+          </p>
+        </div>
+        <p className="mt-8 text-sm font-medium text-foreground">Mika Reyes, co-founder</p>
       </div>
     </Section>
   );
@@ -294,7 +324,7 @@ function Options() {
       price: "$0",
       period: "forever",
       points: [`${FREE_AUTOMATIONS} live automations`, "Access to all features", "MCP access for AI agents", "LedaChat branding in the last DM"],
-      action: <StartFree size="lg" className="w-full" />,
+      action: <JoinWaitlist size="lg" className="w-full" />,
       featured: true,
     },
     {
@@ -302,7 +332,7 @@ function Options() {
       price: "$25",
       period: "per month",
       points: ["Everything in Free", "Remove branding"],
-      action: <StartFree variant="outline" className="w-full" />,
+      action: <JoinWaitlist variant="outline" className="w-full" />,
       featured: false,
     },
     {
@@ -310,7 +340,7 @@ function Options() {
       price: "Free",
       period: "MIT license",
       points: ["Unlimited automations", "Deploy to Vercel in a few steps", <>Bring your <AdeliLink spot="options" /> API key. Adeli&apos;s free plan covers your own account</>],
-      action: <GitHubButton className="w-full" />,
+      action: <JoinWaitlist variant="outline" className="w-full" />,
       featured: false,
     },
   ];
@@ -319,9 +349,9 @@ function Options() {
       <SectionHeading title="Options" lead="Use the hosted version, or run your own copy." />
       <div className="grid gap-4 md:grid-cols-3">
         {options.map((option) => (
-          <div key={option.name} className={cn("flex flex-col rounded-xl border bg-card p-5", option.featured && "ring-2 ring-primary")}>
+          <div key={option.name} className={cn("flex flex-col rounded-xl border bg-card p-5", HOVER_BORDER, option.featured && "border-2 border-highlight")}>
             <h3 className="text-base font-semibold">{option.name}</h3>
-            <p className="mt-3"><span className="text-3xl font-semibold tracking-tight">{option.price}</span> <span className="text-sm text-muted-foreground">{option.period}</span></p>
+            <p className="mt-3"><span className="text-3xl font-semibold tracking-tight">{option.price}</span> <span className="text-sm text-foreground">{option.period}</span></p>
             <ul className="mt-5 flex-1 space-y-2.5 text-sm">
               {option.points.map((point, index) => <li key={index} className="flex gap-2.5"><Check className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{point}</span></li>)}
             </ul>
@@ -337,20 +367,20 @@ function OfficialApi() {
   return (
     <Section id="official" className="bg-muted">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">Built on Instagram&apos;s official API</h2>
-        <p className="mt-3 text-base text-muted-foreground">
+        <h2 className={cn("text-2xl font-semibold tracking-tight text-balance md:text-3xl", TITLE_UNDERLINE)}>Built on Instagram&apos;s official API</h2>
+        <p className="mt-3 text-base text-foreground">
           LedaChat connects through <AdeliLink spot="officialApi" />, a Meta Tech Provider. You log in with Instagram, and we never see your password.
         </p>
       </div>
       <div className="mx-auto mt-8 max-w-md">
-        <a href={ADELI_LINKS.officialApiDocs} target="_blank" rel="noreferrer" className="group block rounded-xl border bg-card p-5 transition hover:border-link">
-          <span className="text-xs font-medium text-muted-foreground">Powered by</span>
+        <a href={ADELI_LINKS.officialApiDocs} target="_blank" rel="noreferrer" className="group block rounded-xl border bg-card p-5 transition hover:border-highlight">
+          <span className="text-xs font-medium text-foreground">Powered by</span>
           <span className="mt-2 flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/adeli-logo.png" alt="" className="size-7 rounded-md" />
             <span className="text-lg font-semibold tracking-tight">Adeli</span>
           </span>
-          <p className="mt-3 text-sm text-muted-foreground">Building features like this for your own customers? LedaChat runs on the Adeli API.</p>
+          <p className="mt-3 text-sm text-foreground">Building features like this for your own customers? LedaChat runs on the Adeli API.</p>
           <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link">See the Adeli API <ArrowRight className="size-4 transition group-hover:translate-x-0.5" aria-hidden /></span>
         </a>
       </div>
@@ -366,7 +396,7 @@ function Faq() {
     { q: "What happens at the free limit?", a: `Your ${FREE_AUTOMATIONS} live automations keep running. Pause one to start another.` },
     {
       q: "Does it work on Facebook or TikTok?",
-      a: <>Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-link underline-offset-4 hover:underline">{CONTACT_EMAIL}</a>.</>,
+      a: <>Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at <a href={`mailto:${CONTACT_EMAIL}`} className={cn("font-medium text-link", HOVER_UNDERLINE)}>{CONTACT_EMAIL}</a>.</>,
     },
     {
       q: "Why use LedaChat over ManyChat?",
@@ -391,9 +421,9 @@ function Faq() {
           <details key={item.q} className="group px-5 py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
               {item.q}
-              <ChevronDown className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" aria-hidden />
+              <ChevronDown className="size-4 shrink-0 text-foreground transition group-open:rotate-180" aria-hidden />
             </summary>
-            <div className="mt-2.5 text-sm text-muted-foreground">{item.a}</div>
+            <div className="mt-2.5 text-sm text-foreground">{item.a}</div>
           </details>
         ))}
       </div>
@@ -403,10 +433,10 @@ function Faq() {
 
 function FinalCta() {
   return (
-    <Section className="text-center">
-      <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Your next comment could be a lead</h2>
-      <p className="mt-3 text-base text-muted-foreground">Set up your first automation in a few minutes. Free for {FREE_AUTOMATIONS} automations.</p>
-      <div className="mt-7 flex justify-center"><StartFree /></div>
+    <Section id="waitlist" className="text-center">
+      <h2 className={cn("text-2xl font-semibold tracking-tight md:text-3xl", TITLE_UNDERLINE)}>Your next comment could be a lead</h2>
+      <p className="mt-3 text-base text-foreground">Join the waitlist and be first in when we open. Free for {FREE_AUTOMATIONS} automations.</p>
+      <div className="mt-7 flex justify-center"><JoinWaitlist /></div>
     </Section>
   );
 }
@@ -414,10 +444,8 @@ function FinalCta() {
 function Footer() {
   return (
     <footer className="border-t px-4 py-8 sm:px-6">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-muted-foreground">
-        <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className="hover:text-foreground">Powered by Adeli</a>
-        <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
-        <a href={SIGN_IN_URL} className="hover:text-foreground">Sign in</a>
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-foreground">
+        <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className={HOVER_UNDERLINE}>Powered by Adeli</a>
         <span>© King&apos;s Cross Labs</span>
         <ThemeToggle className="ml-auto" compact />
       </div>

@@ -15,6 +15,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Satoshi for headings. Fontshare serves it (free for commercial use); it is not on Google Fonts. */}
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
+        <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" />
+      </head>
       <body className="min-h-full">
         {/* Same theme setup as the app, so a visitor's choice carries over (docs/design.md). */}
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange storageKey="ledachat-theme">
