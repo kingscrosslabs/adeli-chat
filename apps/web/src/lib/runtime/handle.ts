@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { adeliCall } from "@/lib/adeli/client";
 import { listMedia } from "@/lib/adeli/instagram";
 import { AdeliError } from "@/lib/adeli/types";
+import { track } from "@/lib/analytics/server";
 import { emailCaptureOf, followGateOf, type Automation } from "@adeli-chat/ui/automation/schemas";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { toAutomation } from "@/lib/data";
@@ -35,6 +36,18 @@ export function findEmail(text: string | null) {
 function errorText(error: unknown) {
   if (error instanceof AdeliError) return `${error.code}: ${error.message}`.slice(0, 500);
   return error instanceof Error ? error.message.slice(0, 500) : "unknown error";
+}
+
+/**
+ * One step of a run, for analytics on the workspace owner (`userId`). Only
+ * ids and outcomes: never the commenter's username, text or email.
+ */
+function trackStep(userId: string, event: string, automationId: string, properties: Record<string, string | number | boolean> = {}) {
+  track(userId, event, { automation_id: automationId, ...properties });
+}
+
+function trackFailure(userId: string, automationId: string, step: string, error: unknown) {
+  trackStep(userId, "automation_step_failed", automationId, { step, error_code: error instanceof AdeliError ? error.code : "unknown" });
 }
 
 function pick<T>(items: T[]) {
@@ -70,6 +83,7 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
     commentText: data.text,
   }).onConflictDoNothing().returning({ id: schema.runs.id });
   if (!run) return;
+  trackStep(userId, "automation_triggered", automation.id, { trigger: "comment", post_scope: automation.trigger.postScope, trigger_match: automation.trigger.match });
 
   const variants = automation.commentReply.variants.filter((variant) => variant.trim());
   if (automation.commentReply.enabled && variants.length) {
@@ -78,15 +92,17 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
         body: { platform: "instagram", accountId: account.adeliAccountId, parentId: data.commentId, message: pick(variants) },
       }));
       await updateRun(run.id, { commentReplyState: "sent" });
+      trackStep(userId, "comment_reply_sent", automation.id);
     } catch (error) {
       // A failed public reply doesn't stop the DM, which is the part people asked for.
       await updateRun(run.id, { commentReplyState: "failed", error: errorText(error) });
+      trackFailure(userId, automation.id, "comment_reply", error);
     }
   } else {
     await updateRun(run.id, { commentReplyState: "skipped" });
   }
 
-  await sendOpeningDm(userId, run.id, account.adeliAccountId, { commentId: data.commentId }, automation.openingDm);
+  await sendOpeningDm(userId, run.id, automation.id, account.adeliAccountId, { commentId: data.commentId }, automation.openingDm);
 }
 
 /**
@@ -111,7 +127,8 @@ async function handleStoryReply(userId: string, event: MessageCreatedEvent, acco
   }).onConflictDoNothing().returning({ id: schema.runs.id });
   // Already in this flow (once per person), or a redelivery: either way it's handled.
   if (!run) return true;
-  await sendOpeningDm(userId, run.id, account.adeliAccountId, { id: data.from.id }, automation.openingDm);
+  trackStep(userId, "automation_triggered", automation.id, { trigger: "story_reply", post_scope: automation.trigger.postScope, trigger_match: automation.trigger.match });
+  await sendOpeningDm(userId, run.id, automation.id, account.adeliAccountId, { id: data.from.id }, automation.openingDm);
   return true;
 }
 
@@ -150,7 +167,9 @@ async function handlePostback(userId: string, event: MessagePostbackEvent) {
   }
 
   const automation = toAutomation(row.automation);
+  const emailCapture = emailCaptureOf(automation);
   const followGate = followGateOf(automation);
+  trackStep(userId, "dm_button_tapped", run.automationId, { email_capture_enabled: emailCapture.enabled, follow_gate_enabled: followGate.enabled });
   if (followGate.enabled && !(await followsAccount(run.id, row.account.adeliAccountId, event.data.senderId))) {
     try {
       await adeliCall((client) => client.messages.sendInstagramMessage({
@@ -162,23 +181,26 @@ async function handlePostback(userId: string, event: MessagePostbackEvent) {
         },
       }));
       await updateRun(run.id, { state: "awaiting_follow" });
+      trackStep(userId, "follow_gate_sent", run.automationId, { recheck });
     } catch (error) {
       await updateRun(run.id, { state: "failed", error: errorText(error) });
+      trackFailure(userId, run.automationId, "follow_gate", error);
     }
     return;
   }
 
-  const emailCapture = emailCaptureOf(automation);
   if (emailCapture.enabled) {
     try {
       await sendText(userId, row.account.adeliAccountId, event.data.senderId, emailCapture.text);
       await updateRun(run.id, { state: "awaiting_email" });
+      trackStep(userId, "email_requested", run.automationId);
     } catch (error) {
       await updateRun(run.id, { state: "failed", error: errorText(error) });
+      trackFailure(userId, run.automationId, "email_request", error);
     }
     return;
   }
-  await sendFinalDm(userId, run.id, row.account.adeliAccountId, event.data.senderId, row.automation.finalDm);
+  await sendFinalDm(userId, run.id, run.automationId, row.account.adeliAccountId, event.data.senderId, row.automation.finalDm);
 }
 
 /**
@@ -210,7 +232,11 @@ async function handleMessage(userId: string, event: MessageCreatedEvent) {
       .returning({ id: schema.runs.id });
     if (!claimed) return;
     const { retryText } = emailCaptureOf(toAutomation(waiting.automation));
-    await sendText(userId, account.adeliAccountId, senderId, retryText).catch(async (error) => updateRun(waiting.run.id, { error: errorText(error) }));
+    trackStep(userId, "invalid_email_received", waiting.automation.id);
+    await sendText(userId, account.adeliAccountId, senderId, retryText).catch(async (error) => {
+      trackFailure(userId, waiting.automation.id, "email_retry", error);
+      await updateRun(waiting.run.id, { error: errorText(error) });
+    });
     return;
   }
 
@@ -224,7 +250,8 @@ async function handleMessage(userId: string, event: MessageCreatedEvent) {
   await db().insert(schema.leads)
     .values({ automationId: waiting.automation.id, igUserId: waiting.run.igUserId, igUsername: waiting.run.igUsername, email })
     .onConflictDoUpdate({ target: [schema.leads.automationId, schema.leads.igUserId], set: { email, updatedAt: now } });
-  await sendFinalDm(userId, run.id, account.adeliAccountId, senderId, waiting.automation.finalDm);
+  trackStep(userId, "lead_captured", waiting.automation.id);
+  await sendFinalDm(userId, run.id, waiting.automation.id, account.adeliAccountId, senderId, waiting.automation.finalDm);
 }
 
 /**
@@ -259,7 +286,7 @@ async function liveAutomations(accountId: string) {
   return rows.map((row) => toAutomation(row));
 }
 
-async function sendOpeningDm(userId: string, runId: string, adeliAccountId: string, recipient: { commentId: string } | { id: string }, openingDm: Automation["openingDm"]) {
+async function sendOpeningDm(userId: string, runId: string, automationId: string, adeliAccountId: string, recipient: { commentId: string } | { id: string }, openingDm: Automation["openingDm"]) {
   try {
     await adeliCall((client) => client.messages.sendInstagramMessage({
       body: {
@@ -270,8 +297,10 @@ async function sendOpeningDm(userId: string, runId: string, adeliAccountId: stri
       },
     }));
     await updateRun(runId, { state: "opening_sent", openingSentAt: new Date() });
+    trackStep(userId, "opening_dm_sent", automationId);
   } catch (error) {
     await updateRun(runId, { state: "failed", error: errorText(error) });
+    trackFailure(userId, automationId, "opening_dm", error);
   }
 }
 
@@ -295,7 +324,7 @@ async function sendText(userId: string, adeliAccountId: string, recipientId: str
   await adeliCall((client) => client.messages.sendInstagramMessage({ body: { accountId: adeliAccountId, recipient: { id: recipientId }, text } }));
 }
 
-async function sendFinalDm(userId: string, runId: string, adeliAccountId: string, recipientId: string, finalDm: Automation["finalDm"]) {
+async function sendFinalDm(userId: string, runId: string, automationId: string, adeliAccountId: string, recipientId: string, finalDm: Automation["finalDm"]) {
   try {
     await adeliCall((client) => client.messages.sendInstagramMessage({
       body: {
@@ -306,8 +335,10 @@ async function sendFinalDm(userId: string, runId: string, adeliAccountId: string
       },
     }));
     await updateRun(runId, { state: "final_sent" });
+    trackStep(userId, "final_dm_sent", automationId, { buttons: finalDm.buttons.length });
   } catch (error) {
     await updateRun(runId, { state: "failed", error: errorText(error) });
+    trackFailure(userId, automationId, "final_dm", error);
   }
 }
 

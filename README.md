@@ -55,6 +55,9 @@ One LedaChat install uses one Adeli organization, through the API key in `ADELI_
 | `ALLOWED_EMAILS` | No | Comma-separated emails that may sign in. Empty: anyone with Google can sign in. |
 | `BETTER_AUTH_API_KEY` | No | A [Better Auth Infrastructure](https://better-auth.com/docs/infrastructure/getting-started) project key. Set it to see and manage your users and sessions in its dashboard. |
 | `APP_URL` | No | Set it when you use a custom domain. Defaults to the Vercel production domain. |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | No | PostHog project token (`phc_...`) for product analytics. Empty: nothing is sent. See [docs/analytics.md](docs/analytics.md). |
+| `NEXT_PUBLIC_POSTHOG_HOST` | No | `https://us.i.posthog.com` (default) or `https://eu.i.posthog.com`. |
+| `NEXT_PUBLIC_POSTHOG_UI_HOST` | No | `https://us.posthog.com` (default) or `https://eu.posthog.com`, for links from the toolbar. |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
 

@@ -1,6 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { redirect } from "next/navigation";
 
+import { PostHogReset } from "@/components/analytics/posthog-identify";
 import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
 import { Button } from "@adeli-chat/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
@@ -26,6 +27,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="grid min-h-screen place-items-center bg-muted px-4 py-8">
+      <PostHogReset />
       <div className="flex w-full max-w-sm flex-col items-center gap-6">
         <Wordmark />
         <Card className="w-full">
@@ -40,7 +42,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             {configured ? (
               <form action={signInWithGoogle}>
                 {oauthQuery ? <input type="hidden" name="oauth_query" value={oauthQuery} /> : null}
-                <Button type="submit" size="lg" className="w-full"><GoogleIcon /> Continue with Google</Button>
+                <Button type="submit" size="lg" className="w-full" data-ph-event="sign_in_started" data-ph-for-mcp={oauthQuery ? "true" : "false"}><GoogleIcon /> Continue with Google</Button>
               </form>
             ) : (
               <Problem message="Google sign-in isn't set up on this server. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and BETTER_AUTH_SECRET, then redeploy." />

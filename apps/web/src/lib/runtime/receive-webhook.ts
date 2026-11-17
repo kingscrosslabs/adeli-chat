@@ -4,6 +4,7 @@ import { MalformedResponseError } from "@adeli/sdk";
 import { parseWebhookEvent, verifyWebhookSignature } from "@adeli/sdk/helpers";
 import { after } from "next/server";
 
+import { trackError } from "@/lib/analytics/server";
 import { handleEvent } from "@/lib/runtime/handle";
 
 /**
@@ -31,6 +32,7 @@ export async function receiveWebhook(request: Request, candidates: Array<{ userI
       await handleEvent(owner.userId, event);
     } catch (error) {
       console.error(`Adeli webhook ${event.id} (${event.type}) failed: ${error instanceof Error ? error.message : String(error)}`);
+      trackError(error, owner.userId, { adeli_event_type: event.type });
     }
   });
   return Response.json({ received: true });

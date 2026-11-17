@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import { listInstagramAccounts } from "@/lib/adeli/instagram";
 import { renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
+import { trackWentLive } from "@/lib/analytics/automations";
+import { track } from "@/lib/analytics/server";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { requireUserId, SignedOutError } from "@/lib/auth/session";
@@ -50,6 +52,12 @@ function done<T extends object>(value: T = {} as T): ActionResult<T> {
 function settled(result: ActionResult): ActionResult {
   if (result.ok) revalidatePath("/", "layout");
   return result;
+}
+
+/** Why a save or Go Live was refused, as event properties. */
+function rejection(result: ActionResult): Record<string, string | number> {
+  if (result.ok) return {};
+  return result.reason === "invalid" ? { reason: "invalid", invalid_fields: result.count } : { reason: result.reason };
 }
 
 /**
@@ -98,11 +106,13 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
       status: "connected" as const,
       updatedAt: now,
     };
+    let reconnected = false;
     await db().transaction(async (tx) => {
       // Reconnecting in Adeli gives the same Instagram account a new Adeli id. Keep its row, so its automations and runs follow.
       const [same] = values.igUserId
         ? await tx.select({ id: schema.accounts.id }).from(schema.accounts).where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.igUserId, values.igUserId))).limit(1)
         : [];
+      reconnected = Boolean(same);
       const [row] = same
         ? await tx.update(schema.accounts).set({ adeliAccountId, ...values }).where(eq(schema.accounts.id, same.id)).returning({ id: schema.accounts.id })
         : await tx.insert(schema.accounts).values({ userId, adeliAccountId, ...values })
@@ -115,6 +125,7 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
     });
     // Comments on the account only reach LedaChat through the user's webhook.
     await ensureAdeliWebhook(userId).catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
+    track(userId, "instagram_account_connected", { reconnected });
     return done({ handle: account.displayIdentifier });
   });
 }
@@ -125,6 +136,7 @@ export async function disconnectAccount(): Promise<ActionResult> {
     const account = await requireAccount(userId);
     await pauseLive(account.id);
     await db().update(schema.accounts).set({ status: "disconnected", updatedAt: new Date() }).where(eq(schema.accounts.id, account.id));
+    track(userId, "instagram_account_disconnected");
     return done();
   });
 }
@@ -133,34 +145,51 @@ export async function createAutomation(type: unknown = "comment_to_dm"): Promise
   return guard(async (userId) => {
     const parsed = automationTypeSchema.safeParse(type);
     if (!parsed.success) throw new ServiceError("That kind of automation isn't available yet.");
-    return done(await service.createAutomation(userId, {}, parsed.data));
+    const created = await service.createAutomation(userId, {}, parsed.data);
+    track(userId, "automation_created", { automation_id: created.id, automation_type: parsed.data, source: "app" });
+    return done(created);
   });
 }
 
 /** Saves the editor. Saving a live automation applies at once, so it must pass Go Live checks (D4). */
 export async function saveAutomation(id: string, input: AutomationContent): Promise<ActionResult> {
-  return guard(async (userId) => settled(await service.saveAutomation(userId, id, input)));
+  return guard(async (userId) => {
+    const result = await service.saveAutomation(userId, id, input);
+    track(userId, result.ok ? "automation_saved" : "automation_save_rejected", { automation_id: id, source: "app", ...rejection(result) });
+    return settled(result);
+  });
 }
 
 /** Saves `input` when given (the editor), then goes live. */
 export async function goLive(id: string, input?: AutomationContent): Promise<ActionResult> {
-  return guard(async (userId) => settled(await service.goLive(userId, id, input)));
+  return guard(async (userId) => {
+    const result = await service.goLive(userId, id, input);
+    if (result.ok) await trackWentLive(userId, id, "app");
+    else track(userId, "automation_go_live_rejected", { automation_id: id, source: "app", ...rejection(result) });
+    return settled(result);
+  });
 }
 
 export async function pauseAutomation(id: string): Promise<ActionResult> {
   return guard(async (userId) => {
     await service.pauseAutomation(userId, id);
+    track(userId, "automation_paused", { automation_id: id, source: "app" });
     return done();
   });
 }
 
 export async function duplicateAutomation(id: string): Promise<ActionResult<{ id: string }>> {
-  return guard(async (userId) => done(await service.duplicateAutomation(userId, id)));
+  return guard(async (userId) => {
+    const copy = await service.duplicateAutomation(userId, id);
+    track(userId, "automation_duplicated", { automation_id: copy.id, original_automation_id: id, source: "app" });
+    return done(copy);
+  });
 }
 
 export async function deleteAutomation(id: string): Promise<ActionResult> {
   return guard(async (userId) => {
     await service.deleteAutomation(userId, id);
+    track(userId, "automation_deleted", { automation_id: id, source: "app" });
     return done();
   });
 }
@@ -170,7 +199,11 @@ export async function deleteAutomation(id: string): Promise<ActionResult> {
  * trigger it again. Handy when testing with one account. Clears its stats too.
  */
 export async function resetRuns(id: string): Promise<ActionResult<{ count: number }>> {
-  return guard(async (userId) => done(await service.resetRuns(userId, id)));
+  return guard(async (userId) => {
+    const reset = await service.resetRuns(userId, id);
+    track(userId, "automation_runs_reset", { automation_id: id, runs_cleared: reset.count, source: "app" });
+    return done(reset);
+  });
 }
 
 /**
@@ -183,13 +216,17 @@ export async function answerConsent(form: FormData): Promise<void> {
   const oauthQuery = form.get("oauth_query");
   const requested = form.get("scope");
   if (typeof oauthQuery !== "string" || typeof requested !== "string") throw new Error("This sign-in request is incomplete. Start again from the app you were connecting.");
+  const userId = await requireUserId().catch(() => null);
+  const accepted = form.get("decision") === "allow";
+  const allowWrite = accepted && form.get("allow_write") === "on";
   const url = await submitConsent({
     cookie: (await headers()).get("cookie") ?? "",
     oauthQuery,
     requestedScope: requested,
-    accept: form.get("decision") === "allow",
+    accept: accepted,
     allowWrite: form.get("allow_write") === "on",
   });
+  if (userId) track(userId, accepted ? "mcp_oauth_consent_allowed" : "mcp_oauth_consent_denied", accepted ? { allow_write: allowWrite } : {});
   redirect(url);
 }
 
@@ -198,6 +235,7 @@ export async function createApiToken(input: { name: string; readOnly: boolean; e
   return guard(async (userId) => {
     if (!TOKEN_EXPIRY_OPTIONS.includes(input.expiry)) throw new ActionError("Pick when the token expires.");
     const { token } = await createToken(userId, { name: input.name, readOnly: Boolean(input.readOnly), expiry: input.expiry });
+    track(userId, "api_token_created", { read_only: Boolean(input.readOnly), expiry: input.expiry });
     return done({ token });
   });
 }
@@ -215,6 +253,7 @@ export async function revealApiToken(id: string): Promise<ActionResult<{ token: 
 export async function revokeApiToken(id: string): Promise<ActionResult> {
   return guard(async (userId) => {
     if (!(await revokeToken(userId, id))) throw new ActionError("This token was already revoked.");
+    track(userId, "api_token_revoked");
     return done();
   });
 }
@@ -223,6 +262,7 @@ export async function revokeApiToken(id: string): Promise<ActionResult> {
 export async function disconnectMcpApp(clientId: string): Promise<ActionResult> {
   return guard(async (userId) => {
     await disconnectApp(userId, clientId);
+    track(userId, "mcp_app_disconnected");
     return done();
   });
 }

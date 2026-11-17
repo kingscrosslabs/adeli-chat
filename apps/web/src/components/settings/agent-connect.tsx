@@ -57,6 +57,8 @@ export function ConnectToAgent({ mcpUrl, oauthEnabled, apps, defaultToken }: { m
             key={agent.id}
             type="button"
             onClick={() => setOpenId(agent.id)}
+            data-ph-event="agent_setup_opened"
+            data-ph-agent={agent.id}
             className="flex min-w-0 items-center gap-3 rounded-xl border bg-card p-4 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
           >
             <AgentLogo agent={agent} />
