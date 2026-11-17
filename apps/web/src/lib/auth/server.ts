@@ -87,7 +87,9 @@ function create() {
         allowUnauthenticatedClientRegistration: true,
         clientRegistrationDefaultApplicationType: "infer",
         clientRegistrationDefaultScopes: ["openid", "profile", "email", "offline_access", ...MCP_SCOPES],
-        refreshTokenReuseInterval: 0,
+        // A client that sends the same refresh token twice (a retry, or two Claude Code sessions refreshing at once) gets the same answer
+        // within this window. With 0, the second use counts as token theft and deletes every token the client has, forcing a reconnect.
+        refreshTokenReuseInterval: 60,
       }),
       cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
       ...(infraApiKey ? [dash({ apiKey: infraApiKey })] : []),
