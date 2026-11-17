@@ -15,6 +15,7 @@ import { ADELI_LINKS, CONTACT_EMAIL, WAITLIST_URL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
+import { JsonLd } from "./json-ld";
 import { SamplePrompts } from "./sample-prompts";
 
 /** Free plan size, shown in the hero, Options and FAQ. One place to change it. */
@@ -33,6 +34,7 @@ function AdeliLink({ spot, children = "Adeli" }: { spot: keyof typeof ADELI_LINK
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <JsonLd faqs={faqs} />
       <Header />
       <main>
         <Hero />
@@ -389,42 +391,71 @@ function OfficialApi() {
   );
 }
 
+/**
+ * The FAQ, one source for the visible section, the FAQPage JSON-LD and llms.txt.
+ * `answer` is what the page shows; `text` is the same answer as plain text, word for word.
+ */
+export type FaqItem = { question: string; answer: React.ReactNode; text: string };
+
+export const faqs: FaqItem[] = [
+  {
+    question: "Is this allowed by Instagram?",
+    answer: <>Yes. LedaChat uses Instagram&apos;s official API through <AdeliLink spot="faq" />, a Meta Tech Provider, and only messages people who commented or replied to your story first.</>,
+    text: "Yes. LedaChat uses Instagram's official API through Adeli, a Meta Tech Provider, and only messages people who commented or replied to your story first.",
+  },
+  {
+    question: "What account do I need?",
+    answer: "An Instagram professional account (Business or Creator). Switching is free in Instagram's settings.",
+    text: "An Instagram professional account (Business or Creator). Switching is free in Instagram's settings.",
+  },
+  {
+    question: "Do I need an Adeli account?",
+    answer: <>Not for the hosted version. To self-host, you need an <AdeliLink spot="faq" /> API key, and Adeli&apos;s free plan covers your own account.</>,
+    text: "Not for the hosted version. To self-host, you need an Adeli API key, and Adeli's free plan covers your own account.",
+  },
+  {
+    question: "What happens at the free limit?",
+    answer: `Your ${FREE_AUTOMATIONS} live automations keep running. Pause one to start another.`,
+    text: `Your ${FREE_AUTOMATIONS} live automations keep running. Pause one to start another.`,
+  },
+  {
+    question: "Does it work on Facebook or TikTok?",
+    answer: <>Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at <a href={`mailto:${CONTACT_EMAIL}`} className={cn("font-medium text-link", HOVER_UNDERLINE)}>{CONTACT_EMAIL}</a>.</>,
+    text: `Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at ${CONTACT_EMAIL}.`,
+  },
+  {
+    question: "Why use LedaChat over ManyChat?",
+    answer: (
+      <>
+        A couple of reasons:
+        <ul className="mt-2 list-disc space-y-1.5 pl-5">
+          <li>We offer an MCP, so you can ask Claude, ChatGPT or others to set up your automations for you. Better yet, turn them into skills.</li>
+          <li>We do <strong className="font-semibold text-foreground">not</strong> charge by active contact, which racks up your bill when a post goes viral.</li>
+          <li>We offer very simple, targeted features.</li>
+        </ul>
+      </>
+    ),
+    text: "A couple of reasons: We offer an MCP, so you can ask Claude, ChatGPT or others to set up your automations for you. Better yet, turn them into skills. We do not charge by active contact, which racks up your bill when a post goes viral. We offer very simple, targeted features.",
+  },
+  {
+    question: "Can I cancel Pro?",
+    answer: "Yes. It's monthly, and you can cancel anytime.",
+    text: "Yes. It's monthly, and you can cancel anytime.",
+  },
+];
+
 function Faq() {
-  const items: Array<{ q: string; a: React.ReactNode }> = [
-    { q: "Is this allowed by Instagram?", a: <>Yes. LedaChat uses Instagram&apos;s official API through <AdeliLink spot="faq" />, a Meta Tech Provider, and only messages people who commented or replied to your story first.</> },
-    { q: "What account do I need?", a: "An Instagram professional account (Business or Creator). Switching is free in Instagram's settings." },
-    { q: "Do I need an Adeli account?", a: <>Not for the hosted version. To self-host, you need an <AdeliLink spot="faq" /> API key, and Adeli&apos;s free plan covers your own account.</> },
-    { q: "What happens at the free limit?", a: `Your ${FREE_AUTOMATIONS} live automations keep running. Pause one to start another.` },
-    {
-      q: "Does it work on Facebook or TikTok?",
-      a: <>Right now, it works on Instagram only. If you want it on Facebook or TikTok, send us a feature request at <a href={`mailto:${CONTACT_EMAIL}`} className={cn("font-medium text-link", HOVER_UNDERLINE)}>{CONTACT_EMAIL}</a>.</>,
-    },
-    {
-      q: "Why use LedaChat over ManyChat?",
-      a: (
-        <>
-          A couple of reasons:
-          <ul className="mt-2 list-disc space-y-1.5 pl-5">
-            <li>We offer an MCP, so you can ask Claude, ChatGPT or others to set up your automations for you. Better yet, turn them into skills.</li>
-            <li>We do <strong className="font-semibold text-foreground">not</strong> charge by active contact, which racks up your bill when a post goes viral.</li>
-            <li>We offer very simple, targeted features.</li>
-          </ul>
-        </>
-      ),
-    },
-    { q: "Can I cancel Pro?", a: "Yes. It's monthly, and you can cancel anytime." },
-  ];
   return (
     <Section id="faq">
       <SectionHeading title="FAQ" />
       <div className="divide-y rounded-xl border bg-card">
-        {items.map((item) => (
-          <details key={item.q} className="group px-5 py-4">
+        {faqs.map((item) => (
+          <details key={item.question} className="group px-5 py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-              {item.q}
+              {item.question}
               <ChevronDown className="size-4 shrink-0 text-foreground transition group-open:rotate-180" aria-hidden />
             </summary>
-            <div className="mt-2.5 text-sm text-foreground">{item.a}</div>
+            <div className="mt-2.5 text-sm text-foreground">{item.answer}</div>
           </details>
         ))}
       </div>
