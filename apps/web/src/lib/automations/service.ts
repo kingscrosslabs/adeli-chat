@@ -194,46 +194,50 @@ export type EarlierPreview = {
   /** False when Adeli couldn't read every comment on the post, so there may be more. */
   complete: boolean;
   windowHours: number;
+  /** Whether this user may send: Pro, or an install without billing. Free users still see the count, as a reason to upgrade. */
+  allowed: boolean;
+  upgradeUrl: string;
 };
+
+const EARLIER_PRO_MESSAGE = "Messaging earlier comments is on Pro. Upgrade to send this flow to people who commented before it went live.";
 
 /**
  * The people Message earlier comments would reach on a live Comment to DM
- * automation for one post. Pro only (unlimited on an install without
- * billing). Explains in `message` why it can't run.
+ * automation for one post, and whether this user may send to them. `quick`
+ * reads the post's comments once instead of waiting for Adeli to have them all.
  */
-async function earlierComments(userId: string, id: string): Promise<ActionResult<{ account: ConnectedAccount; found: EarlierComments }>> {
+async function earlierComments(userId: string, id: string, quick = false): Promise<{ account: ConnectedAccount; found: EarlierComments; preview: EarlierPreview }> {
   const { account, automation } = await loadOwn(userId, id);
-  if (await getPlan(userId) === "free") {
-    return { ok: false, reason: "pro", upgradeUrl: upgradeUrl(), message: "Messaging earlier comments is on Pro. Upgrade to send this flow to people who commented before it went live." };
-  }
   if (automation.type !== "comment_to_dm") throw new ServiceError("Only Comment to DM automations can message earlier comments.");
   if (automation.status !== "live") throw new ServiceError("Go live first, then message earlier comments.");
   if (automation.trigger.postScope === "any") throw new ServiceError("This works on an automation for one post. Pick a post to message its earlier comments.");
-  const found = await findEarlierComments(userId, account, id);
+  const found = await findEarlierComments(userId, account, id, { attempts: quick ? 1 : undefined });
   if (!found) throw new ServiceError("Your next post isn't up yet, so there are no earlier comments to message.");
-  return { ok: true, account, found };
+  const { comments, complete } = found;
+  const allowed = await getPlan(userId) !== "free";
+  const preview = { count: Math.min(comments.length, EARLIER_SEND_LIMIT), total: comments.length, complete, windowHours: EARLIER_WINDOW_HOURS, allowed, upgradeUrl: upgradeUrl() };
+  return { account, found, preview };
 }
 
-function previewOf({ comments, complete }: EarlierComments): EarlierPreview {
-  return { count: Math.min(comments.length, EARLIER_SEND_LIMIT), total: comments.length, complete, windowHours: EARLIER_WINDOW_HOURS };
-}
-
-/** How many people Message earlier comments would reach right now. Sends nothing. */
-export async function previewEarlierComments(userId: string, id: string): Promise<ActionResult<EarlierPreview>> {
-  const result = await earlierComments(userId, id);
-  return result.ok ? { ok: true, ...previewOf(result.found) } : result;
+/**
+ * How many people Message earlier comments would reach right now, on any
+ * plan. Sends nothing. `quick` (the editor's check) reads Adeli once.
+ */
+export async function previewEarlierComments(userId: string, id: string, { quick = false } = {}): Promise<ActionResult<EarlierPreview>> {
+  const { preview } = await earlierComments(userId, id, quick);
+  return { ok: true, ...preview };
 }
 
 /**
  * Sends the flow to people who commented on the automation's post in the
- * last day, before it went live, up to `EARLIER_SEND_LIMIT` a time. The
- * sending runs after the response (`schedule`); `count` is how many it will
- * try. Each person still gets the flow only once, so sending again is safe.
+ * last day, before it went live, up to `EARLIER_SEND_LIMIT` a time. Pro only
+ * (any plan on an install without billing). The sending runs after the
+ * response (`schedule`); `count` is how many it will try. Each person still
+ * gets the flow only once, so sending again is safe.
  */
 export async function messageEarlierComments(userId: string, id: string, schedule: (task: () => Promise<void>) => void = after): Promise<ActionResult<EarlierPreview>> {
-  const result = await earlierComments(userId, id);
-  if (!result.ok) return result;
-  const { account, found } = result;
+  const { account, found, preview } = await earlierComments(userId, id);
+  if (!preview.allowed) return { ok: false, reason: "pro", upgradeUrl: preview.upgradeUrl, message: EARLIER_PRO_MESSAGE };
   const batch = found.comments.slice(0, EARLIER_SEND_LIMIT);
   if (batch.length) {
     schedule(async () => {
@@ -245,7 +249,7 @@ export async function messageEarlierComments(userId: string, id: string, schedul
       }
     });
   }
-  return { ok: true, ...previewOf(found) };
+  return { ok: true, ...preview };
 }
 
 export type Lead = { igUsername: string | null; igUserId: string; email: string; createdAt: string };

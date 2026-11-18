@@ -34,13 +34,13 @@ export type EarlierComments = {
  * automation already answered. Each person counts once, for
  * their earliest comment. Null when the automation isn't live or has no post.
  */
-export async function findEarlierComments(userId: string, account: ConnectedAccount, automationId: string, now = new Date()): Promise<EarlierComments | null> {
+export async function findEarlierComments(userId: string, account: ConnectedAccount, automationId: string, { now = new Date(), attempts }: { now?: Date; attempts?: number } = {}): Promise<EarlierComments | null> {
   const live = await bindNextPosts(userId, account.accountId, await liveAutomations(account.id));
   const automation = live.find((item) => item.id === automationId);
   const mediaId = automation?.trigger.mediaId;
   if (!automation || automation.type !== "comment_to_dm" || automation.trigger.postScope === "any" || !mediaId) return null;
 
-  const { comments, complete } = await listPostComments(userId, account.accountId, mediaId);
+  const { comments, complete } = await listPostComments(userId, account.accountId, mediaId, { attempts });
   const since = now.getTime() - EARLIER_WINDOW_HOURS * 60 * 60 * 1000;
   // People this automation already messaged (D3), and comments any of the account's automations already answered:
   // Instagram allows one private reply per comment, so a second Opening DM to it would only fail.

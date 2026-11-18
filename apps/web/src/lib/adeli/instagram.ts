@@ -181,7 +181,7 @@ export type PostComment = { id: string; parentId: string | null; authorId: strin
  * can come back incomplete: this asks again, `attempts` times in all, until
  * Adeli says it has them all. `complete` says whether it did.
  */
-export async function listPostComments(userId: string, accountId: string, postId: string, { attempts = 4, waitMs = 3000 } = {}): Promise<{ comments: PostComment[]; complete: boolean }> {
+export async function listPostComments(userId: string, accountId: string, postId: string, { attempts = 4, waitMs = 3000 }: { attempts?: number; waitMs?: number } = {}): Promise<{ comments: PostComment[]; complete: boolean }> {
   await requireOwnAccount(userId, accountId);
   for (let attempt = 1; ; attempt += 1) {
     const { data } = await adeliCall((client) => client.comments.listComments({ query: { platform: "instagram", accountId, postId } }));

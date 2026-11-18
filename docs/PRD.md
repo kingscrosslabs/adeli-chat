@@ -286,12 +286,12 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 
 ### 5.14 Message earlier comments (added 2026-11-18)
 - **Why.** People post, forget to set up the automation, and miss everyone who already commented. Webhooks only bring new comments, so this reads the post's comments instead.
-- **Where.** The editor's More menu on a live Comment to DM automation for one post (Specific post, or Next post once it has its post), the "You're live!" toast for a Specific post automation, and MCP's `message_earlier_comments` (`send: false` counts, `send: true` sends).
+- **Where.** After Go Live on a Comment to DM automation for one post (Specific post, or Next post once it has its post), the editor counts who matches and opens the Message earlier comments dialog by itself, only when someone does. The editor's More menu has the same item while anyone matches (counted when the editor opens, reading Adeli once). MCP has `message_earlier_comments` (`send: false` counts, `send: true` sends).
 - **Who.** Comments on the automation's post from the last 24 hours (`EARLIER_WINDOW_HOURS`) that match by the live rules: `matchComment` over every live automation, so a post's own automation still wins over Next post. Leaves out the account's own comments, comments without a commenter id, anyone who already has a run on this automation (D3), and comments any other automation already answered (Instagram allows one private reply per comment). One comment per person, their earliest.
 - **Flow.** Exactly a live comment's: optional public reply, then the Opening DM as a private reply to that comment (`startCommentRun` in `runtime/handle.ts`, shared with the webhook). Runs carry `source = 'earlier'`.
 - **Confirm first.** The dialog shows the count before anything is sent. Sending runs after the response (`after()`), up to 100 people a time (`EARLIER_SEND_LIMIT`); sending again picks up the rest, and the unique keys mean nobody is messaged twice, even if they comment live meanwhile.
 - **Reading comments.** Adeli `GET /comments?postId=` (`listPostComments` in `lib/adeli/instagram.ts`). Adeli reads a post's first 50 comments while we wait and the rest in the background, so LedaChat reads again (up to 4 times, 3s apart) until `complete`. If it never is, the dialog says some may be missing.
-- **Plan.** Pro only (`reason: "pro"` with `upgradeUrl` for Free); see [`docs/billing.md`](billing.md).
+- **Plan.** Counting works on every plan, so a Free user sees who they'd reach and is offered Pro; sending is Pro only (`reason: "pro"` with `upgradeUrl`). See [`docs/billing.md`](billing.md).
 
 ## 6. Data model
 

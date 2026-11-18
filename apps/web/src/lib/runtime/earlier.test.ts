@@ -68,7 +68,7 @@ describe("Message earlier comments", () => {
 
     const preview = await previewEarlierComments(USER, automationId);
 
-    expect(preview).toMatchObject({ ok: true, count: 2, total: 2, complete: true, windowHours: 24 });
+    expect(preview).toMatchObject({ ok: true, count: 2, total: 2, complete: true, windowHours: 24, allowed: true });
     expect(adeli.sent.find((item) => item.path === "/comments")?.query.get("postId")).toBe("media_1");
     expect(openingDms(adeli.sent)).toHaveLength(0);
   });
@@ -121,17 +121,24 @@ describe("Message earlier comments", () => {
     expect(await previewEarlierComments(USER, next.id)).toMatchObject({ ok: true, count: 1 });
   });
 
-  it("is Pro only when billing is on", async () => {
+  it("counts for Free, but only sends on Pro when billing is on", async () => {
     vi.stubEnv("STRIPE_SECRET_KEY", "rk_test_ledachat");
     vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
     const adeli = fakeAdeli([commentsRoute([{ id: "c1" }])]);
 
-    const free = await sendNow();
-    expect(free).toMatchObject({ ok: false, reason: "pro" });
-    expect(adeli.sent).toHaveLength(0);
+    expect(await previewEarlierComments(USER, automationId)).toMatchObject({ ok: true, count: 1, allowed: false, upgradeUrl: expect.stringContaining("/settings#plan") });
+    expect(await sendNow()).toMatchObject({ ok: false, reason: "pro" });
+    expect(openingDms(adeli.sent)).toHaveLength(0);
 
     await db().insert(schema.billingCustomers).values({ userId: USER, stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1", subscriptionStatus: "active" });
     expect(await sendNow()).toMatchObject({ ok: true, count: 1 });
+  });
+
+  it("reads Adeli once for a quick count", async () => {
+    const adeli = fakeAdeli([commentsRoute([{ id: "c1" }], [false])]);
+
+    expect(await previewEarlierComments(USER, automationId, { quick: true })).toMatchObject({ ok: true, count: 1, complete: false });
+    expect(adeli.sent.filter((item) => item.path === "/comments")).toHaveLength(1);
   });
 
   it("needs a live automation for one post", async () => {

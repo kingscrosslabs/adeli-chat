@@ -22,8 +22,9 @@ import { Button } from "@adeli-chat/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@adeli-chat/ui/components/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@adeli-chat/ui/components/sheet";
 import { LIMITS, emailCaptureOf, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
-import { goLive as goLiveAction, pauseAutomation, saveAutomation, type ActionResult } from "@/lib/actions";
+import { goLive as goLiveAction, pauseAutomation, previewEarlierComments, saveAutomation, type ActionResult } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
+import type { EarlierPreview } from "@/lib/automations/service";
 import { errorCount, firstErrorField, validateForLive, type FieldErrors } from "@/lib/automations/validate";
 import { compactNumber, relativeTime } from "@/lib/format";
 
@@ -71,6 +72,8 @@ export function AutomationEditor({ automation, account, branding }: { automation
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [messagingEarlier, setMessagingEarlier] = useState(false);
+  // Who Message earlier comments would reach right now, or null before the first count.
+  const [earlier, setEarlier] = useState<EarlierPreview | null>(null);
   const [busy, setBusy] = useState<"save" | "live" | "pause" | null>(null);
   const [, setTick] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -81,6 +84,24 @@ export function AutomationEditor({ automation, account, branding }: { automation
   const isLive = automation.status === "live";
   // Message earlier comments: a live Comment to DM automation for one post (this one, or the next).
   const canMessageEarlier = isLive && automation.type === "comment_to_dm" && automation.trigger.postScope !== "any";
+
+  /** Counts who Message earlier comments would reach. `offer` opens it when anyone matches. A failed count shows nothing. */
+  const countEarlier = useCallback(async (offer: boolean) => {
+    const result = await previewEarlierComments(automation.id);
+    if (!result.ok) return;
+    setEarlier(result);
+    if (offer && result.count) setMessagingEarlier(true);
+  }, [automation.id]);
+
+  // The menu item shows only when someone matches, so count once the editor opens on a live automation.
+  useEffect(() => {
+    if (!canMessageEarlier) return;
+    let cancelled = false;
+    void previewEarlierComments(automation.id).then((result) => {
+      if (!cancelled && result.ok) setEarlier(result);
+    });
+    return () => { cancelled = true; };
+  }, [canMessageEarlier, automation.id]);
 
   const patch = useCallback((update: (current: AutomationContent) => AutomationContent) => setDraft((current) => update(current)), []);
 
@@ -150,11 +171,9 @@ export function AutomationEditor({ automation, account, branding }: { automation
     setBusy(null);
     if (rejected(result)) return;
     setValidating(false);
-    const earlier = draft.type === "comment_to_dm" && draft.trigger.postScope === "specific";
-    toast.success("You're live!", {
-      description: liveMessage(draft),
-      ...(earlier ? { action: { label: "Message earlier comments", onClick: () => setMessagingEarlier(true) } } : {}),
-    });
+    toast.success("You're live!", { description: liveMessage(draft) });
+    // People who commented before it went live: offer to message them, only when there are some.
+    if (draft.type === "comment_to_dm" && draft.trigger.postScope !== "any") void countEarlier(true);
   }
 
   async function pause() {
@@ -162,7 +181,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
     const result = await pauseAutomation(automation.id);
     setBusy(null);
     if (rejected(result)) return;
-    toast("Paused", { description: "New comments won't trigger it. People already waiting on a tap still get their link." });
+    toast("Paused", { classNames: { toast: "justify-center", content: "flex-none", title: "text-center" } });
   }
 
   // FR-4.3: Cmd/Ctrl+S saves.
@@ -209,10 +228,6 @@ export function AutomationEditor({ automation, account, branding }: { automation
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs whitespace-nowrap text-muted-foreground sm:inline" aria-live="polite">
-              {dirty ? <span className="font-medium text-warning">Unsaved changes</span> : `Saved ${relativeTime(automation.updatedAt)}`}
-            </span>
-            <StatusPill status={automation.status} className="mr-1" />
             <Button variant="outline" className="lg:hidden" onClick={() => setPreviewOpen(true)}>
               <Smartphone /> Preview
             </Button>
@@ -232,7 +247,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem render={<a href={`/api/automations/${automation.id}/leads`} download />}><Download /> Export leads</DropdownMenuItem>
-                {canMessageEarlier ? <DropdownMenuItem onClick={() => setMessagingEarlier(true)}><History /> Message earlier comments</DropdownMenuItem> : null}
+                {canMessageEarlier && earlier?.count ? <DropdownMenuItem onClick={() => setMessagingEarlier(true)}><History /> Message earlier comments</DropdownMenuItem> : null}
                 <DropdownMenuItem onClick={() => setResetting(true)}><RotateCcw /> Reset runs</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}><Trash2 /> Delete automation</DropdownMenuItem>
@@ -241,7 +256,15 @@ export function AutomationEditor({ automation, account, branding }: { automation
           </div>
         </div>
         {errors.name ? <p className="px-4 pb-2 text-xs text-destructive md:px-6">{errors.name}</p> : null}
-        {automation.status !== "draft" ? <StatsRow automation={automation} /> : null}
+        <div className="flex items-center gap-4 border-t px-4 py-2 md:px-6">
+          {automation.status !== "draft" ? <StatsRow automation={automation} /> : <div className="flex-1" />}
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-xs whitespace-nowrap text-muted-foreground" aria-live="polite">
+              {dirty ? <span className="font-medium text-warning">Unsaved changes</span> : `Saved ${relativeTime(automation.updatedAt)}`}
+            </span>
+            <StatusPill status={automation.status} />
+          </div>
+        </div>
       </header>
 
       <div className="grid flex-1 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
@@ -283,7 +306,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
         </AlertDialogContent>
       </AlertDialog>
 
-      <EarlierCommentsDialog automation={automation} open={messagingEarlier} onOpenChange={setMessagingEarlier} />
+      <EarlierCommentsDialog automation={automation} preview={canMessageEarlier ? earlier : null} open={messagingEarlier} onOpenChange={setMessagingEarlier} onSent={() => setEarlier(null)} />
       <ResetRunsDialog automation={automation} open={resetting} onOpenChange={setResetting} />
       <DeleteAutomationDialog automation={automation} open={deleting} onOpenChange={setDeleting} onDeleted={() => router.push("/automations")} />
     </div>
@@ -302,7 +325,7 @@ function StatsRow({ automation }: { automation: Automation }) {
     { label: "Final DMs", value: stats.finalDms },
   ];
   return (
-    <dl className="flex gap-6 overflow-x-auto border-t px-4 py-2 text-xs md:px-6">
+    <dl className="flex min-w-0 flex-1 gap-6 overflow-x-auto text-xs">
       {items.map((item) => (
         <div key={item.label} className="flex shrink-0 items-baseline gap-1.5">
           <dt className="text-muted-foreground">{item.label}</dt>

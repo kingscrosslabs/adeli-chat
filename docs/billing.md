@@ -95,7 +95,7 @@ Either log means the endpoint is broken: fix it rather than relying on the repai
 
 `goLive` (`apps/web/src/lib/automations/service.ts`) is the only code that puts an automation live, for both the app and MCP's `go_live`. When the automation wasn't live already, it counts the user's live automations under a per-user advisory lock (so two Go Lives at 9 can't both pass) and refuses at the plan's limit with `reason: "limit"` and `upgradeUrl` (`/settings#plan`). Saving or re-going-live an automation that's already live is never refused.
 
-**Message earlier comments** is Pro only: `previewEarlierComments` and `messageEarlierComments` in the same service refuse a Free user with `reason: "pro"` and `upgradeUrl`, for the app and MCP's `message_earlier_comments` alike. An install without billing allows it.
+**Message earlier comments** sends only on Pro: `messageEarlierComments` in the same service refuses a Free user with `reason: "pro"` and `upgradeUrl`, for the app and MCP's `message_earlier_comments` alike. `previewEarlierComments` counts on every plan and says `allowed: false`, so Free users see who they would reach and get the upgrade offer. An install without billing allows it.
 
 When Pro ends, nothing is paused. Everything live stays live, and nothing more can go live until fewer than 10 are.
 

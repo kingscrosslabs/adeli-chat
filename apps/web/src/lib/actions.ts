@@ -242,9 +242,13 @@ export async function resetRuns(id: string): Promise<ActionResult<{ count: numbe
   });
 }
 
-/** How many people Message earlier comments would reach. Sends nothing. */
+/**
+ * How many people Message earlier comments would reach, on any plan. Sends
+ * nothing. Reads Adeli once, so it never holds up the editor's other actions;
+ * the send itself reads every comment.
+ */
 export async function previewEarlierComments(id: string): Promise<ActionResult<service.EarlierPreview>> {
-  return guard((userId) => service.previewEarlierComments(userId, id));
+  return guard((userId) => service.previewEarlierComments(userId, id, { quick: true }));
 }
 
 /** Sends the flow to people who commented on the post in the last day, before it went live. */

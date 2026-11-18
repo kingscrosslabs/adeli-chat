@@ -50,7 +50,7 @@ Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, 
 
 Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation of the same type and scope (and, for "specific", the same post) shares a keyword (or matches anything).
 On the hosted LedaChat, the Free plan allows ${FREE_LIVE_AUTOMATIONS} live automations at once and sends "Powered by LedaChat" after the Final DM; Pro removes both. get_workspace reports the plan. go_live at the limit fails: tell the user rather than retrying.
-If the user went live after people already commented, message_earlier_comments sends the flow to matching comments from the last 24 hours on a live Comment to DM automation for one post. Call it with send false first and tell the user how many people it will message; only send once they agree. It's Pro only on the hosted LedaChat.
+If the user went live after people already commented, message_earlier_comments sends the flow to matching comments from the last 24 hours on a live Comment to DM automation for one post. Call it with send false first and tell the user how many people it will message; only send once they agree. Sending is Pro only on the hosted LedaChat: when the count comes back with proRequired, tell the user they can upgrade at upgradeUrl instead of sending.
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -421,7 +421,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       return rejected(result);
     }
     if (send) track(userId, "earlier_comments_sent", { automation_id: id, people: result.count, matched: result.total, complete: result.complete, source: "mcp" });
-    return json({ id, sent: send, people: result.count, matched: result.total, complete: result.complete, windowHours: result.windowHours });
+    return json({ id, sent: send, people: result.count, matched: result.total, complete: result.complete, windowHours: result.windowHours, ...(result.allowed ? {} : { proRequired: true, upgradeUrl: result.upgradeUrl }) });
   }));
 
   server.registerTool("reset_runs", {

@@ -2,7 +2,7 @@
 
 import { Copy, Loader2, MoreHorizontal, Pause, Pencil, Play, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -18,7 +18,7 @@ import {
 import { Button } from "@adeli-chat/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@adeli-chat/ui/components/dropdown-menu";
 import type { Automation } from "@adeli-chat/ui/automation/schemas";
-import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, messageEarlierComments, pauseAutomation, previewEarlierComments, resetRuns, type ActionResult } from "@/lib/actions";
+import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, messageEarlierComments, pauseAutomation, resetRuns, type ActionResult } from "@/lib/actions";
 import type { EarlierPreview } from "@/lib/automations/service";
 import { errorCount, validateForLive } from "@/lib/automations/validate";
 
@@ -118,84 +118,55 @@ export function DeleteAutomationDialog({ automation, open, onOpenChange, onDelet
   );
 }
 
-type EarlierState =
-  | { kind: "loading" }
-  | { kind: "ready"; preview: EarlierPreview }
-  | { kind: "pro"; message: string }
-  | { kind: "error"; message: string };
-
 /**
- * Message earlier comments: counts who commented on the post in the last day
- * and would have matched, then sends them the flow once you confirm.
+ * Message earlier comments, for a `preview` the editor already counted (only
+ * when someone matches): who commented on the post in the last day and would
+ * have matched. Pro sends them the flow on confirm; Free is offered the upgrade.
+ * `onSent` runs after a send starts, so the editor can count again.
  */
-export function EarlierCommentsDialog({ automation, open, onOpenChange }: { automation: Automation; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function EarlierCommentsDialog({ automation, preview, open, onOpenChange, onSent }: { automation: Automation; preview: EarlierPreview | null; open: boolean; onOpenChange: (open: boolean) => void; onSent: () => void }) {
   const router = useRouter();
-  const [state, setState] = useState<EarlierState>({ kind: "loading" });
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void previewEarlierComments(automation.id).then((result) => {
-      if (cancelled) return;
-      if (result.ok) setState({ kind: "ready", preview: result });
-      else setState({ kind: result.reason === "pro" ? "pro" : "error", message: failure(result) });
-    });
-    return () => { cancelled = true; };
-  }, [open, automation.id]);
-
-  // Closing forgets the count, so the next open checks again.
-  function setOpen(next: boolean) {
-    if (!next) setState({ kind: "loading" });
-    onOpenChange(next);
-  }
 
   async function send() {
     setSending(true);
     const result = await messageEarlierComments(automation.id);
     setSending(false);
-    setOpen(false);
+    onOpenChange(false);
     if (!result.ok) {
       toast.error(failure(result));
       return;
     }
-    toast.success(`Sending to ${people(result.count)}`, { description: "Their runs show up in the stats as each message goes out." });
+    onSent();
+    if (result.count) toast.success(`Sending to ${people(result.count)}`, { description: "Their runs show up in the stats as each message goes out." });
+    else toast("Nobody new to message", { description: "They've all had this flow already." });
   }
 
-  const preview = state.kind === "ready" ? state.preview : null;
+  if (!preview?.count) return null;
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Message earlier comments</AlertDialogTitle>
+          <AlertDialogTitle>Message earlier comments?</AlertDialogTitle>
           <AlertDialogDescription render={<div />}>
-            {state.kind === "loading" ? (
-              <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Checking comments from the last 24 hours</span>
-            ) : state.kind === "pro" || state.kind === "error" ? (
-              state.message
-            ) : preview && preview.count ? (
-              <div className="space-y-2">
-                <p>
-                  {people(preview.total)} commented on this post in the last {preview.windowHours} hours and {preview.total === 1 ? "matches" : "match"} {automation.name}.
-                  {" "}They&apos;ll get this flow now, as if they had just commented.
-                </p>
-                {preview.total > preview.count ? <p>This sends to the first {preview.count}. Send again afterwards for the rest.</p> : null}
-                {!preview.complete ? <p>Instagram didn&apos;t return every comment in time, so a few may be missing. Try again in a minute to catch them.</p> : null}
-              </div>
-            ) : (
-              `Nobody to message. No one who commented in the last ${preview?.windowHours ?? 24} hours matches, or they've all had this flow already.`
-            )}
+            <div className="space-y-2">
+              <p>
+                {people(preview.total)} commented on this post in the last {preview.windowHours} hours, before {automation.name} went live, and {preview.total === 1 ? "matches" : "match"} it.
+                {preview.allowed ? " Send them this flow now, as if they had just commented?" : " Upgrade to Pro to send them this flow now, as if they had just commented."}
+              </p>
+              {preview.allowed && preview.total > preview.count ? <p>This sends to the first {preview.count}. Send again afterwards for the rest.</p> : null}
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{preview?.count ? "Cancel" : "Close"}</AlertDialogCancel>
-          {state.kind === "pro" ? (
-            <AlertDialogAction onClick={() => { setOpen(false); router.push("/settings#plan"); }}>Upgrade to Pro</AlertDialogAction>
-          ) : preview?.count ? (
+          <AlertDialogCancel>Not now</AlertDialogCancel>
+          {preview.allowed ? (
             <AlertDialogAction onClick={() => void send()} disabled={sending}>
               {sending ? <Loader2 className="animate-spin" /> : <Send />} Send to {people(preview.count)}
             </AlertDialogAction>
-          ) : null}
+          ) : (
+            <AlertDialogAction onClick={() => { onOpenChange(false); router.push("/settings#plan"); }}>Upgrade to Pro</AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
