@@ -9,6 +9,7 @@ import { listInstagramAccounts } from "@/lib/adeli/instagram";
 import { renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
 import { trackWentLive } from "@/lib/analytics/automations";
+import { listContactRuns, type ContactRun } from "@/lib/audience";
 import { track } from "@/lib/analytics/server";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
@@ -249,6 +250,11 @@ export async function resetRuns(id: string): Promise<ActionResult<{ count: numbe
  */
 export async function previewEarlierComments(id: string): Promise<ActionResult<service.EarlierPreview>> {
   return guard((userId) => service.previewEarlierComments(userId, id, { quick: true }));
+}
+
+/** Every automation one person in the Audience triggered, for their contact detail. Reads only the user's own account. */
+export async function getContactRuns(igUserId: string): Promise<ActionResult<{ runs: ContactRun[] }>> {
+  return guard(async (userId) => ({ ok: true, runs: await listContactRuns((await requireAccount(userId)).id, igUserId) }));
 }
 
 /** Sends the flow to people who commented on the post in the last day, before it went live. */

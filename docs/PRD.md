@@ -29,6 +29,7 @@ An open-source, self-hostable ManyChat alternative built on the Adeli API. v1 do
 | D14 | Plans and billing | Hosted LedaChat sells Free (10 live automations, and the FR-5.22 branding message) and Pro ($25/month: unlimited live automations, no branding) through Stripe Checkout and the Customer Portal (added 2026-11-17). Pro is an active subscription, or `user_settings.plan = 'pro'` set by hand. The limit is on only with `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`; without them (local, self-hosted) nothing is limited. Branding follows `LEDACHAT_BRANDING`. The plan is mirrored into `billing_customers` and never read from Stripe at request time. Plans live in `packages/ui/src/billing/plans.ts`. See [`docs/billing.md`](billing.md). |
 | D13 | MCP server | `/mcp` exposes automations to Claude and other MCP clients (added 2026-11-09). Stateless Streamable HTTP via `@modelcontextprotocol/server`. Two ways in: personal API tokens (`adc_`, SHA-256 hashed, optional read only, optional expiry) for clients that send a header, and OAuth 2.1 from Better Auth's `mcp()` plugin (with CIMD and a DCR fallback) for Claude's custom connectors, which can't. Scopes `automations:read` and `automations:write`. Tools call the same service as the app. Plan: [`plans/2026-11-09-mcp.md`](../plans/2026-11-09-mcp.md). |
 | D15 | Message earlier comments | A live Comment to DM automation for one post can send its flow to people who commented in the **last 24 hours**, before it went live (added 2026-11-18). **Pro only** on hosted LedaChat (any plan without billing). Meta allows a private reply up to 7 days after a comment; we keep to a day so it still reads as a reply, not cold outreach. See §5.14. |
+| D16 | Audience | An **Audience** tab lists everyone who triggered the user's automations, grouped by Instagram user id, plus a per-automation People view (added 2026-11-18). v1 reads straight from `runs` and `leads` with no new table, so Reset runs removes people from it and each person counts once per automation (D3). A `contacts` table with lifetime counts is the next step if people use it. See §5.15. |
 
 ---
 
@@ -110,6 +111,7 @@ Consequences:
 /automations            List + "Create automation" button
   (modal)               Template picker
 /automations/[id]       Split-screen editor
+/audience               Everyone who triggered an automation; ?automation=<id> for one automation's people
 /settings               Adeli status (server key, URL, your profile, check connection), connected account, reconnect, disconnect
 /api/webhooks/adeli/[userId]  Incoming events from Adeli (comments, button taps), one webhook per user
 ```
@@ -292,6 +294,16 @@ Base URL `https://app.tryadeli.com/api/v1`, header `Authorization: Bearer rk_liv
 - **Confirm first.** The dialog shows the count before anything is sent. Sending runs after the response (`after()`), up to 100 people a time (`EARLIER_SEND_LIMIT`); sending again picks up the rest, and the unique keys mean nobody is messaged twice, even if they comment live meanwhile.
 - **Reading comments.** Adeli `GET /comments?postId=` (`listPostComments` in `lib/adeli/instagram.ts`). Adeli reads a post's first 50 comments while we wait and the rest in the background, so LedaChat reads again (up to 4 times, 3s apart) until `complete`. If it never is, the dialog says some may be missing.
 - **Plan.** Counting works on every plan, so a Free user sees who they'd reach and is offered Pro; sending is Pro only (`reason: "pro"` with `upgradeUrl`). See [`docs/billing.md`](billing.md).
+
+### 5.15 Audience (added 2026-11-18)
+- **Why.** Creators want to know who engages with them the most across automations, not only how many people each one reached.
+- **Where.** **Audience** in the sidebar (`/audience`). The editor's stats row and More menu have **See people**, which opens `/audience?automation=<id>`. MCP has `list_audience`.
+- **All automations.** One row per person (`runs.ig_user_id`): handle (from their latest run that has one), how many automations they triggered, button taps, Final DMs, email (latest from `leads`), first and last seen. Sorted most engaged first (automations, then Final DMs, then most recent), or most recent. Summary cards: people, triggered 2+ automations, got a Final DM, gave an email. Search by handle or email.
+- **One automation.** One row per run: handle, stage (`runs.state`: Matched, Opening DM sent, Tapped the button, Waiting for a follow, Waiting for an email, Got the Final DM, Failed), comment or story reply text, email, when, and whether it came from Message earlier comments.
+- **Contact detail.** Clicking a person opens a side sheet with every automation they triggered, their stage and comment in each, and a link to their Instagram profile.
+- **Export.** `GET /api/audience` (optionally `?automation=<id>`) downloads a CSV, with the same formula escaping as the leads export.
+- **Limits.** Reads `runs` and `leads` only, so Reset runs removes people (their emails stay in the leads export); a person counts once per automation (D3), so repeat comments on one post aren't counted; up to 2,000 people per read (`AUDIENCE_LIMIT`). No profile photos or follower counts (they'd need an Adeli call per person). Free on every plan.
+- **Ownership.** Every read takes the signed-in user's account id; an automation id from the browser is only used together with it (`apps/web/src/lib/audience.ts`).
 
 ## 6. Data model
 
@@ -525,6 +537,7 @@ Written up as a plan in `adeli/plans/` per that repo's rules. See §12A for the 
 - Direct Message and Story Mention triggers
 - Facebook and TikTok channels
 - Multi-user workspaces
+- Audience v2: a `contacts` table with lifetime counts that survive Reset runs, every comment counted, tags and notes
 
 ---
 

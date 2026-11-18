@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeAdeli } from "../../../test/fake-adeli";
 import { resetDatabase, seedAccount, seedLiveAutomation, seedUser } from "../../../test/db-helpers";
 
+import { db, schema } from "@/lib/db";
+
 import { handleMcpRequest } from "./handler";
 import { createToken, revokeToken } from "./tokens";
 
@@ -90,7 +92,7 @@ describe("/mcp tools", () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "create_automation", "delete_automation", "duplicate_automation", "get_automation", "get_workspace",
-      "go_live", "list_automations", "list_posts", "list_stories", "message_earlier_comments", "pause_automation", "reset_runs", "update_automation",
+      "go_live", "list_audience", "list_automations", "list_posts", "list_stories", "message_earlier_comments", "pause_automation", "reset_runs", "update_automation",
     ]);
     expect(tools.find((tool) => tool.name === "delete_automation")?.annotations?.destructiveHint).toBe(true);
   });
@@ -123,6 +125,23 @@ describe("/mcp tools", () => {
     expect(data(await client.callTool({ name: "pause_automation", arguments: { id: created.id } })).status).toBe("paused");
     expect(data(await client.callTool({ name: "delete_automation", arguments: { id: created.id } })).deleted).toBe(true);
     expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+  });
+
+  it("lists the audience, and one automation's people", async () => {
+    const account = await seedAccount("user_1");
+    const automation = await seedLiveAutomation(account.id);
+    await db().insert(schema.runs).values({ automationId: automation.id, igUserId: "ig_fan", igUsername: "fan", commentId: "c_1", commentText: "guide", state: "final_sent" });
+    const { token } = await createToken("user_1", { name: "test", readOnly: true, expiry: "never" });
+    const client = await connect(token);
+
+    const everyone = data(await client.callTool({ name: "list_audience", arguments: {} }));
+    expect(everyone).toMatchObject({ total: 1, people: [{ igUsername: "fan", automations: 1, finalDms: 1 }] });
+
+    const people = data(await client.callTool({ name: "list_audience", arguments: { automationId: automation.id } }));
+    expect(people).toMatchObject({ total: 1, people: [{ igUsername: "fan", stage: "final_sent", commentText: "guide" }] });
+
+    const missing = await client.callTool({ name: "list_audience", arguments: { automationId: "nope" } });
+    expect(missing.isError).toBe(true);
   });
 
   it("lists stories and creates a Story Reply on one of them", async () => {

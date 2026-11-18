@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Plug, Plus, Settings, Star, Zap } from "lucide-react";
+import { ChevronRight, Plug, Plus, Settings, Star, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -33,6 +33,7 @@ type AutomationLink = Pick<Automation, "id" | "name" | "status">;
 
 export function AppSidebar({ account, profileName, automations }: { account: AdeliAccount | null; profileName: string | null; automations: AutomationLink[] }) {
   const pathname = usePathname();
+  const [creating, setCreating] = useState(false);
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -41,14 +42,25 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
           <Wordmark size="sm" />
         </Link>
       </SidebarHeader>
-      {/* Automations, then Connect to AI Agent, Star on GitHub and Settings. Only the automation list scrolls. */}
+      {/* New automation, then Automations, then Audience, Connect to AI Agent, Star on GitHub and Settings right below. Only the automation list scrolls. */}
       <SidebarContent className="overflow-hidden">
-        <SidebarGroup className="min-h-0 flex-1 pb-0">
-          <AutomationsNav automations={automations} connected={Boolean(account)} />
+        <SidebarGroup className="shrink-0 pb-0">
+          <Button className="w-full justify-start" onClick={() => setCreating(true)}>
+            <Plus /> New automation
+          </Button>
         </SidebarGroup>
-        <SidebarGroup className="shrink-0">
+        <SidebarGroup className="min-h-0 py-0">
+          <AutomationsNav automations={automations} />
+        </SidebarGroup>
+        <SidebarGroup className="shrink-0 pt-0">
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/audience" />} isActive={pathname.startsWith("/audience")}>
+                  <Users />
+                  <span>Audience</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton render={<Link href="/mcp-apis" />} isActive={pathname.startsWith("/mcp-apis")}>
                   <Plug />
@@ -71,6 +83,7 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <CreateAutomationDialog open={creating} onOpenChange={setCreating} connected={Boolean(account)} />
       <SidebarFooter className="gap-3 border-t p-4">
         {account ? (
           <Link href="/settings" className="flex min-w-0 items-center gap-3 rounded-lg p-1 -m-1 hover:bg-sidebar-accent" aria-label={`Connected Instagram account @${account.displayIdentifier}`}>
@@ -91,65 +104,42 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
   );
 }
 
-/**
- * Automations with its own dropdown of every automation, most recently
- * updated first. With none yet, the dropdown holds a create button instead.
- */
-function AutomationsNav({ automations, connected }: { automations: AutomationLink[]; connected: boolean }) {
+/** Automations with its own dropdown of every automation, most recently updated first. */
+function AutomationsNav({ automations }: { automations: AutomationLink[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
-  const [creating, setCreating] = useState(false);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-col">
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton render={<Link href="/automations" />} isActive={pathname === "/automations"}>
             <Zap />
             <span>Automations</span>
           </SidebarMenuButton>
-          <SidebarMenuAction
-            aria-label={open ? "Hide automations" : "Show automations"}
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
-          </SidebarMenuAction>
+          {automations.length ? (
+            <SidebarMenuAction
+              aria-label={open ? "Hide automations" : "Show automations"}
+              aria-expanded={open}
+              onClick={() => setOpen((value) => !value)}
+            >
+              <ChevronRight className={cn("transition-transform", open && "rotate-90")} />
+            </SidebarMenuAction>
+          ) : null}
         </SidebarMenuItem>
       </SidebarMenu>
-      {open ? (
-        automations.length === 0 ? (
-          <SidebarMenuSub>
-            <SidebarMenuSubItem>
-              <Button variant="outline" size="sm" className="my-1 w-full justify-start bg-background" onClick={() => setCreating(true)}>
-                <Plus /> Create automation
-              </Button>
+      {open && automations.length ? (
+        <SidebarMenuSub className="mt-1 min-h-0 overflow-y-auto">
+          {automations.map((automation) => (
+            <SidebarMenuSubItem key={automation.id}>
+              <SidebarMenuSubButton render={<Link href={`/automations/${automation.id}`} />} isActive={pathname === `/automations/${automation.id}`}>
+                <StatusDot status={automation.status} />
+                <span>{automation.name || "Untitled automation"}</span>
+              </SidebarMenuSubButton>
             </SidebarMenuSubItem>
-          </SidebarMenuSub>
-        ) : (
-          <>
-            <SidebarMenuSub className="mt-1 min-h-0 overflow-y-auto">
-              {automations.map((automation) => (
-                <SidebarMenuSubItem key={automation.id}>
-                  <SidebarMenuSubButton render={<Link href={`/automations/${automation.id}`} />} isActive={pathname === `/automations/${automation.id}`}>
-                    <StatusDot status={automation.status} />
-                    <span>{automation.name || "Untitled automation"}</span>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
-            </SidebarMenuSub>
-            <SidebarMenuSub className="shrink-0">
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton render={<button type="button" />} className="w-full text-muted-foreground" onClick={() => setCreating(true)}>
-                  <Plus />
-                  <span>New automation</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            </SidebarMenuSub>
-          </>
-        )
+          ))}
+        </SidebarMenuSub>
       ) : null}
-      <CreateAutomationDialog open={creating} onOpenChange={setCreating} connected={connected} />
     </div>
   );
 }

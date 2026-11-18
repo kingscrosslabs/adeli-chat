@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, History, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, History, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -200,6 +200,8 @@ export function AutomationEditor({ automation, account, branding }: { automation
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const peopleHref = `/audience?automation=${automation.id}`;
+
   function navigate(href: string) {
     if (dirty) setLeaveTo(href);
     else router.push(href);
@@ -246,6 +248,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => navigate(peopleHref)}><Users /> See people</DropdownMenuItem>
                 <DropdownMenuItem render={<a href={`/api/automations/${automation.id}/leads`} download />}><Download /> Export leads</DropdownMenuItem>
                 {canMessageEarlier && earlier?.count ? <DropdownMenuItem onClick={() => setMessagingEarlier(true)}><History /> Message earlier comments</DropdownMenuItem> : null}
                 <DropdownMenuItem onClick={() => setResetting(true)}><RotateCcw /> Reset runs</DropdownMenuItem>
@@ -257,7 +260,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
         </div>
         {errors.name ? <p className="px-4 pb-2 text-xs text-destructive md:px-6">{errors.name}</p> : null}
         <div className="flex items-center gap-4 border-t px-4 py-2 md:px-6">
-          {automation.status !== "draft" ? <StatsRow automation={automation} /> : <div className="flex-1" />}
+          {automation.status !== "draft" ? <StatsRow automation={automation} onPeople={automation.stats.triggered ? () => navigate(peopleHref) : null} /> : <div className="flex-1" />}
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs whitespace-nowrap text-muted-foreground" aria-live="polite">
               {dirty ? <span className="font-medium text-warning">Unsaved changes</span> : `Saved ${relativeTime(automation.updatedAt)}`}
@@ -314,7 +317,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
 }
 
 /** FR-10.1: basic counts, no charts. */
-function StatsRow({ automation }: { automation: Automation }) {
+function StatsRow({ automation, onPeople }: { automation: Automation; onPeople: (() => void) | null }) {
   const { stats } = automation;
   const items = [
     { label: "Triggered", value: stats.triggered },
@@ -325,13 +328,16 @@ function StatsRow({ automation }: { automation: Automation }) {
     { label: "Final DMs", value: stats.finalDms },
   ];
   return (
-    <dl className="flex min-w-0 flex-1 gap-6 overflow-x-auto text-xs">
-      {items.map((item) => (
-        <div key={item.label} className="flex shrink-0 items-baseline gap-1.5">
-          <dt className="text-muted-foreground">{item.label}</dt>
-          <dd className="font-semibold tabular-nums">{compactNumber(item.value)}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="flex min-w-0 flex-1 items-baseline gap-4 text-xs">
+      <dl className="flex min-w-0 gap-6 overflow-x-auto">
+        {items.map((item) => (
+          <div key={item.label} className="flex shrink-0 items-baseline gap-1.5">
+            <dt className="text-muted-foreground">{item.label}</dt>
+            <dd className="font-semibold tabular-nums">{compactNumber(item.value)}</dd>
+          </div>
+        ))}
+      </dl>
+      {onPeople ? <button type="button" onClick={onPeople} className="shrink-0 whitespace-nowrap text-link underline-offset-4 hover:underline">See people</button> : null}
+    </div>
   );
 }
