@@ -1,32 +1,24 @@
 import { ArrowRight, AtSign, BarChart3, Bot, Check, ChevronDown, CirclePause, Download, FileCode2, KeyRound, Link2, Mail, MessageCircle, MessageSquareReply, MessagesSquare, MousePointerClick, Repeat2, Server, ShieldCheck, Shuffle, Smartphone, UserCheck, X } from "lucide-react";
-import Link from "next/link";
 import type { IconType } from "react-icons";
 import { AiFillOpenAI } from "react-icons/ai";
 import { RiGrokAiFill } from "react-icons/ri";
 import { SiClaude, SiPerplexity } from "react-icons/si";
 
 import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
-import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
-import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 import { FREE_LIVE_AUTOMATIONS, PRO_MONTHLY_DOLLARS } from "@adeli-chat/ui/billing/plans";
 import { Badge } from "@adeli-chat/ui/components/badge";
-import { buttonVariants } from "@adeli-chat/ui/components/button";
-import { ADELI_LINKS, CONTACT_EMAIL, WAITLIST_URL } from "@/lib/links";
+import { ADELI_LINKS, CONTACT_EMAIL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
 import { JsonLd } from "./json-ld";
+import { HOVER_BORDER, HOVER_UNDERLINE, JoinWaitlist, SiteFooter, SiteHeader, TITLE_UNDERLINE } from "./site-chrome";
 import { SamplePrompts } from "./sample-prompts";
 
 /** Free plan size, shown in the hero, Options and FAQ. One place to change it. */
 const FREE_AUTOMATIONS = FREE_LIVE_AUTOMATIONS;
 
 /** "Adeli", linked with the UTM for this spot on the page (docs/brand.md section 6). */
-/** Leda Pink as a pen, not a fill (docs/design.md): title underlines, outlines, hover underlines and borders. */
-const TITLE_UNDERLINE = "underline decoration-highlight decoration-4 underline-offset-8 [text-decoration-skip-ink:none]";
-const HOVER_UNDERLINE = "underline-offset-4 decoration-highlight decoration-2 hover:underline";
-const HOVER_BORDER = "transition-colors hover:border-highlight";
-
 function AdeliLink({ spot, children = "Adeli" }: { spot: keyof typeof ADELI_LINKS; children?: React.ReactNode }) {
   return <a href={ADELI_LINKS[spot]} target="_blank" rel="noreferrer" className={cn("font-medium text-link", HOVER_UNDERLINE)}>{children}</a>;
 }
@@ -35,7 +27,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <JsonLd faqs={faqs} />
-      <Header />
+      <SiteHeader />
       <main>
         <Hero />
         <OfficialStrip />
@@ -49,7 +41,7 @@ export function LandingPage() {
         <Faq />
         <FinalCta />
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }
@@ -68,38 +60,6 @@ function SectionHeading({ title, lead }: { title: string; lead?: string }) {
       <h2 className={cn("text-2xl font-semibold tracking-tight text-balance md:text-3xl", TITLE_UNDERLINE)}>{title}</h2>
       {lead ? <p className="mt-3 text-base text-foreground">{lead}</p> : null}
     </div>
-  );
-}
-
-function JoinWaitlist({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
-  const external = WAITLIST_URL.startsWith("http");
-  return (
-    <a href={WAITLIST_URL} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className={cn(buttonVariants({ size, variant }), className)}>
-      Join waitlist <ArrowRight data-icon="inline-end" />
-    </a>
-  );
-}
-
-function Header() {
-  const links = [
-    { href: "#how-it-works", label: "How it works" },
-    { href: "#why", label: "Why we built it" },
-    { href: "#mcp", label: "MCP" },
-    { href: "#options", label: "Options" },
-    { href: "#faq", label: "FAQ" },
-  ];
-  return (
-    <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" aria-label="LedaChat home"><Wordmark size="sm" /></Link>
-        <nav aria-label="Sections" className="hidden flex-1 items-center gap-5 text-sm text-foreground md:flex">
-          {links.map((link) => <a key={link.href} href={link.href} className={HOVER_UNDERLINE}>{link.label}</a>)}
-        </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <JoinWaitlist size="default" />
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -470,17 +430,5 @@ function FinalCta() {
       <p className="mt-3 text-base text-foreground">Join the waitlist and be first in when we open. Free for {FREE_AUTOMATIONS} automations.</p>
       <div className="mt-7 flex justify-center"><JoinWaitlist /></div>
     </Section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="border-t px-4 py-8 sm:px-6">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-foreground">
-        <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className={HOVER_UNDERLINE}>Powered by Adeli</a>
-        <span>© King&apos;s Cross Labs</span>
-        <ThemeToggle className="ml-auto" compact />
-      </div>
-    </footer>
   );
 }

@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import type { MetadataRoute } from "next";
 
+import { getAllPosts } from "@/lib/blog/posts";
 import { siteUrl } from "@/lib/site-url";
 
 /** Files whose changes change what the homepage says. Paths are relative to apps/landing-page, the build's working directory. */
@@ -32,5 +33,10 @@ function homepageLastModified(): string | undefined {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = homepageLastModified();
-  return [{ url: siteUrl(), ...(lastModified ? { lastModified } : {}) }];
+  const posts = getAllPosts();
+  return [
+    { url: siteUrl(), ...(lastModified ? { lastModified } : {}) },
+    { url: `${siteUrl()}/blog`, ...(posts[0] ? { lastModified: posts[0].lastModified } : {}) },
+    ...posts.map((post) => ({ url: `${siteUrl()}${post.path}`, lastModified: post.lastModified })),
+  ];
 }
