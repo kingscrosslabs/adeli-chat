@@ -14,6 +14,7 @@ import { HeroPreview } from "./hero-preview";
 import { JsonLd } from "./json-ld";
 import { HOVER_BORDER, HOVER_UNDERLINE, JoinWaitlist, SiteFooter, SiteHeader, TITLE_UNDERLINE } from "./site-chrome";
 import { SamplePrompts } from "./sample-prompts";
+import { WaitlistJoinedNotice, WaitlistLinkOpener } from "./waitlist";
 
 /** Free plan size, shown in the hero, Options and FAQ. One place to change it. */
 const FREE_AUTOMATIONS = FREE_LIVE_AUTOMATIONS;
@@ -28,6 +29,8 @@ export function LandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <JsonLd faqs={faqs} />
       <SiteHeader />
+      <WaitlistJoinedNotice />
+      <WaitlistLinkOpener />
       <main>
         <Hero />
         <OfficialStrip />
@@ -425,7 +428,7 @@ function Faq() {
 
 function FinalCta() {
   return (
-    <Section id="waitlist" className="text-center">
+    <Section id="get-started" className="text-center">
       <h2 className={cn("text-2xl font-semibold tracking-tight md:text-3xl", TITLE_UNDERLINE)}>Your next comment could be a lead</h2>
       <p className="mt-3 text-base text-foreground">Join the waitlist and be first in when we open. Free for {FREE_AUTOMATIONS} automations.</p>
       <div className="mt-7 flex justify-center"><JoinWaitlist /></div>

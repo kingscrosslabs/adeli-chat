@@ -1,12 +1,13 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { Wordmark } from "@adeli-chat/ui/brand/wordmark";
-import { buttonVariants } from "@adeli-chat/ui/components/button";
-import { cn } from "@adeli-chat/ui/lib/utils";
 import { ThemeToggle } from "@adeli-chat/ui/theme-toggle";
 
-import { ADELI_LINKS, WAITLIST_URL } from "@/lib/links";
+import { ADELI_LINKS } from "@/lib/links";
+
+import { JoinWaitlist } from "./waitlist";
+
+export { JoinWaitlist };
 
 /**
  * The header, footer and waitlist button every page shares: the homepage and
@@ -18,15 +19,6 @@ import { ADELI_LINKS, WAITLIST_URL } from "@/lib/links";
 export const TITLE_UNDERLINE = "underline decoration-highlight decoration-4 underline-offset-8 [text-decoration-skip-ink:none]";
 export const HOVER_UNDERLINE = "underline-offset-4 decoration-highlight decoration-2 hover:underline";
 export const HOVER_BORDER = "transition-colors hover:border-highlight";
-
-export function JoinWaitlist({ size = "lg", variant = "default", className }: { size?: "default" | "lg"; variant?: "default" | "outline"; className?: string }) {
-  const external = WAITLIST_URL.startsWith("http");
-  return (
-    <a href={WAITLIST_URL} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className={cn(buttonVariants({ size, variant }), className)}>
-      Join waitlist <ArrowRight data-icon="inline-end" />
-    </a>
-  );
-}
 
 const NAV_LINKS = [
   { href: "/#how-it-works", label: "How it works" },

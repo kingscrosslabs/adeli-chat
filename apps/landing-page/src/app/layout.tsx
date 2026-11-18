@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
+import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 
 import { siteUrl } from "@/lib/site-url";
@@ -38,6 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange storageKey="ledachat-theme">
           {children}
         </ThemeProvider>
+        {/* Tally's embed script: the "Join waitlist" buttons open the form as a popup with it (components/waitlist.tsx). */}
+        <Script src="https://tally.so/widgets/embed.js" strategy="afterInteractive" />
       </body>
     </html>
   );
