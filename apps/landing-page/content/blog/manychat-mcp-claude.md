@@ -1,6 +1,6 @@
 ---
-title: "ManyChat-style MCP for Claude: setup guide"
-description: "Connect a ManyChat-style comment to DM app to Claude, ChatGPT, Cursor or Claude Code over MCP, then build and launch Instagram automations by chatting."
+title: "ManyChat MCP for Claude: a setup guide that works"
+description: "No ManyChat MCP can build automations. Connect LedaChat, a ManyChat-style app, to Claude, ChatGPT or Cursor and launch Instagram comment to DMs by chatting."
 type: how-to
 author: nick
 publishedAt: 2026-11-18
