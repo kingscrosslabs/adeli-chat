@@ -14,6 +14,7 @@ import { identifyUser, track } from "@/lib/analytics/server";
 import { alertSignup } from "@/lib/alerts/dopamine";
 import { appUrl } from "@/lib/app-url";
 import { db, schema } from "@/lib/db";
+import { notifyLoopsSignup } from "@/lib/loops";
 import { MCP_SCOPES, mcpResourceUrl } from "@/lib/mcp/config";
 
 import { googleCredentials, signInRefusal } from "./config";
@@ -71,6 +72,7 @@ function create() {
             identifyUser(user.id, { email: user.email, name: user.name });
             track(user.id, "user_signed_up", { provider: "google" });
             await alertSignup(user);
+            void notifyLoopsSignup(user);
             await ensureUserProfile(user.id, user).catch((error: unknown) => console.warn(`Couldn't create the Adeli profile for ${user.id}: ${error instanceof Error ? error.message : String(error)}`));
           },
         },
