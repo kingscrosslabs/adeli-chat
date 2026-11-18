@@ -334,7 +334,7 @@ function Options() {
       name: "Pro",
       price: `$${PRO_MONTHLY_DOLLARS}`,
       period: "per month",
-      points: ["Everything in Free", "Unlimited automations", "Remove branding"],
+      points: ["Everything in Free", "Unlimited automations", "Remove branding", "DM people who commented before you went live"],
       action: <JoinWaitlist variant="outline" className="w-full" />,
       featured: false,
     },

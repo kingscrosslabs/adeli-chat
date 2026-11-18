@@ -39,7 +39,7 @@ export function PlanCard({ plan, liveCount }: { plan: PlanStatus; liveCount: num
   useEffect(() => {
     if (!returned) return;
     if (pro) {
-      toast.success("You're on Pro.", { description: "Unlimited live automations, and no LedaChat message after your DMs." });
+      toast.success("You're on Pro.", { description: "Unlimited live automations, no LedaChat message after your DMs, and messaging earlier comments." });
       router.replace("/settings#plan");
     } else if (!refreshed.current) {
       // The webhook can land a moment after Stripe sends you back: look again once.
@@ -67,7 +67,7 @@ export function PlanCard({ plan, liveCount }: { plan: PlanStatus; liveCount: num
         <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-link" /> Plan <Badge variant={pro ? "default" : "secondary"}>{pro ? "Pro" : "Free"}</Badge></CardTitle>
         <CardDescription>
           {pro
-            ? plan.cancelAtPeriodEnd ? `Pro until ${renews ?? "the end of this period"}. After that you're on Free.` : `Unlimited live automations, with no LedaChat message after your DMs. ${renews ? `Renews ${renews}.` : ""}`
+            ? plan.cancelAtPeriodEnd ? `Pro until ${renews ?? "the end of this period"}. After that you're on Free.` : `Unlimited live automations, no LedaChat message after your DMs, and messaging earlier comments. ${renews ? `Renews ${renews}.` : ""}`
             : `${liveCount} of ${FREE_LIVE_AUTOMATIONS} live automations. Your Final DM is followed by "${BRANDING_TEXT}".`}
         </CardDescription>
       </CardHeader>

@@ -345,6 +345,8 @@ export const runs = pgTable("runs", {
   igUsername: text("ig_username"),
   commentId: text("comment_id").notNull(),
   commentText: text("comment_text"),
+  /** `earlier`: started by Message earlier comments, from a comment made before the automation went live. */
+  source: text("source", { enum: ["live", "earlier"] }).notNull().default("live"),
   /**
    * `final_sending` is the postback claim: only one delivery moves a run out of `opening_sent`.
    * With email capture on, a tap moves it to `awaiting_email` instead, and their reply claims it the same way.

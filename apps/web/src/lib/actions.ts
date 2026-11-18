@@ -242,6 +242,21 @@ export async function resetRuns(id: string): Promise<ActionResult<{ count: numbe
   });
 }
 
+/** How many people Message earlier comments would reach. Sends nothing. */
+export async function previewEarlierComments(id: string): Promise<ActionResult<service.EarlierPreview>> {
+  return guard((userId) => service.previewEarlierComments(userId, id));
+}
+
+/** Sends the flow to people who commented on the post in the last day, before it went live. */
+export async function messageEarlierComments(id: string): Promise<ActionResult<service.EarlierPreview>> {
+  return guard(async (userId) => {
+    const result = await service.messageEarlierComments(userId, id);
+    if (result.ok) track(userId, "earlier_comments_sent", { automation_id: id, people: result.count, matched: result.total, complete: result.complete, source: "app" });
+    else track(userId, "earlier_comments_rejected", { automation_id: id, source: "app", ...rejection(result) });
+    return result.ok ? done(result) : result;
+  });
+}
+
 /**
  * The consent page's answer for an OAuth request (Claude connecting to
  * `/mcp`). Without "Allow changes", the write scope is left out, so the

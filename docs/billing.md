@@ -9,6 +9,7 @@ How LedaChat's Stripe billing works. The design and its reasoning are in [`tmp/2
 | Price | $0 | $25 a month, plus tax where it applies |
 | Live automations | 10 at once | Unlimited |
 | Branding | "Powered by LedaChat" is sent as its own message after the Final DM | None |
+| Message earlier comments | No | Yes |
 
 Plans live in `packages/ui/src/billing/plans.ts`, which both the app and the landing page read. Drafts and paused automations are never limited.
 
@@ -93,6 +94,8 @@ Either log means the endpoint is broken: fix it rather than relying on the repai
 ## The live automation limit
 
 `goLive` (`apps/web/src/lib/automations/service.ts`) is the only code that puts an automation live, for both the app and MCP's `go_live`. When the automation wasn't live already, it counts the user's live automations under a per-user advisory lock (so two Go Lives at 9 can't both pass) and refuses at the plan's limit with `reason: "limit"` and `upgradeUrl` (`/settings#plan`). Saving or re-going-live an automation that's already live is never refused.
+
+**Message earlier comments** is Pro only: `previewEarlierComments` and `messageEarlierComments` in the same service refuse a Free user with `reason: "pro"` and `upgradeUrl`, for the app and MCP's `message_earlier_comments` alike. An install without billing allows it.
 
 When Pro ends, nothing is paused. Everything live stays live, and nothing more can go live until fewer than 10 are.
 

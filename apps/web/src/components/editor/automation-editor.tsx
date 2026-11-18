@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Download, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, History, Loader2, MoreHorizontal, Pause, Play, RotateCcw, Smartphone, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { DeleteAutomationDialog, ResetRunsDialog } from "@/components/automations/automation-actions";
+import { DeleteAutomationDialog, EarlierCommentsDialog, ResetRunsDialog } from "@/components/automations/automation-actions";
 import { StatusPill } from "@/components/automations/status-pill";
 import { PhonePreview } from "@adeli-chat/ui/preview/phone-preview";
 import {
@@ -70,6 +70,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [messagingEarlier, setMessagingEarlier] = useState(false);
   const [busy, setBusy] = useState<"save" | "live" | "pause" | null>(null);
   const [, setTick] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,8 @@ export function AutomationEditor({ automation, account, branding }: { automation
   const dirty = stableJson(draft) !== stableJson(saved);
   const errors: FieldErrors = validating ? validateForLive(draft) : {};
   const isLive = automation.status === "live";
+  // Message earlier comments: a live Comment to DM automation for one post (this one, or the next).
+  const canMessageEarlier = isLive && automation.type === "comment_to_dm" && automation.trigger.postScope !== "any";
 
   const patch = useCallback((update: (current: AutomationContent) => AutomationContent) => setDraft((current) => update(current)), []);
 
@@ -147,7 +150,11 @@ export function AutomationEditor({ automation, account, branding }: { automation
     setBusy(null);
     if (rejected(result)) return;
     setValidating(false);
-    toast.success("You're live!", { description: liveMessage(draft) });
+    const earlier = draft.type === "comment_to_dm" && draft.trigger.postScope === "specific";
+    toast.success("You're live!", {
+      description: liveMessage(draft),
+      ...(earlier ? { action: { label: "Message earlier comments", onClick: () => setMessagingEarlier(true) } } : {}),
+    });
   }
 
   async function pause() {
@@ -225,6 +232,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem render={<a href={`/api/automations/${automation.id}/leads`} download />}><Download /> Export leads</DropdownMenuItem>
+                {canMessageEarlier ? <DropdownMenuItem onClick={() => setMessagingEarlier(true)}><History /> Message earlier comments</DropdownMenuItem> : null}
                 <DropdownMenuItem onClick={() => setResetting(true)}><RotateCcw /> Reset runs</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}><Trash2 /> Delete automation</DropdownMenuItem>
@@ -275,6 +283,7 @@ export function AutomationEditor({ automation, account, branding }: { automation
         </AlertDialogContent>
       </AlertDialog>
 
+      <EarlierCommentsDialog automation={automation} open={messagingEarlier} onOpenChange={setMessagingEarlier} />
       <ResetRunsDialog automation={automation} open={resetting} onOpenChange={setResetting} />
       <DeleteAutomationDialog automation={automation} open={deleting} onOpenChange={setDeleting} onDeleted={() => router.push("/automations")} />
     </div>
