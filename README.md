@@ -102,6 +102,7 @@ One LedaChat install uses one Adeli organization, through the API key in `ADELI_
 | `STRIPE_WEBHOOK_SECRET` | No | Hosted only, with `STRIPE_SECRET_KEY`: the signing secret of the `https://<app>/api/stripe/webhook` endpoint. |
 | `SLACK_BILLING_ALERT_WEBHOOK_URL` | No | Slack incoming webhook for billing alerts. Empty: none are sent. |
 | `SLACK_SIGNUP_WEBHOOK_URL` | No | Slack incoming webhook for sign-ups and automations going live. Empty: none are sent. |
+| `LOOPS_API_KEY` | No | Loops API key for the welcome email on sign-up. Empty: no email is sent. See [docs/email.md](docs/email.md). |
 | `NEXT_PUBLIC_POSTHOG_UI_HOST` | No | `https://us.posthog.com` (default) or `https://eu.posthog.com`, for links from the toolbar. |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
