@@ -7,6 +7,8 @@ import { getAutomation, requireAccount } from "@/lib/data";
 import { showsBranding } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
+// Message earlier comments sends after the response, within this limit.
+export const maxDuration = 300;
 
 export default async function AutomationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -17,6 +17,7 @@ import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpire
 import { FREE_LIVE_AUTOMATIONS } from "@adeli-chat/ui/billing/plans";
 import * as service from "@/lib/automations/service";
 import { triggerSummary } from "@/lib/automations/validate";
+import { EARLIER_SEND_LIMIT, EARLIER_WINDOW_HOURS } from "@/lib/runtime/earlier";
 import { getAutomation, getConnectedAccount, listAutomations, type ConnectedAccount } from "@/lib/data";
 
 import { MCP_DISPLAY_NAME, MCP_SERVER_NAME } from "./config";
@@ -49,6 +50,7 @@ Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, 
 
 Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation of the same type and scope (and, for "specific", the same post) shares a keyword (or matches anything).
 On the hosted LedaChat, the Free plan allows ${FREE_LIVE_AUTOMATIONS} live automations at once and sends "Powered by LedaChat" after the Final DM; Pro removes both. get_workspace reports the plan. go_live at the limit fails: tell the user rather than retrying.
+If the user went live after people already commented, message_earlier_comments sends the flow to matching comments from the last 24 hours on a live Comment to DM automation for one post. Call it with send false first and tell the user how many people it will message; only send once they agree. Sending is Pro only on the hosted LedaChat: when the count comes back with proRequired, tell the user they can upgrade at upgradeUrl instead of sending.
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -217,6 +219,7 @@ function rejected(result: Exclude<service.ActionResult, { ok: true }>): CallTool
   }
   if (result.reason === "conflict") return fail(`${result.message} Pause that one (id ${result.conflictId}) or use different keywords.`);
   if (result.reason === "limit") return fail(`${result.message} Don't retry: tell the user, who can pause one with pause_automation or upgrade at ${result.upgradeUrl}.`);
+  if (result.reason === "pro") return fail(`${result.message} Don't retry: tell the user, who can upgrade at ${result.upgradeUrl}.`);
   return fail(result.message);
 }
 
@@ -401,6 +404,24 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     await service.deleteAutomation(userId, id);
     track(userId, "automation_deleted", { automation_id: id, source: "mcp" });
     return json({ id, deleted: true });
+  }));
+
+  server.registerTool("message_earlier_comments", {
+    title: "Message earlier comments",
+    description: `For a live Comment to DM automation on one post: finds comments from the last ${EARLIER_WINDOW_HOURS} hours that it would have answered had it been live, from people it hasn't messaged yet. With send false it only counts them. With send true it starts the flow for up to ${EARLIER_SEND_LIMIT} of them (public reply, if on, then the Opening DM), in the background; call it again for the rest. Pro only on the hosted LedaChat.`,
+    inputSchema: z.object({
+      id: z.string().describe("Automation id."),
+      send: z.boolean().describe("False to only count who would be messaged. True to message them; confirm with the user first."),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  }, ({ id, send }) => run("message_earlier_comments", send, async () => {
+    const result = send ? await service.messageEarlierComments(userId, id) : await service.previewEarlierComments(userId, id);
+    if (!result.ok) {
+      if (send) track(userId, "earlier_comments_rejected", { automation_id: id, source: "mcp", reason: result.reason });
+      return rejected(result);
+    }
+    if (send) track(userId, "earlier_comments_sent", { automation_id: id, people: result.count, matched: result.total, complete: result.complete, source: "mcp" });
+    return json({ id, sent: send, people: result.count, matched: result.total, complete: result.complete, windowHours: result.windowHours, ...(result.allowed ? {} : { proRequired: true, upgradeUrl: result.upgradeUrl }) });
   }));
 
   server.registerTool("reset_runs", {

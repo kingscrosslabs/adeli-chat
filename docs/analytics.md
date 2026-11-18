@@ -32,6 +32,7 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `automation_go_live_rejected` | Server | `reason` (`invalid`, `conflict`, `limit`, `error`) |
 | `automation_paused`, `automation_duplicated`, `automation_deleted`, `automation_runs_reset` | Server | |
 | `leads_exported` | Server | `lead_count` |
+| `earlier_comments_sent` / `earlier_comments_rejected` | Server, Message earlier comments (app or MCP) | `people` (sent to now), `matched`, `complete`; `reason` (`pro`) on rejection |
 | `agent_setup_opened` | Browser, Connect to AI Agent | `agent` |
 | `api_token_created` / `api_token_revoked` | Server | `read_only`, `expiry` |
 | `mcp_oauth_consent_allowed` / `mcp_oauth_consent_denied` | Server | `allow_write` |
@@ -46,7 +47,7 @@ The automation runtime (`src/lib/runtime/handle.ts`) records each run's steps on
 
 | Event | Properties |
 | --- | --- |
-| `automation_triggered` | `trigger` (`comment`, `story_reply`), `post_scope`, `trigger_match` |
+| `automation_triggered` | `trigger` (`comment`, `earlier_comment`, `story_reply`), `post_scope`, `trigger_match` |
 | `comment_reply_sent` | |
 | `opening_dm_sent` | |
 | `dm_button_tapped` | `email_capture_enabled`, `follow_gate_enabled` |

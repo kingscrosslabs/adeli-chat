@@ -173,6 +173,32 @@ export async function listStories(userId: string, accountId: string): Promise<Ad
   });
 }
 
+export type PostComment = { id: string; parentId: string | null; authorId: string | null; authorHandle: string; body: string; isCreator: boolean; createdAt: string };
+
+/**
+ * The comments on one of the account's posts, replies included. Adeli reads
+ * the first page while we wait and the rest in the background, so a busy post
+ * can come back incomplete: this asks again, `attempts` times in all, until
+ * Adeli says it has them all. `complete` says whether it did.
+ */
+export async function listPostComments(userId: string, accountId: string, postId: string, { attempts = 4, waitMs = 3000 }: { attempts?: number; waitMs?: number } = {}): Promise<{ comments: PostComment[]; complete: boolean }> {
+  await requireOwnAccount(userId, accountId);
+  for (let attempt = 1; ; attempt += 1) {
+    const { data } = await adeliCall((client) => client.comments.listComments({ query: { platform: "instagram", accountId, postId } }));
+    const comments = data.comments.map((comment) => ({
+      id: comment.id,
+      parentId: comment.parentId,
+      authorId: comment.authorId ?? null,
+      authorHandle: comment.authorHandle,
+      body: comment.body,
+      isCreator: comment.isCreator,
+      createdAt: comment.createdAt,
+    }));
+    if (data.complete || attempt >= attempts) return { comments, complete: data.complete };
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
 /** One of the account's posts by its media id (what automations store as `trigger.mediaId`), or null. */
 export async function findMedia(userId: string, accountId: string, mediaId: string): Promise<AdeliMedia | null> {
   const posts = await listPosts(userId, accountId);

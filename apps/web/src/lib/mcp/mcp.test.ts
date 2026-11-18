@@ -90,7 +90,7 @@ describe("/mcp tools", () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       "create_automation", "delete_automation", "duplicate_automation", "get_automation", "get_workspace",
-      "go_live", "list_automations", "list_posts", "list_stories", "pause_automation", "reset_runs", "update_automation",
+      "go_live", "list_automations", "list_posts", "list_stories", "message_earlier_comments", "pause_automation", "reset_runs", "update_automation",
     ]);
     expect(tools.find((tool) => tool.name === "delete_automation")?.annotations?.destructiveHint).toBe(true);
   });

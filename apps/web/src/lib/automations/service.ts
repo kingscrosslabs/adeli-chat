@@ -1,13 +1,15 @@
 import "server-only";
 
 import { and, asc, count, eq, ne, sql } from "drizzle-orm";
+import { after } from "next/server";
 
 import { alertWentLive } from "@/lib/alerts/dopamine";
-import type { Source } from "@/lib/analytics/server";
+import { trackError, type Source } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
 import { getPlan, liveAutomationLimit } from "@/lib/billing/state";
 import { getAutomation, getConnectedAccount, otherLiveAutomations, type ConnectedAccount } from "@/lib/data";
 import { db, schema } from "@/lib/db";
+import { EARLIER_SEND_LIMIT, EARLIER_WINDOW_HOURS, findEarlierComments, sendEarlierComments, type EarlierComments } from "@/lib/runtime/earlier";
 
 import { defaultAutomationContent } from "@adeli-chat/ui/automation/defaults";
 import { automationContentSchema, followGateOf, type Automation, type AutomationContent, type AutomationType } from "@adeli-chat/ui/automation/schemas";
@@ -25,7 +27,8 @@ export type ActionResult<T = object> =
   | { ok: false; reason: "error"; message: string }
   | { ok: false; reason: "invalid"; count: number; errors: FieldErrors }
   | { ok: false; reason: "conflict"; message: string; conflictId: string }
-  | { ok: false; reason: "limit"; message: string; limit: number; upgradeUrl: string };
+  | { ok: false; reason: "limit"; message: string; limit: number; upgradeUrl: string }
+  | { ok: false; reason: "pro"; message: string; upgradeUrl: string };
 
 /** A problem the user can fix, shown to them as is. */
 export class ServiceError extends Error {}
@@ -181,6 +184,72 @@ export async function resetRuns(userId: string, id: string): Promise<{ count: nu
   await loadOwn(userId, id);
   const deleted = await db().delete(schema.runs).where(eq(schema.runs.automationId, id)).returning({ id: schema.runs.id });
   return { count: deleted.length };
+}
+
+export type EarlierPreview = {
+  /** People this send would message, at most `EARLIER_SEND_LIMIT`. */
+  count: number;
+  /** People who match in all, including any past the limit. */
+  total: number;
+  /** False when Adeli couldn't read every comment on the post, so there may be more. */
+  complete: boolean;
+  windowHours: number;
+  /** Whether this user may send: Pro, or an install without billing. Free users still see the count, as a reason to upgrade. */
+  allowed: boolean;
+  upgradeUrl: string;
+};
+
+const EARLIER_PRO_MESSAGE = "Messaging earlier comments is on Pro. Upgrade to send this flow to people who commented before it went live.";
+
+/**
+ * The people Message earlier comments would reach on a live Comment to DM
+ * automation for one post, and whether this user may send to them. `quick`
+ * reads the post's comments once instead of waiting for Adeli to have them all.
+ */
+async function earlierComments(userId: string, id: string, quick = false): Promise<{ account: ConnectedAccount; found: EarlierComments; preview: EarlierPreview }> {
+  const { account, automation } = await loadOwn(userId, id);
+  if (automation.type !== "comment_to_dm") throw new ServiceError("Only Comment to DM automations can message earlier comments.");
+  if (automation.status !== "live") throw new ServiceError("Go live first, then message earlier comments.");
+  if (automation.trigger.postScope === "any") throw new ServiceError("This works on an automation for one post. Pick a post to message its earlier comments.");
+  const found = await findEarlierComments(userId, account, id, { attempts: quick ? 1 : undefined });
+  if (!found) throw new ServiceError("Your next post isn't up yet, so there are no earlier comments to message.");
+  const { comments, complete } = found;
+  const allowed = await getPlan(userId) !== "free";
+  const preview = { count: Math.min(comments.length, EARLIER_SEND_LIMIT), total: comments.length, complete, windowHours: EARLIER_WINDOW_HOURS, allowed, upgradeUrl: upgradeUrl() };
+  return { account, found, preview };
+}
+
+/**
+ * How many people Message earlier comments would reach right now, on any
+ * plan. Sends nothing. `quick` (the editor's check) reads Adeli once.
+ */
+export async function previewEarlierComments(userId: string, id: string, { quick = false } = {}): Promise<ActionResult<EarlierPreview>> {
+  const { preview } = await earlierComments(userId, id, quick);
+  return { ok: true, ...preview };
+}
+
+/**
+ * Sends the flow to people who commented on the automation's post in the
+ * last day, before it went live, up to `EARLIER_SEND_LIMIT` a time. Pro only
+ * (any plan on an install without billing). The sending runs after the
+ * response (`schedule`); `count` is how many it will try. Each person still
+ * gets the flow only once, so sending again is safe.
+ */
+export async function messageEarlierComments(userId: string, id: string, schedule: (task: () => Promise<void>) => void = after): Promise<ActionResult<EarlierPreview>> {
+  const { account, found, preview } = await earlierComments(userId, id);
+  if (!preview.allowed) return { ok: false, reason: "pro", upgradeUrl: preview.upgradeUrl, message: EARLIER_PRO_MESSAGE };
+  const batch = found.comments.slice(0, EARLIER_SEND_LIMIT);
+  if (batch.length) {
+    schedule(async () => {
+      try {
+        await sendEarlierComments(userId, account.accountId, found.automation, batch);
+      } catch (error) {
+        console.error(`Message earlier comments for ${id} failed: ${error instanceof Error ? error.message : String(error)}`);
+        trackError(error, userId, { automation_id: id });
+      }
+    });
+  }
+  return { ok: true, ...preview };
 }
 
 export type Lead = { igUsername: string | null; igUserId: string; email: string; createdAt: string };

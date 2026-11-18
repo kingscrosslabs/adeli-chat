@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, MoreHorizontal, Pause, Pencil, Play, Trash2 } from "lucide-react";
+import { Copy, Loader2, MoreHorizontal, Pause, Pencil, Play, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,7 +18,8 @@ import {
 import { Button } from "@adeli-chat/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@adeli-chat/ui/components/dropdown-menu";
 import type { Automation } from "@adeli-chat/ui/automation/schemas";
-import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, pauseAutomation, resetRuns, type ActionResult } from "@/lib/actions";
+import { deleteAutomation, duplicateAutomation, goLive as goLiveAction, messageEarlierComments, pauseAutomation, resetRuns, type ActionResult } from "@/lib/actions";
+import type { EarlierPreview } from "@/lib/automations/service";
 import { errorCount, validateForLive } from "@/lib/automations/validate";
 
 /**
@@ -115,6 +116,65 @@ export function DeleteAutomationDialog({ automation, open, onOpenChange, onDelet
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+/**
+ * Message earlier comments, for a `preview` the editor already counted (only
+ * when someone matches): who commented on the post in the last day and would
+ * have matched. Pro sends them the flow on confirm; Free is offered the upgrade.
+ * `onSent` runs after a send starts, so the editor can count again.
+ */
+export function EarlierCommentsDialog({ automation, preview, open, onOpenChange, onSent }: { automation: Automation; preview: EarlierPreview | null; open: boolean; onOpenChange: (open: boolean) => void; onSent: () => void }) {
+  const router = useRouter();
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    setSending(true);
+    const result = await messageEarlierComments(automation.id);
+    setSending(false);
+    onOpenChange(false);
+    if (!result.ok) {
+      toast.error(failure(result));
+      return;
+    }
+    onSent();
+    if (result.count) toast.success(`Sending to ${people(result.count)}`, { description: "Their runs show up in the stats as each message goes out." });
+    else toast("Nobody new to message", { description: "They've all had this flow already." });
+  }
+
+  if (!preview?.count) return null;
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Message earlier comments?</AlertDialogTitle>
+          <AlertDialogDescription render={<div />}>
+            <div className="space-y-2">
+              <p>
+                {people(preview.total)} commented on this post in the last {preview.windowHours} hours, before {automation.name} went live, and {preview.total === 1 ? "matches" : "match"} it.
+                {preview.allowed ? " Send them this flow now, as if they had just commented?" : " Upgrade to Pro to send them this flow now, as if they had just commented."}
+              </p>
+              {preview.allowed && preview.total > preview.count ? <p>This sends to the first {preview.count}. Send again afterwards for the rest.</p> : null}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Not now</AlertDialogCancel>
+          {preview.allowed ? (
+            <AlertDialogAction onClick={() => void send()} disabled={sending}>
+              {sending ? <Loader2 className="animate-spin" /> : <Send />} Send to {people(preview.count)}
+            </AlertDialogAction>
+          ) : (
+            <AlertDialogAction onClick={() => { onOpenChange(false); router.push("/settings#plan"); }}>Upgrade to Pro</AlertDialogAction>
+          )}
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function people(count: number) {
+  return `${count} ${count === 1 ? "person" : "people"}`;
 }
 
 export function ResetRunsDialog({ automation, open, onOpenChange }: { automation: Automation; open: boolean; onOpenChange: (open: boolean) => void }) {

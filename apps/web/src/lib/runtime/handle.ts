@@ -74,23 +74,35 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
   const live = await bindNextPosts(userId, account.adeliAccountId, await liveAutomations(account.id));
   const automation = matchComment({ mediaId: data.mediaId, text: data.text, fromId: data.from.id, isSelf: data.isSelf }, account.igUserId, live);
   if (!automation) return;
+  await startCommentRun(userId, account.adeliAccountId, automation, { commentId: data.commentId, text: data.text, fromId: data.from.id, fromUsername: data.from.username });
+}
 
+export type CommentToRun = { commentId: string; text: string; fromId: string; fromUsername: string | null };
+
+/**
+ * Starts `automation`'s flow for one comment: the public reply, then the
+ * Opening DM. Live comments and Message earlier comments both start here.
+ * Returns false when nothing started because this person or this comment
+ * already has a run on the automation (D3).
+ */
+export async function startCommentRun(userId: string, adeliAccountId: string, automation: Automation, comment: CommentToRun, source: "live" | "earlier" = "live") {
   // The unique keys make this the dedupe: a repeat commenter or a redelivered comment inserts nothing.
   const [run] = await db().insert(schema.runs).values({
     automationId: automation.id,
-    igUserId: data.from.id,
-    igUsername: data.from.username,
-    commentId: data.commentId,
-    commentText: data.text,
+    igUserId: comment.fromId,
+    igUsername: comment.fromUsername,
+    commentId: comment.commentId,
+    commentText: comment.text,
+    source,
   }).onConflictDoNothing().returning({ id: schema.runs.id });
-  if (!run) return;
-  trackStep(userId, "automation_triggered", automation.id, { trigger: "comment", post_scope: automation.trigger.postScope, trigger_match: automation.trigger.match });
+  if (!run) return false;
+  trackStep(userId, "automation_triggered", automation.id, { trigger: source === "earlier" ? "earlier_comment" : "comment", post_scope: automation.trigger.postScope, trigger_match: automation.trigger.match });
 
   const variants = automation.commentReply.variants.filter((variant) => variant.trim());
   if (automation.commentReply.enabled && variants.length) {
     try {
       await adeliCall((client) => client.comments.createComment({
-        body: { platform: "instagram", accountId: account.adeliAccountId, parentId: data.commentId, message: pick(variants) },
+        body: { platform: "instagram", accountId: adeliAccountId, parentId: comment.commentId, message: pick(variants) },
       }));
       await updateRun(run.id, { commentReplyState: "sent" });
       trackStep(userId, "comment_reply_sent", automation.id);
@@ -103,7 +115,8 @@ async function handleComment(userId: string, event: CommentCreatedEvent) {
     await updateRun(run.id, { commentReplyState: "skipped" });
   }
 
-  await sendOpeningDm(userId, run.id, automation.id, account.adeliAccountId, { commentId: data.commentId }, automation.openingDm);
+  await sendOpeningDm(userId, run.id, automation.id, adeliAccountId, { commentId: comment.commentId }, automation.openingDm);
+  return true;
 }
 
 /**
@@ -260,7 +273,7 @@ async function handleMessage(userId: string, event: MessageCreatedEvent) {
  * one is published after they went live. The binding is saved, so from then
  * on they watch that post like any other.
  */
-async function bindNextPosts(userId: string, adeliAccountId: string, live: Automation[]): Promise<Automation[]> {
+export async function bindNextPosts(userId: string, adeliAccountId: string, live: Automation[]): Promise<Automation[]> {
   const waiting = live.filter((automation) => automation.trigger.postScope === "next" && !automation.trigger.mediaId);
   if (!waiting.length) return live;
   let media;
@@ -281,7 +294,7 @@ async function bindNextPosts(userId: string, adeliAccountId: string, live: Autom
   }));
 }
 
-async function liveAutomations(accountId: string) {
+export async function liveAutomations(accountId: string) {
   const rows = await db().select().from(schema.automations)
     .where(and(eq(schema.automations.accountId, accountId), eq(schema.automations.status, "live")));
   return rows.map((row) => toAutomation(row));
