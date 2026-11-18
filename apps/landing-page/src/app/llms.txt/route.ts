@@ -1,6 +1,7 @@
 import { FREE_LIVE_AUTOMATIONS, PRO_MONTHLY_DOLLARS } from "@adeli-chat/ui/billing/plans";
 
 import { faqs } from "@/components/landing-page";
+import { getAllPosts } from "@/lib/blog/posts";
 import { GITHUB_URL, WAITLIST_URL } from "@/lib/links";
 import { siteUrl } from "@/lib/site-url";
 
@@ -8,6 +9,9 @@ import { siteUrl } from "@/lib/site-url";
 export const dynamic = "force-static";
 
 function body(): string {
+  const posts = getAllPosts()
+    .map((post) => `- [${post.frontmatter.title}](${siteUrl()}${post.path}.md): ${post.frontmatter.description}`)
+    .join("\n");
   const faq = faqs.map((item) => `### ${item.question}\n\n${item.text}`).join("\n\n");
   return `# LedaChat
 
@@ -37,10 +41,17 @@ LedaChat has an MCP built in. Ask your AI agent (Claude, ChatGPT, Cursor, Perple
 
 ${faq}
 
+## Blog
+
+Each post as plain Markdown:
+
+${posts}
+
 ## Links
 
 - [LedaChat](${siteUrl()}): the homepage
 - [Source code on GitHub](${GITHUB_URL}): MIT licensed, with self-hosting instructions
+- [Blog](${siteUrl()}/blog): guides, with an RSS feed at ${siteUrl()}/blog/rss.xml
 - [Join the waitlist](${WAITLIST_URL})
 `;
 }
