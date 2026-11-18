@@ -12,6 +12,7 @@ import { getPlan, liveAutomationLimit } from "@/lib/billing/state";
 import { showsBranding } from "@/lib/plan";
 import { track } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
+import { listAudience, listAutomationPeople } from "@/lib/audience";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
 import { FREE_LIVE_AUTOMATIONS } from "@adeli-chat/ui/billing/plans";
@@ -51,6 +52,7 @@ Limits: name ${LIMITS.name} chars, keywords up to ${LIMITS.keyword} chars each, 
 Statuses: draft (not running), live (running), paused. New automations are always drafts. Use go_live to start one; it checks every field and that no other live automation of the same type and scope (and, for "specific", the same post) shares a keyword (or matches anything).
 On the hosted LedaChat, the Free plan allows ${FREE_LIVE_AUTOMATIONS} live automations at once and sends "Powered by LedaChat" after the Final DM; Pro removes both. get_workspace reports the plan. go_live at the limit fails: tell the user rather than retrying.
 If the user went live after people already commented, message_earlier_comments sends the flow to matching comments from the last 24 hours on a live Comment to DM automation for one post. Call it with send false first and tell the user how many people it will message; only send once they agree. Sending is Pro only on the hosted LedaChat: when the count comes back with proRequired, tell the user they can upgrade at upgradeUrl instead of sending.
+list_audience shows who engages: everyone who triggered the account's automations, most engaged first, or one automation's people with how far each got.
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
 The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
 
@@ -293,6 +295,26 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   }, ({ id }) => run("get_automation", false, async () => {
     const automation = await getAutomation((await account()).id, id);
     return automation ? json(detail(automation)) : fail("There's no automation with that id.");
+  }));
+
+  server.registerTool("list_audience", {
+    title: "List audience",
+    description: "Who engages with the account's automations. Without automationId: everyone who triggered any of them, most engaged first (how many automations they triggered, button taps, Final DMs, email if they gave one, first and last seen). With automationId: that automation's people, newest first, with how far each got (stage), their comment and email. Reset runs removes people from it.",
+    inputSchema: z.object({
+      automationId: z.string().optional().describe("Only this automation's people."),
+      limit: z.number().int().min(1).max(500).optional().describe("How many people to return. Default 50."),
+    }),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, ({ automationId, limit = 50 }) => run("list_audience", false, async () => {
+    const own = await account();
+    if (automationId) {
+      const automation = await getAutomation(own.id, automationId);
+      if (!automation) return fail("There's no automation with that id.");
+      const people = await listAutomationPeople(own.id, automation.id);
+      return json({ automation: { id: automation.id, name: automation.name }, total: people.length, people: people.slice(0, limit), audienceUrl: `${appUrl()}/audience?automation=${automation.id}` });
+    }
+    const contacts = await listAudience(own.id);
+    return json({ total: contacts.length, people: contacts.slice(0, limit), audienceUrl: `${appUrl()}/audience` });
   }));
 
   server.registerTool("list_stories", {
