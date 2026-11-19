@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 
+import { GoogleTag } from "@adeli-chat/ui/analytics/google-tag";
 import { Toaster } from "@adeli-chat/ui/components/sonner";
 import { TooltipProvider } from "@adeli-chat/ui/components/tooltip";
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster position="top-center" />
           </TooltipProvider>
         </ThemeProvider>
+        <GoogleTag />
       </body>
     </html>
   );

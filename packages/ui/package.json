@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./analytics/*": "./src/analytics/*.tsx",
     "./components/*": "./src/components/*.tsx",
     "./brand/*": "./src/brand/*.tsx",
     "./preview/*": "./src/preview/*.tsx",
