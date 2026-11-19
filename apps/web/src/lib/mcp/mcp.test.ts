@@ -1,4 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeAdeli } from "../../../test/fake-adeli";
@@ -135,12 +136,34 @@ describe("/mcp tools", () => {
     expect(live.status).toBe("live");
 
     const listed = data(await client.callTool({ name: "list_automations", arguments: { status: "live" } }));
-    expect(listed.map((item: { id: string }) => item.id)).toEqual([created.id]);
-    expect(listed[0].url).toBe(`http://localhost:3030/automations/${created.id}`);
+    expect(listed.automations.map((item: { id: string }) => item.id)).toEqual([created.id]);
+    expect(listed).not.toHaveProperty("next");
+    expect(listed.automations[0].url).toBe(`http://localhost:3030/automations/${created.id}`);
 
     expect(data(await client.callTool({ name: "pause_automation", arguments: { id: created.id } })).status).toBe("paused");
     expect(data(await client.callTool({ name: "delete_automation", arguments: { id: created.id } })).deleted).toBe(true);
-    expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+    expect(data(await client.callTool({ name: "list_automations", arguments: {} })).automations).toEqual([]);
+  });
+
+  it("tells an agent on a freshly connected account what to do next, without repeating the handle as a name", async () => {
+    const account = await seedAccount("user_1");
+    await db().update(schema.accounts).set({ displayName: "@birds" }).where(eq(schema.accounts.id, account.id));
+    const { token } = await createToken("user_1", { name: "test", readOnly: true, expiry: "never" });
+    const client = await connect(token);
+
+    const listed = data(await client.callTool({ name: "list_automations", arguments: {} }));
+    expect(listed).toEqual({ automations: [], automationsUrl: "http://localhost:3030/automations", next: expect.stringContaining("create_automation") });
+    expect(listed.next).not.toContain("\u2014");
+
+    const workspace = data(await client.callTool({ name: "get_workspace", arguments: {} }));
+    expect(workspace.instagram).toEqual({ handle: "@birds" });
+  });
+
+  it("keeps a real Instagram display name next to the handle", async () => {
+    await seedAccount("user_1");
+    const { token } = await createToken("user_1", { name: "test", readOnly: true, expiry: "never" });
+    const client = await connect(token);
+    expect(data(await client.callTool({ name: "get_workspace", arguments: {} })).instagram).toEqual({ handle: "@birds", name: "Birds" });
   });
 
   it("lists the audience, and one automation's people", async () => {
@@ -182,7 +205,7 @@ describe("/mcp tools", () => {
     const missing = await client.callTool({ name: "create_automation", arguments: { type: "story_reply", storyId: "story_gone" } });
     expect(missing.isError).toBe(true);
     expect(text(missing)).toContain("Use list_stories");
-    expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+    expect(data(await client.callTool({ name: "list_automations", arguments: {} })).automations).toEqual([]);
 
     const wrongType = await client.callTool({ name: "create_automation", arguments: { storyId: "story_1" } });
     expect(wrongType.isError).toBe(true);
@@ -256,7 +279,7 @@ describe("/mcp tools", () => {
     const client = await connect(token);
     const result = await client.callTool({ name: "create_automation", arguments: { postId: "media_404" } });
     expect(result.isError).toBe(true);
-    expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+    expect(data(await client.callTool({ name: "list_automations", arguments: {} })).automations).toEqual([]);
   });
 
   it("only allows reading with a read-only token", async () => {
@@ -278,7 +301,7 @@ describe("/mcp tools", () => {
     const { token } = await createToken("user_2", { name: "theirs", readOnly: false, expiry: "never" });
     const client = await connect(token);
 
-    expect(data(await client.callTool({ name: "list_automations", arguments: {} }))).toEqual([]);
+    expect(data(await client.callTool({ name: "list_automations", arguments: {} })).automations).toEqual([]);
     expect((await client.callTool({ name: "get_automation", arguments: { id: automation.id } })).isError).toBe(true);
     expect((await client.callTool({ name: "delete_automation", arguments: { id: automation.id } })).isError).toBe(true);
     expect((await client.callTool({ name: "update_automation", arguments: { id: automation.id, name: "Mine now" } })).isError).toBe(true);
