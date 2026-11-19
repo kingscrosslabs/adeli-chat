@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingscrosslabs/adeli-chat/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/kingscrosslabs/adeli-chat/ci.yml?branch=main&label=CI" alt="CI status" /></a>
-  <a href="https://github.com/kingscrosslabs/adeli-chat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kingscrosslabs/adeli-chat?color=702EC7" alt="MIT license" /></a>
-  <img src="https://img.shields.io/github/package-json/v/kingscrosslabs/adeli-chat?color=702EC7&label=version" alt="LedaChat version" />
+  <a href="https://github.com/kingscrosslabs/ledachat/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/kingscrosslabs/ledachat/ci.yml?branch=main&label=CI" alt="CI status" /></a>
+  <a href="https://github.com/kingscrosslabs/ledachat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kingscrosslabs/ledachat?color=702EC7" alt="MIT license" /></a>
+  <img src="https://img.shields.io/github/package-json/v/kingscrosslabs/ledachat?color=702EC7&label=version" alt="LedaChat version" />
   <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fkingscrosslabs%2Fadeli-chat%2Fmain%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=nodedotjs&logoColor=white" alt="Node.js version" />
   <a href="https://www.npmjs.com/package/@adeli/sdk"><img src="https://img.shields.io/npm/v/@adeli/sdk?label=%40adeli%2Fsdk&color=0a807a" alt="@adeli/sdk on npm" /></a>
   <a href="https://www.tryadeli.com"><img src="https://img.shields.io/badge/powered%20by-Adeli-0a807a" alt="Powered by Adeli" /></a>

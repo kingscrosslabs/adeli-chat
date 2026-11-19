@@ -18,7 +18,7 @@ function appUrl(): string {
 
 export const APP_URL = appUrl();
 export const SIGN_IN_URL = `${APP_URL}/sign-in`;
-export const GITHUB_URL = "https://github.com/kingscrosslabs/adeli-chat";
+export const GITHUB_URL = "https://github.com/kingscrosslabs/ledachat";
 /**
  * The Tally form ("Join the LedaChat waitlist") every "Join waitlist" button
  * opens as a popup on the page (components/waitlist.tsx). Its "Redirect on
