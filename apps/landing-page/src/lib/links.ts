@@ -30,7 +30,7 @@ export const WAITLIST_URL = `https://tally.so/r/${WAITLIST_FORM_ID}`;
 /** `ledachat.com/#waitlist` (and `/waitlist`, which redirects to it) opens the popup on arrival: the link to share. */
 export const WAITLIST_HASH = "waitlist";
 export const WAITLIST_JOINED_PARAM = { name: "waitlist", value: "joined" } as const;
-export const SITE_URL = "https://ledachat.com";
+export const SITE_URL = "https://www.ledachat.com";
 export const CONTACT_EMAIL = "hello@ledachat.com";
 
 /**
