@@ -1,0 +1,16 @@
+{
+  "name": "ledachat",
+  "displayName": "LedaChat",
+  "version": "1.0.0",
+  "description": "Create, run and manage Instagram Comment to DM automations from Claude: reply to comments, DM a link, collect emails and see who engages.",
+  "author": { "name": "LedaChat", "email": "hello@ledachat.com", "url": "https://www.ledachat.com" },
+  "homepage": "https://www.ledachat.com",
+  "repository": "https://github.com/kingscrosslabs/ledachat",
+  "license": "MIT",
+  "keywords": ["instagram", "comment-to-dm", "dm-automation", "manychat-alternative", "social-media", "marketing"],
+  "icon": "./assets/icon.png",
+  "documentationUrl": "https://www.ledachat.com/docs/mcp",
+  "supportUrl": "mailto:hello@ledachat.com",
+  "privacyPolicyUrl": "https://www.ledachat.com/privacy-policy",
+  "termsOfServiceUrl": "https://www.ledachat.com/terms"
+}

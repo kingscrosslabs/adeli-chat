@@ -151,6 +151,9 @@ function AskClaude() {
         <p className="mt-5 text-sm text-foreground">
           Add this MCP server to your agent and sign in: <code className="rounded-md border bg-card px-1.5 py-0.5 font-mono text-[0.82rem]">{`${APP_URL}/mcp`}</code>
         </p>
+        <p className="mt-2 text-sm text-foreground">
+          <a href="/docs/mcp" className={cn("font-medium text-link", HOVER_UNDERLINE)}>Setup guide for Claude, Claude Code, Codex and Cursor</a>
+        </p>
       </div>
       <div className="grid items-start gap-6 md:grid-cols-[1fr_1.15fr]">
         <SamplePrompts />

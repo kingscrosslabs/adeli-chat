@@ -1,0 +1,13 @@
+{
+  "name": "ledachat",
+  "owner": { "name": "LedaChat", "email": "hello@ledachat.com", "url": "https://www.ledachat.com" },
+  "description": "LedaChat plugins for Claude Code: Instagram Comment to DM automations.",
+  "plugins": [
+    {
+      "name": "ledachat",
+      "source": "./plugins/ledachat",
+      "description": "Create, run and manage Instagram Comment to DM automations from Claude.",
+      "category": "marketing"
+    }
+  ]
+}

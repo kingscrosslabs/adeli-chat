@@ -11,5 +11,6 @@ export const SITE_PAGES: ReadonlyArray<{ path: string; title: string }> = [
   { path: "/#compare", title: "LedaChat vs ManyChat" },
   { path: "/#options", title: "Plans: Free, Pro and self-hosted" },
   { path: "/#faq", title: "LedaChat FAQ" },
+  { path: "/docs/mcp", title: "Connect LedaChat to Claude and other AI agents" },
   { path: "/blog", title: "The LedaChat blog" },
 ];
