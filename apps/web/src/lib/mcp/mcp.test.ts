@@ -87,6 +87,8 @@ describe("/mcp authentication", () => {
     const response = await handleMcpRequest(new Request(MCP_URL, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) }));
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain("resource_metadata=");
+    // Asking for offline_access is what gets a client a refresh token, so it doesn't have to sign in again every hour.
+    expect(response.headers.get("www-authenticate")).toContain('scope="automations:read automations:write offline_access"');
   });
 
   it("rejects unknown, revoked and expired API tokens", async () => {

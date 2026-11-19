@@ -7,8 +7,8 @@ publishedAt: 2026-11-18
 targetQuery: "manychat mcp claude"
 tldr: >-
   ManyChat has no MCP for Claude, but LedaChat, a ManyChat-style comment to DM
-  app, has one built in. Open Connect to AI Agent in LedaChat, add the server
-  URL to Claude as a custom connector (or run claude mcp add in Claude Code),
+  app, has one built in. Add the server URL, https://app.ledachat.com/mcp,
+  to Claude as a custom connector (or run claude mcp add in Claude Code),
   sign in, then ask Claude to set up a comment to DM. It builds a draft, and
   goes live when you say so.
 faqs:
@@ -63,10 +63,9 @@ You don't need a Meta developer app, an Instagram API key or a paid plan. MCP ac
 
 Add LedaChat as a custom connector and sign in.
 
-1. In LedaChat, open **Connect to AI Agent** in the sidebar. It shows your MCP server URL, which ends in `/mcp`, and a guide for each assistant with the URL filled in.
-2. In Claude, open the connectors settings and add a custom connector.
-3. Paste the server URL and continue.
-4. Sign in to LedaChat when Claude asks, and choose what Claude may do. Turn off **changes** if you want a read-only connection.
+1. In Claude, open the connectors settings and add a custom connector.
+2. Paste the server URL, `https://app.ledachat.com/mcp`, and continue. (Self-hosting? Use your own URL, shown under **Connect to AI Agent** in LedaChat.)
+3. Sign in to LedaChat when Claude asks, and choose what Claude may do. Turn off **changes** if you want a read-only connection.
 
 Claude can now see LedaChat's tools. Connectors you add on claude.ai also show up in Claude Code when you're signed in with the same account.
 
@@ -74,10 +73,10 @@ Claude can now see LedaChat's tools. Connectors you add on claude.ai also show u
 
 It's one command, then a sign-in. These steps follow [Anthropic's Claude Code MCP docs](https://code.claude.com/docs/en/mcp).
 
-1. Add the server with your URL from **Connect to AI Agent**:
+1. Add the server:
 
    ```bash
-   claude mcp add --transport http ledachat https://your-ledachat-url/mcp
+   claude mcp add --transport http ledachat https://app.ledachat.com/mcp
    ```
 
 2. In a Claude Code session, type `/mcp`, pick `ledachat`, and choose **Authenticate**.
@@ -87,7 +86,7 @@ Run `claude mcp list` to check it's connected.
 
 ## How do I connect ChatGPT, Cursor or another client?
 
-ChatGPT, Cursor and Perplexity work like Claude: add LedaChat as a connector or MCP server with the same URL, and sign in with OAuth. The **Connect to AI Agent** page has the steps for each one.
+ChatGPT, Cursor and Perplexity work like Claude: add LedaChat as a connector or MCP server with the same URL, `https://app.ledachat.com/mcp`, and sign in with OAuth. The **Connect to AI Agent** page has the steps for each one.
 
 Any other MCP client can use the server URL with an `Authorization: Bearer` header and a LedaChat API token. Tokens start with `adc_`. You get a Default token, and you can make more that are read-only or expire after 30, 90 or 365 days.
 

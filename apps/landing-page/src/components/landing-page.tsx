@@ -7,7 +7,7 @@ import { SiClaude, SiPerplexity } from "react-icons/si";
 import { CursorLogo } from "@adeli-chat/ui/brand/cursor-logo";
 import { FREE_LIVE_AUTOMATIONS, PRO_MONTHLY_DOLLARS } from "@adeli-chat/ui/billing/plans";
 import { Badge } from "@adeli-chat/ui/components/badge";
-import { ADELI_LINKS, CONTACT_EMAIL } from "@/lib/links";
+import { ADELI_LINKS, APP_URL, CONTACT_EMAIL } from "@/lib/links";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { HeroPreview } from "./hero-preview";
@@ -148,6 +148,9 @@ function AskClaude() {
             </li>
           ))}
         </ul>
+        <p className="mt-5 text-sm text-foreground">
+          Add this MCP server to your agent and sign in: <code className="rounded-md border bg-card px-1.5 py-0.5 font-mono text-[0.82rem]">{APP_URL}/mcp</code>
+        </p>
       </div>
       <div className="grid items-start gap-6 md:grid-cols-[1fr_1.15fr]">
         <SamplePrompts />
