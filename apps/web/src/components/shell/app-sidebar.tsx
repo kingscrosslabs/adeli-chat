@@ -68,7 +68,7 @@ export function AppSidebar({ account, profileName, automations }: { account: Ade
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton render={<a href="https://github.com/kingscrosslabs/adeli-chat" target="_blank" rel="noreferrer" />}>
+                <SidebarMenuButton render={<a href="https://github.com/kingscrosslabs/ledachat" target="_blank" rel="noreferrer" />}>
                   <Star />
                   <span>Star on GitHub</span>
                 </SidebarMenuButton>
