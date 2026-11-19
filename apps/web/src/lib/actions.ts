@@ -11,7 +11,7 @@ import { renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
 import { trackWentLive } from "@/lib/analytics/automations";
 import { listContactRuns, type ContactRun } from "@/lib/audience";
-import { track } from "@/lib/analytics/server";
+import { track, type Source } from "@/lib/analytics/server";
 import { authEnabled, googleCredentials } from "@/lib/auth/config";
 import { auth } from "@/lib/auth/server";
 import { getCurrentUser, requireUserId, SignedOutError } from "@/lib/auth/session";
@@ -149,8 +149,9 @@ export async function renameLocalProfile(name: string): Promise<ActionResult<{ p
 /**
  * Saves the account chosen or just connected on `/connect`, after checking
  * it's on the user's own Adeli profile, and registers their webhook.
+ * `source` is "mcp" when `/connect` was opened from an agent's link.
  */
-export async function connectAccount(adeliAccountId: string): Promise<ActionResult<{ handle: string }>> {
+export async function connectAccount(adeliAccountId: string, source: Source = "app"): Promise<ActionResult<{ handle: string }>> {
   return guard(async (userId) => {
     const account = (await listInstagramAccounts(userId)).find((item) => item.accountId === adeliAccountId);
     if (!account) throw new ActionError("That Instagram account isn't connected to your profile. Refresh and try again.");
@@ -183,7 +184,7 @@ export async function connectAccount(adeliAccountId: string): Promise<ActionResu
     });
     // Comments on the account only reach LedaChat through the user's webhook.
     await ensureAdeliWebhook(userId).catch((error: unknown) => console.warn(`Couldn't register the Adeli webhook: ${error instanceof Error ? error.message : String(error)}`));
-    track(userId, "instagram_account_connected", { reconnected });
+    track(userId, "instagram_account_connected", { reconnected, source: source === "mcp" ? "mcp" : "app" });
     return done({ handle: account.displayIdentifier });
   });
 }

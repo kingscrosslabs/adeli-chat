@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Account, ConnectionSession } from "@adeli/sdk";
+import { InstagramCapabilities, type Account, type ConnectionSession } from "@adeli/sdk";
 import { and, eq } from "drizzle-orm";
 
 import type { MediaType } from "@adeli-chat/ui/automation/schemas";
@@ -92,7 +92,41 @@ export async function listInstagramAccounts(userId: string): Promise<AdeliAccoun
       displayIdentifier: account.displayIdentifier ?? "",
       avatarUrl: null,
       connectionStatus: connectionStatus(account.connectionStatus),
+      missingGrants: missingGrants(account.capabilities),
     }));
+}
+
+/**
+ * The Instagram capabilities LedaChat asks for when connecting: read posts and
+ * stories, read and reply to comments, read and send DMs. No publishing and no
+ * Insights, so the consent screen doesn't ask for them.
+ */
+export const LEDACHAT_CAPABILITIES = InstagramCapabilities.engagement;
+
+/** What every automation needs, in the words `/connect`, `get_workspace` and Go Live use. */
+const NEEDED_CAPABILITIES = [
+  ["comments.read", "read comments"],
+  ["comments.manage", "reply to comments"],
+  ["inbox.send", "send DMs"],
+] as const;
+
+export function missingGrants(capabilities: Record<string, boolean> | undefined): string[] {
+  if (!capabilities) return [];
+  return NEEDED_CAPABILITIES.filter(([capability]) => capabilities[capability] === false).map(([, words]) => words);
+}
+
+/** What the user's connected account is missing, or [] when Adeli can't say (never blocks on Adeli being down). */
+export async function missingGrantsFor(userId: string, accountId: string): Promise<string[]> {
+  try {
+    const accounts = await listInstagramAccounts(userId);
+    return accounts.find((account) => account.accountId === accountId)?.missingGrants ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function missingGrantsMessage(missing: readonly string[]): string {
+  return `Instagram didn't let LedaChat ${missing.join(", ").replace(/, ([^,]*)$/, " or $1")}. Connect Instagram again and allow it.`;
 }
 
 /** How the user logs in to connect Instagram: Instagram Login (the default) or Facebook Login. */
@@ -114,7 +148,8 @@ export async function startConnect(userId: string, redirectUrl: string, authMeth
   const profile = await ensureUserProfile(userId);
   const start = () => adeliCall((client) => client.profiles.startConnection({
     path: { profileId: profile.id },
-    body: { platform: "instagram", authMethod, redirectUrl },
+    // Only what LedaChat uses, and no password prompt when the browser is already logged in to Instagram.
+    body: { platform: "instagram", authMethod, redirectUrl, capabilities: [...LEDACHAT_CAPABILITIES], forceReauth: false },
   }));
   try {
     return toConnectSession((await start()).data);

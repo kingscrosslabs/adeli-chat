@@ -1,10 +1,10 @@
 import "server-only";
 
-import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
+import { McpServer, inputRequired, inputResponse, type CallToolResult } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import { serverKeyRejected } from "@/lib/adeli/client";
-import { findMedia, listMedia, listStories } from "@/lib/adeli/instagram";
+import { findMedia, listMedia, listStories, missingGrantsFor, missingGrantsMessage } from "@/lib/adeli/instagram";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { trackWentLive } from "@/lib/analytics/automations";
@@ -12,6 +12,7 @@ import { getPlan, liveAutomationLimit } from "@/lib/billing/state";
 import { showsBranding } from "@/lib/plan";
 import { track } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
+import { CONNECT_LINK_MINUTES, createConnectLink, isConnectLinkUrl } from "@/lib/connect-links";
 import { listAudience, listAutomationPeople } from "@/lib/audience";
 import { snapshotOf } from "@/lib/automations/snapshot";
 import { LIMITS, automationTypeSchema, emailCaptureOf, followGateOf, storyExpired, type Automation, type AutomationContent } from "@adeli-chat/ui/automation/schemas";
@@ -54,7 +55,7 @@ On the hosted LedaChat, the Free plan allows ${FREE_LIVE_AUTOMATIONS} live autom
 If the user went live after people already commented, message_earlier_comments sends the flow to matching comments from the last 24 hours on a live Comment to DM automation for one post. Call it with send false first and tell the user how many people it will message; only send once they agree. Sending is Pro only on the hosted LedaChat: when the count comes back with proRequired, tell the user they can upgrade at upgradeUrl instead of sending.
 list_audience shows who engages: everyone who triggered the account's automations, most engaged first, or one automation's people with how far each got.
 Use list_posts to find a post id before setting postId. Saving a live automation applies at once and must still pass the go live checks.
-The Instagram account is connected in the app at ${"{appUrl}"}/connect and managed in ${"{appUrl}"}/settings, not through these tools.`;
+Setup: if a result has setup.next = "connect_instagram", call connect_instagram and give the user its link before anything else. After they say they're done, call get_workspace to confirm, and confirm the Instagram handle with the user. The account is managed in ${"{appUrl}"}/settings.`;
 
 function json(value: unknown): CallToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
@@ -63,6 +64,19 @@ function json(value: unknown): CallToolResult {
 function fail(message: string): CallToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
+
+/**
+ * What a tool answers on a workspace with no Instagram account yet: a normal
+ * result (never an auth error, which would make the client restart OAuth)
+ * telling the agent to call `connect_instagram`. `isError` on writes and
+ * Instagram reads, so the model doesn't think something was saved or found.
+ */
+function setupRequired(isError: boolean): CallToolResult {
+  return { ...json({ status: "setup_required", setup: service.CONNECT_INSTAGRAM_SETUP }), ...(isError ? { isError: true } : {}) };
+}
+
+/** Writes change automations (refused on read-only connections). Instagram reads need the account. Plain reads don't. */
+type ToolKind = "read" | "instagram" | "write";
 
 function automationUrl(id: string) {
   return `${appUrl()}/automations/${id}`;
@@ -233,17 +247,19 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
   );
 
   /** Runs a tool, turning problems the user can fix into tool errors Claude can read. */
-  async function run(tool: string, write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
-    const result = await runTool(write, body);
+  async function run(tool: string, kind: ToolKind, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
+    const write = kind === "write";
+    const result = await runTool(kind, body);
     track(userId, "mcp_tool_called", { tool, write, ok: !result.isError });
     return result;
   }
 
-  async function runTool(write: boolean, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
-    if (write && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in LedaChat, or reconnect and allow changes.");
+  async function runTool(kind: ToolKind, body: () => Promise<CallToolResult>): Promise<CallToolResult> {
+    if (kind === "write" && !principal.canWrite) return fail("This connection is read only. Create a token with write access on the Connect to AI Agent page in LedaChat, or reconnect and allow changes.");
     try {
       return await body();
     } catch (error) {
+      if (error instanceof service.SetupRequired) return setupRequired(kind !== "read");
       if (error instanceof service.ServiceError || error instanceof AdeliError) return fail(error.message);
       throw error;
     }
@@ -255,17 +271,23 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   server.registerTool("get_workspace", {
     title: "Get workspace",
-    description: "The connected Instagram account, whether the server has a working Adeli key, how many automations there are by status, and the plan (free, pro, or unlimited when self-hosted) with its live automation limit. Call this first if other tools say setup isn't done.",
+    description: "Call this first. The connected Instagram account (null until one is connected, with setup saying to call connect_instagram), whether the server has a working Adeli key, how many automations there are by status, and the plan (free, pro, or unlimited when self-hosted) with its live automation limit.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, () => run("get_workspace", false, async () => {
+  }, () => run("get_workspace", "read", async () => {
     const connected = await getConnectedAccount(userId);
     const automations = connected ? await listAutomations(connected.id) : [];
     const counts = { draft: 0, live: 0, paused: 0 };
     for (const automation of automations) counts[automation.status] += 1;
     const plan = await getPlan(userId);
+    const missing = connected ? await missingGrantsFor(userId, connected.accountId) : [];
     return json({
-      instagram: connected ? { handle: `@${connected.displayIdentifier}`, name: connected.displayName } : null,
+      instagram: connected ? {
+        handle: `@${connected.displayIdentifier}`,
+        name: connected.displayName,
+        // Someone can untick comments or DMs on Facebook Login; automations can't run without them.
+        ...(missing.length ? { missingPermissions: missing, fix: `${missingGrantsMessage(missing)} Call connect_instagram for a link.` } : {}),
+      } : null,
       adeliKey: !findAdeliConfig() ? "missing" : serverKeyRejected() ? "rejected" : "configured",
       automations: counts,
       plan,
@@ -273,7 +295,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       finalDmBranded: await showsBranding(userId),
       upgradeUrl: plan === "free" ? service.upgradeUrl() : null,
       settingsUrl: `${appUrl()}/settings`,
-      setupNeeded: connected ? null : `Connect an Instagram account at ${appUrl()}/connect first.`,
+      setup: connected ? null : service.CONNECT_INSTAGRAM_SETUP,
     });
   }));
 
@@ -282,8 +304,10 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Every Comment to DM automation on the connected Instagram account, most recently updated first, with its trigger, post and stats.",
     inputSchema: z.object({ status: z.enum(["draft", "live", "paused"]).optional().describe("Only automations with this status.") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, ({ status }) => run("list_automations", false, async () => {
-    const automations = await listAutomations((await account()).id);
+  }, ({ status }) => run("list_automations", "read", async () => {
+    const connected = await getConnectedAccount(userId);
+    if (!connected) return json({ automations: [], setup: service.CONNECT_INSTAGRAM_SETUP });
+    const automations = await listAutomations(connected.id);
     return json(automations.filter((automation) => !status || automation.status === status).map(summary));
   }));
 
@@ -292,7 +316,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Everything about one automation: trigger, replies, both DMs, status and stats.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, ({ id }) => run("get_automation", false, async () => {
+  }, ({ id }) => run("get_automation", "read", async () => {
     const automation = await getAutomation((await account()).id, id);
     return automation ? json(detail(automation)) : fail("There's no automation with that id.");
   }));
@@ -305,8 +329,9 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       limit: z.number().int().min(1).max(500).optional().describe("How many people to return. Default 50."),
     }),
     annotations: { readOnlyHint: true, openWorldHint: false },
-  }, ({ automationId, limit = 50 }) => run("list_audience", false, async () => {
-    const own = await account();
+  }, ({ automationId, limit = 50 }) => run("list_audience", "read", async () => {
+    const own = await getConnectedAccount(userId);
+    if (!own) return json({ total: 0, people: [], setup: service.CONNECT_INSTAGRAM_SETUP });
     if (automationId) {
       const automation = await getAutomation(own.id, automationId);
       if (!automation) return fail("There's no automation with that id.");
@@ -322,7 +347,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Live stories on the connected Instagram account, newest first. Stories expire 24 hours after they're posted. Use an id from here as storyId on a Story Reply automation.",
     inputSchema: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, () => run("list_stories", false, async () => {
+  }, () => run("list_stories", "instagram", async () => {
     const stories = await listStories(userId, (await account()).accountId);
     return json({ stories: stories.map((item) => ({ id: item.id, type: item.mediaType, permalink: item.permalink, publishedAt: item.publishedAt })) });
   }));
@@ -332,7 +357,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Recent posts and reels on the connected Instagram account, newest first, 9 per page. Use an id from here as postId.",
     inputSchema: z.object({ page: z.number().int().min(0).default(0).describe("Page number, starting at 0.") }),
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, ({ page }) => run("list_posts", false, async () => {
+  }, ({ page }) => run("list_posts", "instagram", async () => {
     const { media, hasMore } = await listMedia(userId, (await account()).accountId, page);
     return json({
       posts: media.map((post) => ({ id: post.id, type: post.mediaType, caption: post.caption.slice(0, 200), permalink: post.permalink, publishedAt: post.publishedAt, comments: post.comments })),
@@ -345,7 +370,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Creates a draft automation. Any field you leave out gets the app's default (friendly replies and DMs, a placeholder link). It doesn't run until you call go_live.",
     inputSchema: fieldsObject.extend({ type: automationTypeSchema.optional().describe("comment_to_dm (default): someone comments on a post. story_reply: someone replies to one of your stories. Can't be changed later.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, ({ type, ...fields }) => run("create_automation", true, async () => {
+  }, ({ type, ...fields }) => run("create_automation", "write", async () => {
     const connected = await account();
     const { id } = await service.createAutomation(userId, {}, type);
     const created = await getAutomation(connected.id, id);
@@ -368,7 +393,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Changes the fields you pass and keeps the rest. On a live automation the change applies at once, so it must still pass the go live checks.",
     inputSchema: fieldsObject.extend({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, ({ id, ...fields }) => run("update_automation", true, async () => {
+  }, ({ id, ...fields }) => run("update_automation", "write", async () => {
     const { account: connected, automation } = await service.loadOwn(userId, id);
     const content = await applyFields(userId, connected, automation, fields);
     const saved = await service.saveAutomation(userId, id, content);
@@ -383,7 +408,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Starts an automation: from now on it replies to matching comments and sends DMs from the user's Instagram account. Checks every field first.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-  }, ({ id }) => run("go_live", true, async () => {
+  }, ({ id }) => run("go_live", "write", async () => {
     const result = await service.goLive(userId, id, undefined, "mcp");
     if (!result.ok) {
       track(userId, "automation_go_live_rejected", { automation_id: id, source: "mcp", reason: result.reason });
@@ -399,7 +424,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Stops an automation. People already mid-flow can still tap their button and get the final DM.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, ({ id }) => run("pause_automation", true, async () => {
+  }, ({ id }) => run("pause_automation", "write", async () => {
     await service.pauseAutomation(userId, id);
     track(userId, "automation_paused", { automation_id: id, source: "mcp" });
     return json({ id, status: "paused" });
@@ -410,7 +435,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Copies an automation into a new draft.",
     inputSchema: z.object({ id: z.string().describe("Automation id to copy.") }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, ({ id }) => run("duplicate_automation", true, async () => {
+  }, ({ id }) => run("duplicate_automation", "write", async () => {
     const copy = await service.duplicateAutomation(userId, id);
     track(userId, "automation_duplicated", { automation_id: copy.id, original_automation_id: id, source: "mcp" });
     const automation = await getAutomation((await account()).id, copy.id);
@@ -422,7 +447,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Deletes an automation and its history for good. This can't be undone.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-  }, ({ id }) => run("delete_automation", true, async () => {
+  }, ({ id }) => run("delete_automation", "write", async () => {
     await service.deleteAutomation(userId, id);
     track(userId, "automation_deleted", { automation_id: id, source: "mcp" });
     return json({ id, deleted: true });
@@ -436,7 +461,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       send: z.boolean().describe("False to only count who would be messaged. True to message them; confirm with the user first."),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-  }, ({ id, send }) => run("message_earlier_comments", send, async () => {
+  }, ({ id, send }) => run("message_earlier_comments", send ? "write" : "instagram", async () => {
     const result = send ? await service.messageEarlierComments(userId, id) : await service.previewEarlierComments(userId, id);
     if (!result.ok) {
       if (send) track(userId, "earlier_comments_rejected", { automation_id: id, source: "mcp", reason: result.reason });
@@ -451,11 +476,72 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     description: "Forgets everyone this automation has messaged, so the same people can trigger it again, and clears its stats. Handy when testing with your own account.",
     inputSchema: z.object({ id: z.string().describe("Automation id.") }),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-  }, ({ id }) => run("reset_runs", true, async () => {
+  }, ({ id }) => run("reset_runs", "write", async () => {
     const reset = await service.resetRuns(userId, id);
     track(userId, "automation_runs_reset", { automation_id: id, runs_cleared: reset.count, source: "mcp" });
     return json({ id, ...reset });
   }));
 
+  // Allowed on read-only connections too: it changes no automations, it only
+  // hands the user a link to connect Instagram in the app.
+  server.registerTool("connect_instagram", {
+    title: "Connect Instagram",
+    description: `Prompts the user to Continue with Instagram: a one-time link (valid ${CONNECT_LINK_MINUTES} minutes, single use) that opens LedaChat signed in and starts connecting their Instagram professional account. Call it when a result has setup.next connect_instagram, and give the user the link before anything else. When they say they're done, call get_workspace to confirm the handle.`,
+    inputSchema: z.object({
+      method: z.enum(["instagram", "facebook"]).optional().describe("Leave it out (usual) to open the connect page, where the user picks Continue with Instagram or Continue with Facebook. instagram or facebook starts that login right away, for when the user already said which."),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  }, async ({ method }, ctx) => {
+    const connected = await getConnectedAccount(userId);
+    if (connected) {
+      track(userId, "mcp_tool_called", { tool: "connect_instagram", write: false, ok: true });
+      return json({ url: null, instagram: `@${connected.displayIdentifier}`, message: `@${connected.displayIdentifier} is already connected. The user can switch accounts in ${appUrl()}/settings.` });
+    }
+    // The retry after a URL elicitation: the link we made is echoed back in requestState. Whatever the user chose, return it.
+    const echoed = ctx.mcpReq.inputResponses ? ctx.mcpReq.requestState() : undefined;
+    if (isConnectLinkUrl(echoed)) {
+      const answer = inputResponse(ctx.mcpReq.inputResponses, "connect");
+      track(userId, "mcp_tool_called", { tool: "connect_instagram", write: false, ok: true });
+      return connectLinkResult(echoed, answer.kind === "elicit" ? answer.action : null);
+    }
+    const link = await createConnectLink(userId, method ?? null);
+    const elicit = supportsUrlElicitation(ctx.mcpReq.envelope);
+    track(userId, "mcp_connect_prompted", { method: method ?? "choose", elicitation: elicit });
+    if (elicit) {
+      return inputRequired({
+        inputRequests: { connect: inputRequired.elicitUrl({ message: CONNECT_PROMPT, url: link.url }) },
+        requestState: link.url,
+      });
+    }
+    track(userId, "mcp_tool_called", { tool: "connect_instagram", write: false, ok: true });
+    return connectLinkResult(link.url, null);
+  });
+
   return server;
+}
+
+const CONNECT_PROMPT = "Continue with Instagram to finish setting up LedaChat.";
+
+/**
+ * Whether the client said it can open a URL for the user (MCP URL-mode
+ * elicitation). Read from the per-request envelope (protocol 2026-07-28): our
+ * handler is stateless, so a 2025-era client's `initialize` capabilities
+ * aren't available, and it gets the link in the result instead.
+ */
+function supportsUrlElicitation(envelope: unknown): boolean {
+  const capabilities = (envelope as Record<string, unknown> | undefined)?.["io.modelcontextprotocol/clientCapabilities"] as { elicitation?: { url?: unknown } } | undefined;
+  return Boolean(capabilities?.elicitation?.url);
+}
+
+function connectLinkResult(url: string, elicitation: "accept" | "decline" | "cancel" | null): CallToolResult {
+  const shown = elicitation === "accept";
+  const message = shown
+    ? `The user was asked to Continue with Instagram, and the link opened for them. If it didn't, show them this link: ${url} . When they say they're done, call get_workspace to confirm the handle.`
+    : `Show the user this link and ask them to open it to Continue with Instagram: ${url} . It works once, for ${CONNECT_LINK_MINUTES} minutes. When they say they're done, call get_workspace to confirm the handle.`;
+  return {
+    content: [
+      { type: "text", text: JSON.stringify({ url, expiresInMinutes: CONNECT_LINK_MINUTES, instagram: null, ...(elicitation ? { elicitation } : {}) }, null, 2) },
+      { type: "text", text: message },
+    ],
+  };
 }

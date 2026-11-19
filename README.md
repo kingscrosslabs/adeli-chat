@@ -131,7 +131,9 @@ Open **Connect to AI Agent** in the app sidebar (`/mcp-apis`). It has a setup gu
 
 API tokens start with `adc_`. Every user gets a **Default** token, and you can create more that are read only or expire after 30, 90 or 365 days. Tokens are stored as a hash plus an encrypted copy, so you can reveal and copy them again later, as with Adeli's API keys. Tokens created before that stay hidden. A token or connection only reaches your own automations.
 
-Tools: `get_workspace`, `list_automations`, `get_automation`, `list_posts`, `create_automation` (always a draft), `update_automation`, `go_live`, `pause_automation`, `duplicate_automation`, `delete_automation`, `reset_runs`, `list_audience` (who engages the most, across automations or for one). They use the same validation as the editor, so an automation Claude takes live passes the same checks.
+A new user can start from their agent: after signing in, every tool answers with a `setup` block until Instagram is connected, and `connect_instagram` gives them a one-time link (single use, 15 minutes) that opens LedaChat signed in to **Continue with Instagram**. Clients that support URL elicitation show it as a prompt.
+
+Tools: `get_workspace`, `connect_instagram`, `list_automations`, `get_automation`, `list_posts`, `create_automation` (always a draft), `update_automation`, `go_live`, `pause_automation`, `duplicate_automation`, `delete_automation`, `reset_runs`, `list_audience` (who engages the most, across automations or for one). They use the same validation as the editor, so an automation Claude takes live passes the same checks.
 
 ## Get your Adeli API key
 

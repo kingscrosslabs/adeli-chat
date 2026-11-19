@@ -16,9 +16,15 @@ export const dynamic = "force-dynamic";
 /**
  * Onboarding (PRD §4): connect Instagram to the user's own Adeli profile.
  * The profile is made at sign-up; this makes it if that didn't happen.
+ * `?via=mcp` (an agent's link) ends on "go back to your agent", and
+ * `&start=instagram|facebook` starts that login on load.
  */
-export default async function ConnectPage() {
+export default async function ConnectPage({ searchParams }: { searchParams: Promise<{ via?: string; start?: string }> }) {
   const user = await requireUserPage();
+  // From an agent's one-time link (`/connect/start/<code>`): finish here, then go back to the agent.
+  const { via, start } = await searchParams;
+  const agent = via === "mcp";
+  const autoStart = start === "instagram" ? "instagram_login" : start === "facebook" ? "facebook_login" : null;
   const signedIn = authEnabled() ? <SignedInAs user={user} /> : null;
   if (!findAdeliConfig()) {
     return (
@@ -40,7 +46,7 @@ export default async function ConnectPage() {
       {problem ? (
         <Problem icon="alert" title="We couldn't set up your Adeli profile">{problem} Refresh this page to try again.</Problem>
       ) : (
-        <ConnectCard currentAccountId={account?.accountId ?? null} />
+        <ConnectCard currentAccountId={account?.accountId ?? null} agent={agent} autoStart={autoStart} />
       )}
       {signedIn}
     </OnboardingLayout>

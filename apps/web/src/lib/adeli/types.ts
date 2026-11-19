@@ -17,6 +17,12 @@ export type AdeliAccount = {
   displayIdentifier: string;
   avatarUrl: string | null;
   connectionStatus: "connected" | "expired" | "reconnect_required";
+  /**
+   * What LedaChat needs that this connection wasn't granted, in words
+   * ("reply to comments"). Empty when it has everything. Only set when read
+   * from Adeli; someone can untick a permission on Facebook Login.
+   */
+  missingGrants?: string[];
 };
 
 export type AdeliMedia = {

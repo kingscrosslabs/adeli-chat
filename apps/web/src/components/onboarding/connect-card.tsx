@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, ExternalLink, AtSign, Loader2, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, CircleCheck, ExternalLink, AtSign, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@adeli-chat/ui/components/avatar";
 import { Badge } from "@adeli-chat/ui/components/badge";
-import { Button } from "@adeli-chat/ui/components/button";
+import { Button, buttonVariants } from "@adeli-chat/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
 import { Skeleton } from "@adeli-chat/ui/components/skeleton";
 import { adeli } from "@/lib/adeli/browser";
@@ -16,7 +16,7 @@ import { AdeliError, type AdeliAccount } from "@/lib/adeli/types";
 import { connectAccount } from "@/lib/actions";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
-type AuthMethod = "instagram_login" | "facebook_login";
+export type AuthMethod = "instagram_login" | "facebook_login";
 
 const LOGINS: Record<AuthMethod, { name: string; fallbackUrl: string }> = {
   instagram_login: { name: "Instagram", fallbackUrl: "https://www.instagram.com/" },
@@ -26,8 +26,9 @@ const LOGINS: Record<AuthMethod, { name: string; fallbackUrl: string }> = {
 type Flow =
   | { kind: "idle" }
   | { kind: "starting"; method: AuthMethod }
-  | { kind: "waiting"; method: AuthMethod; sessionId: string; authUrl: string; processing: boolean }
+  | { kind: "waiting"; method: AuthMethod; sessionId: string; authUrl: string; processing: boolean; blocked?: boolean }
   | { kind: "saving" }
+  | { kind: "done"; handle: string }
   | { kind: "failed"; message: string };
 
 /**
@@ -35,9 +36,15 @@ type Flow =
  * Adeli profile. Adeli runs the login; once it finishes, the new account is saved
  * and you go to your automations. Accounts already on the profile (say you
  * connected before) are listed too, so you can pick one instead.
+ *
+ * From an agent's link (`agent`), it finishes with "go back to your agent"
+ * instead of opening the app, uses the only account on the profile without
+ * asking, and otherwise starts `autoStart`'s login on load.
  */
-export function ConnectCard({ currentAccountId }: { currentAccountId: string | null }) {
+export function ConnectCard({ currentAccountId, agent = false, autoStart = null }: { currentAccountId: string | null; agent?: boolean; autoStart?: AuthMethod | null }) {
   const router = useRouter();
+  const source = agent ? "mcp" : "app";
+  const autoRan = useRef(false);
   const [accounts, setAccounts] = useState<AdeliAccount[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<string | null>(currentAccountId);
@@ -64,6 +71,11 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
         if (cancelled) return;
         setAccounts(result);
         setSelected((current) => current ?? result.find((account) => account.connectionStatus === "connected")?.accountId ?? null);
+        if (autoRan.current) return;
+        autoRan.current = true;
+        const only = result.length === 1 && result[0].connectionStatus === "connected" ? result[0] : null;
+        if (agent && only) void saveConnected(only.accountId);
+        else if (autoStart) void startConnect(autoStart, { auto: true });
       },
       () => { if (!cancelled) setLoadError(true); },
     );
@@ -71,6 +83,8 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
       cancelled = true;
       if (pollTimer.current) clearInterval(pollTimer.current);
     };
+    // Once, on load: the automatic connect for an agent's link must not run again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function stopPolling() {
@@ -78,26 +92,29 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
     pollTimer.current = null;
   }
 
-  async function startConnect(method: AuthMethod) {
-    posthog.capture("instagram_connect_started", { method });
+  /** `auto`: started on load, not by a click, so the browser may block the new tab; then the user gets a button for it. */
+  async function startConnect(method: AuthMethod, { auto = false } = {}) {
+    posthog.capture("instagram_connect_started", { method, source, auto });
     setFlow({ kind: "starting", method });
-    const authWindow = window.open("about:blank", "_blank");
+    const authWindow = auto ? null : window.open("about:blank", "_blank");
     try {
       const session = await adeli.startConnect(method);
+      let opened = Boolean(authWindow);
       if (authWindow) authWindow.location.href = session.authUrl;
-      setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: false });
+      else if (auto) opened = Boolean(window.open(session.authUrl, "_blank"));
+      setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: false, blocked: !opened });
       stopPolling();
       pollTimer.current = setInterval(async () => {
         try {
           const next = await adeli.getConnectSession(session.id);
-          if (next.status === "processing") setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: true });
+          if (next.status === "processing") setFlow({ kind: "waiting", method, sessionId: session.id, authUrl: session.authUrl, processing: true, blocked: !opened });
           if (next.status === "connected" && next.accountId) {
             stopPolling();
             await saveConnected(next.accountId);
           }
           if (next.status === "failed" || next.status === "expired") {
             stopPolling();
-            posthog.capture("instagram_connect_failed", { method, status: next.status });
+            posthog.capture("instagram_connect_failed", { method, status: next.status, source });
             setFlow({ kind: "failed", message: next.error ?? "Instagram didn't finish connecting." });
           }
         } catch (error) {
@@ -111,13 +128,17 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
     }
   }
 
-  /** Saves the account the login just connected and moves on. */
+  /** Saves the account the login just connected and moves on (to the app, or back to the agent). */
   async function saveConnected(accountId: string) {
     setFlow({ kind: "saving" });
-    const result = await connectAccount(accountId);
+    const result = await connectAccount(accountId, source);
     if (!result.ok) {
       setFlow({ kind: "failed", message: result.reason === "error" ? result.message : "We couldn't save that account. Try again." });
       void loadAccounts();
+      return;
+    }
+    if (agent) {
+      setFlow({ kind: "done", handle: result.handle });
       return;
     }
     toast.success(`Connected @${result.handle}`);
@@ -132,9 +153,13 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
   function useAccount() {
     if (!selected) return;
     startSaving(async () => {
-      const result = await connectAccount(selected);
+      const result = await connectAccount(selected, source);
       if (!result.ok) {
         toast.error(result.reason === "error" ? result.message : "We couldn't save that account. Try again.");
+        return;
+      }
+      if (agent) {
+        setFlow({ kind: "done", handle: result.handle });
         return;
       }
       toast.success(`Using @${result.handle}`);
@@ -143,6 +168,8 @@ export function ConnectCard({ currentAccountId }: { currentAccountId: string | n
   }
 
   const hasAccounts = Boolean(accounts?.length);
+
+  if (flow.kind === "done") return <BackToAgent handle={flow.handle} />;
 
   return (
     <Card>
@@ -206,6 +233,9 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
         <span className="block truncate text-xs text-muted-foreground">{account.displayName}</span>
       </span>
       {needsReconnect ? <Badge className="bg-warning-wash text-warning"><AlertTriangle /> Connect again</Badge> : null}
+      {!needsReconnect && account.missingGrants?.length ? (
+        <Badge className="bg-warning-wash text-warning" title={`Can't ${account.missingGrants.join(", ")}. Connect again and allow it.`}><AlertTriangle /> Missing permissions</Badge>
+      ) : null}
       <span className={cn("grid size-5 place-items-center rounded-full border", selected ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
         {selected ? <Check className="size-3" /> : null}
       </span>
@@ -229,9 +259,16 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
           <Loader2 className="size-4 animate-spin" />
           {flow.processing ? "Finishing up with Adeli…" : `Waiting for ${login.name}…`}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {flow.processing ? "Almost there. Adeli is saving your connection." : `Finish logging in to ${login.name} in the tab we opened. This page updates by itself.`}
-        </p>
+        {flow.blocked && !flow.processing ? (
+          <>
+            <a href={flow.authUrl || login.fallbackUrl} target="_blank" rel="noreferrer" className={buttonVariants({ size: "lg" })}>Continue with {login.name} <ArrowRight /></a>
+            <p className="text-sm text-muted-foreground">It opens in a new tab. Finish logging in there; this page updates by itself.</p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {flow.processing ? "Almost there. Adeli is saving your connection." : `Finish logging in to ${login.name} in the tab we opened. This page updates by itself.`}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <a href={flow.authUrl || login.fallbackUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-link underline-offset-4 hover:underline">Open {login.name} login again <ExternalLink className="size-3" /></a>
           <button type="button" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={onCancel}>Cancel</button>
@@ -263,6 +300,19 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
         ))}
       </div>
       <p className="text-xs text-muted-foreground">Log in with Instagram, or with the Facebook account that manages your Instagram. It opens in a new tab. Adeli handles the login, so LedaChat never sees your password.</p>
+      <p className="text-xs text-muted-foreground">LedaChat only reads and replies to comments and sends DMs. It never posts for you.</p>
     </div>
+  );
+}
+
+/** The end of a connect that started from an agent: the agent takes it from here. */
+function BackToAgent({ handle }: { handle: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base" role="status"><CircleCheck className="size-4 text-success" /> Connected as @{handle}. You can go back to your agent.</CardTitle>
+        <CardDescription>Your agent can now set up automations for this account. You can close this tab.</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
