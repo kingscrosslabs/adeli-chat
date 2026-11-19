@@ -38,7 +38,10 @@ LedaChat is opening soon. Join the waitlist to be first in.
 LedaChat has an MCP built in. Ask your AI agent (Claude, ChatGPT, Cursor, Perplexity or Grok Bot) to set up, put live or pause your comment to DM automations instead of clicking through a flow builder. For example: "Set up a comment to DM on my latest reel. When someone comments GUIDE, send them my AI guide link."
 
 - Hosted MCP server: ${APP_URL}/mcp (Streamable HTTP). Sign-in is OAuth, so there's no token to paste: the agent's client opens a sign-in window, and signing in with Google creates the account. Then the server tells the agent to connect Instagram with a one-time link.
+- Use this exact URL. \`ledachat.com/mcp\` is not the server, and MCP clients won't follow a redirect to it during sign-in.
 - Claude Code: \`claude mcp add --transport http ledachat ${APP_URL}/mcp\`
+- Codex: \`codex mcp add ledachat --url ${APP_URL}/mcp\`, then \`codex mcp login ledachat\`. Codex loads MCP tools when a session starts, so start a new Codex session after signing in.
+- To check the connection, ask the agent to call \`get_workspace\`: it says who is signed in, which Instagram account is connected (or how to connect one), and the plan.
 - Clients that can't do OAuth can send \`Authorization: Bearer adc_...\` with an API token from ${APP_URL}/settings.
 
 ## FAQ
