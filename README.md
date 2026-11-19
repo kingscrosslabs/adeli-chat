@@ -122,7 +122,12 @@ LedaChat is also an MCP server at `https://<your-domain>/mcp`, so Claude can lis
 Open **Connect to AI Agent** in the app sidebar (`/mcp-apis`). It has a setup guide for Claude, ChatGPT (and Codex), Cursor, Perplexity and any other MCP client, with your URL filled in.
 
 - **Claude, ChatGPT, Cursor and Perplexity** sign in with Google (OAuth) and ask what they may do. Turn off "changes" for a read-only connection. Disconnect any of them under **Connected apps**. This needs Google sign-in, so it's off in local no-login mode.
-- **Claude Code:**
+- **Claude Code plugin** (hosted LedaChat): this repo is also a plugin marketplace. In Claude Code, run
+  ```
+  /plugin install ledachat --marketplace kingscrosslabs/ledachat
+  ```
+  (or `/plugin marketplace add kingscrosslabs/ledachat`, then `/plugin install ledachat@ledachat`), then type `/mcp` and choose Authenticate. The plugin lives in `plugins/ledachat`.
+- **Claude Code** (any install):
   ```bash
   claude mcp add --transport http ledachat https://<your-domain>/mcp
   ```

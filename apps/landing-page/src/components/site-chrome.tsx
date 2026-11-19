@@ -50,6 +50,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-4 text-sm text-foreground">
         <a href={ADELI_LINKS.footer} target="_blank" rel="noreferrer" className={HOVER_UNDERLINE}>Powered by Adeli</a>
         <Link href="/blog" className={HOVER_UNDERLINE}>Blog</Link>
+        <Link href="/docs/mcp" className={HOVER_UNDERLINE}>MCP docs</Link>
         <span>© King&apos;s Cross Labs</span>
         <ThemeToggle className="ml-auto" compact />
       </div>

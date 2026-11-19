@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ledachat": {
+      "type": "http",
+      "url": "https://app.ledachat.com/mcp"
+    }
+  }
+}
