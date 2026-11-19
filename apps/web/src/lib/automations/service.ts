@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, count, eq, ne, sql } from "drizzle-orm";
 import { after } from "next/server";
 
+import { missingGrantsFor, missingGrantsMessage } from "@/lib/adeli/instagram";
 import { alertWentLive } from "@/lib/alerts/dopamine";
 import { trackError, type Source } from "@/lib/analytics/server";
 import { appUrl } from "@/lib/app-url";
@@ -148,6 +149,9 @@ export async function goLive(userId: string, id: string, input?: unknown, source
   const rejected = await checkLive(account.id, id, content);
   if (rejected) return rejected;
   const wasLive = automation.status === "live";
+  // A connection without comments or DMs (someone unticked them on Facebook Login) would go live and do nothing.
+  const missing = wasLive ? [] : await missingGrantsFor(userId, account.accountId);
+  if (missing.length) return { ok: false, reason: "error", message: `${missingGrantsMessage(missing)} (${appUrl()}/connect)` };
   const limit = wasLive ? null : liveAutomationLimit(await getPlan(userId));
   const now = new Date();
   const { name, commentReply, openingDm, emailCapture, followGate, finalDm } = content;

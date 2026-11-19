@@ -201,6 +201,27 @@ describe("/mcp tools", () => {
     expect(text(result)).toContain("trigger.keywords");
   });
 
+  it("won't go live when Instagram didn't grant DMs, and get_workspace says so", async () => {
+    await seedAccount("user_1");
+    fakeAdeli([
+      (sent) => (sent.method === "GET" && sent.path === "/posts" ? { status: 200, body: POSTS } : undefined),
+      (sent) => (sent.method === "GET" && sent.path === "/accounts" ? { status: 200, body: { status: "complete", accounts: [{
+        accountId: "acc_1", profileId: "profile_1", platform: "instagram", providerId: "ig_self", displayName: "Birds", displayIdentifier: "birds", connectionStatus: "connected",
+        capabilities: { "comments.read": true, "comments.manage": true, "inbox.read": false, "inbox.send": false },
+      }] } } : undefined),
+    ]);
+    const { token } = await createToken("user_1", { name: "test", readOnly: false, expiry: "never" });
+    const client = await connect(token);
+    const created = data(await client.callTool({ name: "create_automation", arguments: { name: "Guide", postId: "media_1", keywords: ["guide"], linkUrl: "https://example.com/guide" } }));
+
+    const result = await client.callTool({ name: "go_live", arguments: { id: created.id } });
+    expect(result.isError).toBe(true);
+    expect(text(result)).toContain("Instagram didn't let LedaChat send DMs");
+
+    const workspace = data(await client.callTool({ name: "get_workspace", arguments: {} }));
+    expect(workspace.instagram).toMatchObject({ handle: "@birds", missingPermissions: ["send DMs"] });
+  });
+
   it("refuses to go live over another live automation's keyword", async () => {
     const account = await seedAccount("user_1");
     const existing = await seedLiveAutomation(account.id);

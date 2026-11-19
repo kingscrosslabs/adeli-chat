@@ -6,7 +6,7 @@ import { getUserSettings } from "@/lib/user-settings";
 import { fakeAdeli, type Sent } from "../../../test/fake-adeli";
 import { resetDatabase, seedAccount, seedUser } from "../../../test/db-helpers";
 
-import { listInstagramAccounts, listMedia, startConnect } from "./instagram";
+import { listInstagramAccounts, listMedia, missingGrants, missingGrantsMessage, startConnect } from "./instagram";
 import { ensureUserProfile, localProfileName, profileName, renameLocalProfile } from "./profile";
 
 const now = new Date().toISOString();
@@ -170,6 +170,23 @@ describe("one key, many users", () => {
     const adeli = fakeAdeli([(sent) => (sent.path.endsWith("/connect") ? { status: 201, body: { id: "cs_1", profileId: "profile_1", platform: "instagram", status: "pending_authorization", authUrl: "https://instagram.com/oauth", accountId: null, error: null, expiresAt: now, createdAt: now, updatedAt: now } } : undefined)]);
     await startConnect("user_1", "http://localhost:3030/connect");
     expect(adeli.sent[0]).toMatchObject({ method: "POST", path: "/profiles/profile_1/connect", body: { platform: "instagram", authMethod: "instagram_login" } });
+  });
+
+  it("asks Instagram only for comments and DMs, without a forced login", async () => {
+    await seedUser("user_1", { profileId: "profile_1" });
+    const adeli = fakeAdeli([(sent) => (sent.path.endsWith("/connect") ? { status: 201, body: { id: "cs_1", profileId: "profile_1", platform: "instagram", status: "pending_authorization", authUrl: "https://instagram.com/oauth", accountId: null, error: null, expiresAt: now, createdAt: now, updatedAt: now } } : undefined)]);
+    await startConnect("user_1", "http://localhost:3030/connect");
+    const body = adeli.sent[0].body as { capabilities: string[]; forceReauth: boolean };
+    expect(body.capabilities).toEqual(["profile.read", "feed.read", "comments.read", "comments.manage", "inbox.read", "inbox.send"]);
+    expect(body.capabilities).not.toContain("post.publish");
+    expect(body.forceReauth).toBe(false);
+  });
+
+  it("says what a connection is missing that automations need", () => {
+    expect(missingGrants(undefined)).toEqual([]);
+    expect(missingGrants({ "comments.read": true, "comments.manage": true, "inbox.send": true, "post.publish": false })).toEqual([]);
+    expect(missingGrants({ "comments.read": true, "comments.manage": false, "inbox.send": false })).toEqual(["reply to comments", "send DMs"]);
+    expect(missingGrantsMessage(["reply to comments", "send DMs"])).toBe("Instagram didn't let LedaChat reply to comments or send DMs. Connect Instagram again and allow it.");
   });
 
   it("starts Facebook Login on the user's own profile when asked", async () => {

@@ -4,7 +4,7 @@ import { McpServer, inputRequired, inputResponse, type CallToolResult } from "@m
 import { z } from "zod";
 
 import { serverKeyRejected } from "@/lib/adeli/client";
-import { findMedia, listMedia, listStories } from "@/lib/adeli/instagram";
+import { findMedia, listMedia, listStories, missingGrantsFor, missingGrantsMessage } from "@/lib/adeli/instagram";
 import { findAdeliConfig } from "@/lib/adeli/key";
 import { AdeliError } from "@/lib/adeli/types";
 import { trackWentLive } from "@/lib/analytics/automations";
@@ -280,8 +280,14 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     const counts = { draft: 0, live: 0, paused: 0 };
     for (const automation of automations) counts[automation.status] += 1;
     const plan = await getPlan(userId);
+    const missing = connected ? await missingGrantsFor(userId, connected.accountId) : [];
     return json({
-      instagram: connected ? { handle: `@${connected.displayIdentifier}`, name: connected.displayName } : null,
+      instagram: connected ? {
+        handle: `@${connected.displayIdentifier}`,
+        name: connected.displayName,
+        // Someone can untick comments or DMs on Facebook Login; automations can't run without them.
+        ...(missing.length ? { missingPermissions: missing, fix: `${missingGrantsMessage(missing)} Call connect_instagram for a link.` } : {}),
+      } : null,
       adeliKey: !findAdeliConfig() ? "missing" : serverKeyRejected() ? "rejected" : "configured",
       automations: counts,
       plan,

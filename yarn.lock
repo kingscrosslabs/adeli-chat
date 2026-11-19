@@ -68,7 +68,7 @@ __metadata:
   resolution: "@adeli-chat/web@workspace:apps/web"
   dependencies:
     "@adeli-chat/ui": "workspace:*"
-    "@adeli/sdk": "npm:^0.5.0"
+    "@adeli/sdk": "npm:^0.9.0"
     "@better-auth/cimd": "npm:^1.7.18"
     "@better-auth/infra": "npm:^0.4.28"
     "@better-auth/mcp": "npm:^1.7.18"
@@ -107,10 +107,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@adeli/sdk@npm:^0.5.0":
-  version: 0.5.0
-  resolution: "@adeli/sdk@npm:0.5.0"
-  checksum: 10c0/bac7dd83999bde2626af4517b8926be856a5b4146981c6a885c752c9f3e0d6050eeec8beddf219772cfaa394b3705cfdc1fcc5fa9152037d0068b5aacbf994e9
+"@adeli/sdk@npm:^0.9.0":
+  version: 0.9.0
+  resolution: "@adeli/sdk@npm:0.9.0"
+  checksum: 10c0/0dd6b23a79eb7235d5132b7dbd1c50ee9ebe1d27c2f7d3d6df053025a7331977276159092cefae661d048982f6e4f85961c7ff3b004c73369c6d12f67b961a19
   languageName: node
   linkType: hard
 

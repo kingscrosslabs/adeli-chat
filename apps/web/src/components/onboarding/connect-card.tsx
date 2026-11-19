@@ -233,6 +233,9 @@ function AccountOption({ account, selected, onSelect }: { account: AdeliAccount;
         <span className="block truncate text-xs text-muted-foreground">{account.displayName}</span>
       </span>
       {needsReconnect ? <Badge className="bg-warning-wash text-warning"><AlertTriangle /> Connect again</Badge> : null}
+      {!needsReconnect && account.missingGrants?.length ? (
+        <Badge className="bg-warning-wash text-warning" title={`Can't ${account.missingGrants.join(", ")}. Connect again and allow it.`}><AlertTriangle /> Missing permissions</Badge>
+      ) : null}
       <span className={cn("grid size-5 place-items-center rounded-full border", selected ? "border-primary bg-primary text-primary-foreground" : "border-input")}>
         {selected ? <Check className="size-3" /> : null}
       </span>
@@ -297,6 +300,7 @@ function ConnectNew({ flow, primary, hasAccounts, onStart, onCancel }: { flow: F
         ))}
       </div>
       <p className="text-xs text-muted-foreground">Log in with Instagram, or with the Facebook account that manages your Instagram. It opens in a new tab. Adeli handles the login, so LedaChat never sees your password.</p>
+      <p className="text-xs text-muted-foreground">LedaChat only reads and replies to comments and sends DMs. It never posts for you.</p>
     </div>
   );
 }
