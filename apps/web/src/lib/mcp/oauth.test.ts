@@ -107,7 +107,7 @@ describe("OAuth for Claude connectors", () => {
 
     const listed = await client.callTool({ name: "list_automations", arguments: {} });
     expect(listed.isError).toBeFalsy();
-    expect(JSON.parse((listed.content as Array<{ text: string }>)[0].text)[0].id).toBe(automation.id);
+    expect(JSON.parse((listed.content as Array<{ text: string }>)[0].text).automations[0].id).toBe(automation.id);
 
     const paused = await client.callTool({ name: "pause_automation", arguments: { id: automation.id } });
     expect(paused.isError).toBeFalsy();

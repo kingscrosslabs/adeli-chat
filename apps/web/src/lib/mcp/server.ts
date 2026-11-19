@@ -284,7 +284,8 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     return json({
       instagram: connected ? {
         handle: `@${connected.displayIdentifier}`,
-        name: connected.displayName,
+        // Adeli's display name for Instagram is the @handle itself; only repeat it when it's a real name.
+        ...(connected.displayName && connected.displayName !== `@${connected.displayIdentifier}` ? { name: connected.displayName } : {}),
         // Someone can untick comments or DMs on Facebook Login; automations can't run without them.
         ...(missing.length ? { missingPermissions: missing, fix: `${missingGrantsMessage(missing)} Call connect_instagram for a link.` } : {}),
       } : null,
@@ -301,14 +302,20 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   server.registerTool("list_automations", {
     title: "List automations",
-    description: "Every Comment to DM automation on the connected Instagram account, most recently updated first, with its trigger, post and stats.",
+    description: "Every automation (Comment to DM and Story Reply) on the connected Instagram account, most recently updated first, with its trigger, post and stats. When there are none, next says what the user can do.",
     inputSchema: z.object({ status: z.enum(["draft", "live", "paused"]).optional().describe("Only automations with this status.") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, ({ status }) => run("list_automations", "read", async () => {
     const connected = await getConnectedAccount(userId);
     if (!connected) return json({ automations: [], setup: service.CONNECT_INSTAGRAM_SETUP });
     const automations = await listAutomations(connected.id);
-    return json(automations.filter((automation) => !status || automation.status === status).map(summary));
+    const shown = automations.filter((automation) => !status || automation.status === status).map(summary);
+    // Same shape as before Instagram is connected, so an agent reads one format. An empty account says what's next instead of a bare [].
+    return json({
+      automations: shown,
+      automationsUrl: `${appUrl()}/automations`,
+      ...(automations.length ? {} : { next: NO_AUTOMATIONS_YET }),
+    });
   }));
 
   server.registerTool("get_automation", {
@@ -519,6 +526,8 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
 
   return server;
 }
+
+const NO_AUTOMATIONS_YET = "No automations yet. To start one, pick a post with list_posts (or a story with list_stories), then create_automation makes a draft; nothing runs until go_live. The user can also build one in the app.";
 
 const CONNECT_PROMPT = "Continue with Instagram to finish setting up LedaChat.";
 
