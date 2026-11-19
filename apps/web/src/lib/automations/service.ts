@@ -33,9 +33,31 @@ export type ActionResult<T = object> =
 /** A problem the user can fix, shown to them as is. */
 export class ServiceError extends Error {}
 
+/** What an empty workspace needs next. MCP tools return it as `setup`; the agent calls `connect_instagram`. Never a URL. */
+export type Setup = { next: "connect_instagram"; message: string; tool: "connect_instagram" };
+
+export const CONNECT_INSTAGRAM_SETUP: Setup = { next: "connect_instagram", message: "Connect an Instagram professional account to continue.", tool: "connect_instagram" };
+
+/**
+ * The workspace has no Instagram account yet. A `ServiceError`, so Server
+ * Actions show its message as before; MCP tools turn it into a normal result
+ * with `setup` (never an auth error, which would restart OAuth).
+ */
+export class SetupRequired extends ServiceError {
+  readonly setup: Setup = CONNECT_INSTAGRAM_SETUP;
+  constructor() {
+    super("Connect an Instagram account first.");
+  }
+}
+
+/** Null once an Instagram account is connected, otherwise what to do next. */
+export async function setupState(userId: string): Promise<Setup | null> {
+  return (await getConnectedAccount(userId)) ? null : CONNECT_INSTAGRAM_SETUP;
+}
+
 export async function requireAccount(userId: string): Promise<ConnectedAccount> {
   const account = await getConnectedAccount(userId);
-  if (!account) throw new ServiceError("Connect an Instagram account first.");
+  if (!account) throw new SetupRequired();
   return account;
 }
 

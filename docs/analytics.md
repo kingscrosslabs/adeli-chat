@@ -23,8 +23,8 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | --- | --- | --- |
 | `sign_in_started` | Browser, sign-in button | `for_mcp` |
 | `user_signed_up` | Server, first Google sign-in | `provider` |
-| `instagram_connect_started` / `instagram_connect_failed` | Browser, `/connect` | `method` (`instagram_login`, `facebook_login`), plus `status` on failure |
-| `instagram_account_connected` | Server | `reconnected` |
+| `instagram_connect_started` / `instagram_connect_failed` | Browser, `/connect` | `method` (`instagram_login`, `facebook_login`), `source` (`mcp` when opened from an agent's link, else `app`), `auto` on start (started on load from the link), plus `status` on failure |
+| `instagram_account_connected` | Server | `reconnected`, `source` (`mcp` from an agent's link, else `app`) |
 | `instagram_account_disconnected` | Server | |
 | `account_deleted` | Server, Settings > Delete account | |
 | `automation_created` | Server | `automation_type` |
@@ -41,6 +41,8 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `mcp_oauth_consent_allowed` / `mcp_oauth_consent_denied` | Server | `allow_write` |
 | `mcp_app_disconnected` | Server | |
 | `mcp_tool_called` | Server, every MCP tool call | `tool`, `write`, `ok` |
+| `mcp_connect_prompted` | Server, `connect_instagram` made a one-time link | `method` (`instagram`, `facebook`), `elicitation` (true when the client was prompted with URL elicitation, false when the link went in the result) |
+| `mcp_connect_link_opened` | Server, a one-time link was opened (`/connect/start/<code>`) | `method` (`instagram`, `facebook`, `none`) |
 | `checkout_started` | Server, Upgrade to Pro | `source` |
 | `billing_portal_opened` | Server, Manage billing (or Upgrade when already subscribed) | `source` (`manage`, `upgrade`) |
 | `subscription_started` / `subscription_ended` | Server, Stripe webhook | `status` |

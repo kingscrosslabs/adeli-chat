@@ -287,6 +287,22 @@ export const apiTokens = pgTable("api_tokens", {
 }, (table) => [index("api_tokens_user_idx").on(table.userId)]);
 
 /**
+ * One-time links that open `/connect` signed in, from the MCP `connect_instagram`
+ * tool, so the user can finish setup in any browser. Only a SHA-256 hash of the
+ * code is stored. Each link works once, for 15 minutes. See `src/lib/connect-links.ts`.
+ */
+export const connectLinks = pgTable("connect_links", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull().unique(),
+  /** Which login `/connect` starts on load: "instagram" or "facebook". Null leaves the choice to the user. */
+  method: text("method", { enum: ["instagram", "facebook"] }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamps.createdAt,
+}, (table) => [index("connect_links_user_idx").on(table.userId)]);
+
+/**
  * Each user's own Adeli profile (created for them, `src/lib/adeli/profile.ts`)
  * and webhook. The Adeli key is the server's `ADELI_API_KEY`, shared by every
  * user. In local no-login mode the user is `local`.
