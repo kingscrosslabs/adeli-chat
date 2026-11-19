@@ -399,7 +399,8 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     title: "Update automation",
     description: "Changes the fields you pass and keeps the rest. On a live automation the change applies at once, so it must still pass the go live checks.",
     inputSchema: fieldsObject.extend({ id: z.string().describe("Automation id.") }),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    // Overwrites fields (lists are replaced whole), and a live automation's change applies at once.
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   }, ({ id, ...fields }) => run("update_automation", "write", async () => {
     const { account: connected, automation } = await service.loadOwn(userId, id);
     const content = await applyFields(userId, connected, automation, fields);

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.ledachat/ledachat",
+  "title": "LedaChat",
+  "description": "Instagram comment to DM automations: reply to comments, DM a link, collect emails, see who engages.",
+  "version": "1.0.0",
+  "websiteUrl": "https://www.ledachat.com/docs/mcp",
+  "repository": {
+    "url": "https://github.com/kingscrosslabs/ledachat",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/kingscrosslabs/ledachat/main/plugins/ledachat/assets/icon.png",
+      "mimeType": "image/png",
+      "sizes": ["1024x1024"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://app.ledachat.com/mcp"
+    }
+  ]
+}

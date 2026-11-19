@@ -4,12 +4,12 @@ import Link from "next/link";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { SiteFooter, SiteHeader, TITLE_UNDERLINE } from "@/components/site-chrome";
-import { APP_URL, CONTACT_EMAIL, GITHUB_URL } from "@/lib/links";
+import { APP_URL, GITHUB_URL } from "@/lib/links";
 import { breadcrumbs, graph, jsonLdScript, organization, website } from "@/lib/schema";
 
 /**
  * /docs/mcp: how to connect LedaChat's MCP server to Claude (claude.ai, the
- * Claude Code plugin or `claude mcp add`), Codex, Cursor and other clients,
+ * Claude Code plugin or `claude mcp add`), Codex, Cursor, VS Code and other clients,
  * and what its tools do. The Claude Code plugin's `documentationUrl` and the
  * Claude Connectors Directory listing point here, so keep it public and in
  * step with `apps/web/src/lib/mcp/` and `plugins/ledachat/`.
@@ -20,8 +20,11 @@ const DESCRIPTION =
   "Set up LedaChat's MCP server in Claude, Claude Code, Codex or Cursor, then create and run Instagram comment to DM automations by asking your AI agent.";
 
 const SERVER = `${APP_URL}/mcp`;
+/** Where MCP support questions go. The Claude and ChatGPT directory listings show this page as the support contact. */
+const SUPPORT_EMAIL = "hello@kingscrosslabs.com";
 const MARKETPLACE = "kingscrosslabs/ledachat";
 const CLAUDE_CONNECTOR_LINK = `https://claude.ai/customize/connectors?${new URLSearchParams({ modal: "add-custom-connector", connectorName: "LedaChat", connectorUrl: SERVER }).toString()}`;
+const VSCODE_INSTALL_LINK = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "ledachat", type: "http", url: SERVER }))}`;
 const CURSOR_INSTALL_LINK = `cursor://anysphere.cursor-deeplink/mcp/install?${new URLSearchParams({ name: "ledachat", config: Buffer.from(JSON.stringify({ url: SERVER })).toString("base64") }).toString()}`;
 
 const TOOLS: ReadonlyArray<{ name: string; kind: "Read" | "Write"; what: string }> = [
@@ -124,6 +127,12 @@ export default function McpDocs() {
             </p>
             <Code>{JSON.stringify({ mcpServers: { ledachat: { url: SERVER } } }, null, 2)}</Code>
 
+            <h2 id="vscode">VS Code (GitHub Copilot)</h2>
+            <p>
+              <a href={VSCODE_INSTALL_LINK}>Add LedaChat to VS Code</a>, or run <code>MCP: Add Server</code> from the Command Palette, choose HTTP and
+              paste <code>{SERVER}</code>. Start the server from the MCP view, then sign in when VS Code asks.
+            </p>
+
             <h2 id="other-clients">ChatGPT, Perplexity and other clients</h2>
             <p>
               Any client that supports remote MCP servers with OAuth works with the server URL above. After you sign in to LedaChat, the{" "}
@@ -172,7 +181,7 @@ export default function McpDocs() {
 
             <h2 id="support">Support</h2>
             <p>
-              Questions or problems: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. Back to the <Link href="/#mcp">MCP overview</Link>.
+              Questions or problems: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Back to the <Link href="/#mcp">MCP overview</Link>.
             </p>
           </article>
         </div>

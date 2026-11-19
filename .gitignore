@@ -19,3 +19,4 @@ yarn-error.log*
 
 # PGlite database (used when DATABASE_URL is empty)
 .data/
+.vercel
