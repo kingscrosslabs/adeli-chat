@@ -114,6 +114,12 @@ describe("/mcp tools", () => {
       "go_live", "list_audience", "list_automations", "list_posts", "list_stories", "message_earlier_comments", "pause_automation", "reset_runs", "update_automation",
     ]);
     expect(tools.find((tool) => tool.name === "delete_automation")?.annotations?.destructiveHint).toBe(true);
+    // AI directories (Claude, ChatGPT) review these: every tool says whether it only reads, and every write whether it's destructive.
+    for (const tool of tools) {
+      expect(tool.annotations?.readOnlyHint, tool.name).toBeTypeOf("boolean");
+      if (!tool.annotations?.readOnlyHint) expect(tool.annotations?.destructiveHint, tool.name).toBeTypeOf("boolean");
+      expect(tool.title, tool.name).toBeTruthy();
+    }
   });
 
   it("creates a draft, fills it in and takes it live", async () => {
