@@ -8,7 +8,7 @@ import { APP_URL } from "@/lib/links";
  * a 404 that says where to go, which an agent reads and follows.
  */
 const SERVER = `${APP_URL}/mcp`;
-const MESSAGE = `LedaChat's MCP server isn't on this domain. Use ${SERVER} (Streamable HTTP, OAuth sign-in, no token needed). Codex: codex mcp add ledachat --url ${SERVER}, then codex mcp login ledachat, then start a new Codex session. Claude Code: claude mcp add --transport http ledachat ${SERVER}. More at https://ledachat.com/llms.txt.`;
+const MESSAGE = `LedaChat's MCP server isn't on this domain. Use ${SERVER} (Streamable HTTP, OAuth sign-in, no token needed). Codex: codex mcp add ledachat --url ${SERVER}, then codex mcp login ledachat, then start a new Codex session. Claude Code: claude mcp add --transport http ledachat ${SERVER}. More at https://www.ledachat.com/llms.txt.`;
 
 function notHere(json: boolean): Response {
   if (!json) return new Response(`${MESSAGE}\n`, { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", Link: `<${SERVER}>; rel="alternate"` } });
