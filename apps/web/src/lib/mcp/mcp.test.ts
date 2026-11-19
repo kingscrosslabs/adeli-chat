@@ -325,7 +325,7 @@ describe("connect_instagram", () => {
     expect(instruction).toContain("Show the user this link");
     expect(instruction).toContain(body.url);
     const [row] = await links();
-    expect(row).toMatchObject({ userId: "user_1", method: "instagram", usedAt: null });
+    expect(row).toMatchObject({ userId: "user_1", method: null, usedAt: null });
     expect(body.url).not.toContain(row.codeHash);
   });
 

@@ -482,7 +482,7 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
     title: "Connect Instagram",
     description: `Prompts the user to Continue with Instagram: a one-time link (valid ${CONNECT_LINK_MINUTES} minutes, single use) that opens LedaChat signed in and starts connecting their Instagram professional account. Call it when a result has setup.next connect_instagram, and give the user the link before anything else. When they say they're done, call get_workspace to confirm the handle.`,
     inputSchema: z.object({
-      method: z.enum(["instagram", "facebook"]).optional().describe("instagram (default): log in with Instagram. facebook: log in with the Facebook account that manages the Instagram account."),
+      method: z.enum(["instagram", "facebook"]).optional().describe("Leave it out (usual) to open the connect page, where the user picks Continue with Instagram or Continue with Facebook. instagram or facebook starts that login right away, for when the user already said which."),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   }, async ({ method }, ctx) => {
@@ -498,9 +498,9 @@ export function createAdeliChatMcpServer(principal: McpPrincipal): McpServer {
       track(userId, "mcp_tool_called", { tool: "connect_instagram", write: false, ok: true });
       return connectLinkResult(echoed, answer.kind === "elicit" ? answer.action : null);
     }
-    const link = await createConnectLink(userId, method ?? "instagram");
+    const link = await createConnectLink(userId, method ?? null);
     const elicit = supportsUrlElicitation(ctx.mcpReq.envelope);
-    track(userId, "mcp_connect_prompted", { method: method ?? "instagram", elicitation: elicit });
+    track(userId, "mcp_connect_prompted", { method: method ?? "choose", elicitation: elicit });
     if (elicit) {
       return inputRequired({
         inputRequests: { connect: inputRequired.elicitUrl({ message: CONNECT_PROMPT, url: link.url }) },

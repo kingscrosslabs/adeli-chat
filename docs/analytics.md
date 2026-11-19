@@ -41,7 +41,7 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `mcp_oauth_consent_allowed` / `mcp_oauth_consent_denied` | Server | `allow_write` |
 | `mcp_app_disconnected` | Server | |
 | `mcp_tool_called` | Server, every MCP tool call | `tool`, `write`, `ok` |
-| `mcp_connect_prompted` | Server, `connect_instagram` made a one-time link | `method` (`instagram`, `facebook`), `elicitation` (true when the client was prompted with URL elicitation, false when the link went in the result) |
+| `mcp_connect_prompted` | Server, `connect_instagram` made a one-time link | `method` (`choose` when the user picks on the page, or `instagram`, `facebook`), `elicitation` (true when the client was prompted with URL elicitation, false when the link went in the result) |
 | `mcp_connect_link_opened` | Server, a one-time link was opened (`/connect/start/<code>`) | `method` (`instagram`, `facebook`, `none`) |
 | `checkout_started` | Server, Upgrade to Pro | `source` |
 | `billing_portal_opened` | Server, Manage billing (or Upgrade when already subscribed) | `source` (`manage`, `upgrade`) |
