@@ -104,6 +104,7 @@ One LedaChat install uses one Adeli organization, through the API key in `ADELI_
 | `SLACK_SIGNUP_WEBHOOK_URL` | No | Slack incoming webhook for sign-ups and automations going live. Empty: none are sent. |
 | `LOOPS_API_KEY` | No | Loops API key for the welcome email on sign-up. Empty: no email is sent. See [docs/email.md](docs/email.md). |
 | `NEXT_PUBLIC_POSTHOG_UI_HOST` | No | `https://us.posthog.com` (default) or `https://eu.posthog.com`, for links from the toolbar. |
+| `GTM_ID` | No | Google Tag Manager container ID (`GTM-XXXXXXX`), loaded on every page. Empty: no tag. See [docs/analytics.md](docs/analytics.md). |
 
 The Adeli API key stays on the server. It's never sent to the browser, and nobody enters a key in the app.
 
@@ -111,7 +112,7 @@ Google sign-in only works on domains registered in the OAuth client, so preview 
 
 ### Landing page (optional)
 
-Self-hosting needs only the app. The marketing site in `apps/landing-page` is a second Vercel project: Root Directory `apps/landing-page`, Ignored Build Step `sh scripts/vercel-ignored-build-step.sh`, and `APP_URL` set to the app's address (for example `https://app.example.com`), which its sign-in links point to. A production build without `APP_URL` fails.
+Self-hosting needs only the app. The marketing site in `apps/landing-page` is a second Vercel project: Root Directory `apps/landing-page`, Ignored Build Step `sh scripts/vercel-ignored-build-step.sh`, and `APP_URL` set to the app's address (for example `https://app.example.com`), which its sign-in links point to. A production build without `APP_URL` fails. Set `GTM_ID` there too to load Google Tag Manager on the marketing site.
 
 To test the whole flow against a local Adeli dev server, with a real comment triggering a real DM, follow [docs/local-development.md](docs/local-development.md).
 

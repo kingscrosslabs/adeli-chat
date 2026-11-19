@@ -3,6 +3,8 @@ import { Geist_Mono, Inter } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 
+import { GoogleTag } from "@adeli-chat/ui/analytics/google-tag";
+
 import { siteUrl } from "@/lib/site-url";
 
 import "./globals.css";
@@ -41,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </ThemeProvider>
         {/* Tally's embed script: the "Join waitlist" buttons open the form as a popup with it (components/waitlist.tsx). */}
         <Script src="https://tally.so/widgets/embed.js" strategy="afterInteractive" />
+        <GoogleTag />
       </body>
     </html>
   );
