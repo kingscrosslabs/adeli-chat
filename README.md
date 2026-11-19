@@ -118,6 +118,8 @@ To test the whole flow against a local Adeli dev server, with a real comment tri
 
 ## Use with Claude (MCP)
 
+[![LedaChat MCP connector – tool definition quality and endpoint health on Glama](https://glama.ai/mcp/connectors/com.ledachat.app/leda-chat-mcp/badges/score.svg)](https://glama.ai/mcp/connectors/com.ledachat.app/leda-chat-mcp)
+
 LedaChat is also an MCP server at `https://<your-domain>/mcp`, so Claude can list, create and manage your automations: "make a Comment to DM automation for my latest reel that sends the GUIDE link", "pause everything on that post", "how did last week's automations do".
 
 Open **Connect to AI Agent** in the app sidebar (`/mcp-apis`). It has a setup guide for Claude, ChatGPT (and Codex), Cursor, Perplexity and any other MCP client, with your URL filled in.
