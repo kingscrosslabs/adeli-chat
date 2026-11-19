@@ -81,3 +81,23 @@ export function notifyLoopsSignup(user: { id: string; name: string; email: strin
   }
   return sending;
 }
+
+const LOOPS_DELETE_CONTACT_URL = "https://app.loops.so/api/v1/contacts/delete";
+
+/**
+ * Removes a deleted user's contact from Loops, so their details leave Loops
+ * too and signing up again with the same email sends the welcome email again.
+ * False when no key is set. A contact Loops doesn't have (404) counts as removed.
+ */
+export async function deleteLoopsContact(email: string): Promise<boolean> {
+  const key = loopsApiKey();
+  if (!key) return false;
+  const response = await fetch(LOOPS_DELETE_CONTACT_URL, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (response.ok || response.status === 404) return true;
+  throw new Error(`Loops answered ${response.status}`);
+}

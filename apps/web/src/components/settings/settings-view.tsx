@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2, LogOut, Palette, RefreshCw, AtSign, UserRound, Wrench } from "lucide-react";
+import { CheckCircle2, Loader2, LogOut, Palette, RefreshCw, AtSign, Trash2, UserRound, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ import { Button } from "@adeli-chat/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@adeli-chat/ui/components/card";
 import { Input } from "@adeli-chat/ui/components/input";
 import { Label } from "@adeli-chat/ui/components/label";
-import { disconnectAccount, renameLocalProfile, signOut } from "@/lib/actions";
+import { deleteAccount, disconnectAccount, renameLocalProfile, signOut } from "@/lib/actions";
 import type { AdeliAccount } from "@/lib/adeli/types";
 import type { CurrentUser } from "@/lib/auth/session";
 
@@ -34,8 +34,11 @@ import type { CurrentUser } from "@/lib/auth/session";
  */
 export type AdeliStatus = { configured: boolean; rejected: boolean; baseURL: string; profileName: string | null; localProfile: boolean };
 
-/** `plan`: null when this install has no billing (local or self-hosted), which hides the Plan card. */
-export function SettingsView({ adeli, account, user, liveCount, plan = null }: { adeli: AdeliStatus; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number; plan?: PlanStatus | null }) {
+/**
+ * `plan`: null when this install has no billing (local or self-hosted), which hides the Plan card.
+ * `deleteBlocker`: why the account can't be deleted yet, or null when it can.
+ */
+export function SettingsView({ adeli, account, user, liveCount, plan = null, deleteBlocker = null }: { adeli: AdeliStatus; account: AdeliAccount | null; user: CurrentUser | null; liveCount: number; plan?: PlanStatus | null; deleteBlocker?: string | null }) {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-4 md:p-8">
       <PageHeading title="Settings" description="Your Instagram account and preferences." />
@@ -45,6 +48,7 @@ export function SettingsView({ adeli, account, user, liveCount, plan = null }: {
         {plan ? <PlanCard plan={plan} liveCount={liveCount} /> : null}
         <AppearanceCard />
         {user ? <SignedInCard user={user} /> : null}
+        {user ? <DeleteAccountCard email={user.email} blocker={deleteBlocker} /> : null}
       </div>
     </div>
   );
@@ -176,6 +180,52 @@ function SignedInCard({ user }: { user: CurrentUser }) {
           <Button type="submit" variant="outline"><LogOut /> Sign out</Button>
         </form>
       </CardContent>
+    </Card>
+  );
+}
+
+/** Deletes the account and signs out. Disabled with the reason while Instagram is connected or Pro is active. */
+function DeleteAccountCard({ email, blocker }: { email: string; blocker: string | null }) {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function remove() {
+    setDeleting(true);
+    // On success the action signs out and redirects to /sign-in, so this only returns on a refusal.
+    const result = await deleteAccount();
+    setDeleting(false);
+    setConfirming(false);
+    if (!result.ok) toast.error(result.reason === "error" ? result.message : "We couldn't delete your account. Try again.");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Trash2 className="size-4 text-destructive" /> Delete account</CardTitle>
+        <CardDescription>Deletes your LedaChat account, automations, leads and settings. This can&apos;t be undone.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {blocker ? <p className="text-sm text-muted-foreground">{blocker}</p> : null}
+        <Button variant="destructive" onClick={() => setConfirming(true)} disabled={Boolean(blocker)}>Delete account</Button>
+      </CardContent>
+
+      <AlertDialog open={confirming} onOpenChange={(open) => !deleting && setConfirming(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes {email} from LedaChat, with all your automations, leads, API tokens and settings. You can sign up again later, but none of it comes back.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={deleting} onClick={(event) => {
+                event.preventDefault();
+                void remove();
+              }}>{deleting ? <Loader2 className="animate-spin" /> : null} Delete account</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

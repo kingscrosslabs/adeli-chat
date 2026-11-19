@@ -71,6 +71,16 @@ async function create(userId: string, owner: ProfileOwner) {
   return data;
 }
 
+/**
+ * Deletes a deleted user's Adeli profile, and their webhook first so nothing
+ * is delivered for them any more. Only ever called with the profile and
+ * webhook stored for that user (`deleteUserAccount`).
+ */
+export async function deleteUserProfile(profileId: string, webhookId: string | null): Promise<void> {
+  if (webhookId) await adeliCall((client) => client.webhooks.deleteWebhook({ path: { webhookId } })).catch(() => undefined);
+  await adeliCall((client) => client.profiles.deleteProfile({ path: { profileId } }));
+}
+
 /** What a new local profile is called: who is running it and where, say "Local: nick on Nicks-MacBook". Rename it in Settings. */
 export function localProfileName() {
   let who = "";
