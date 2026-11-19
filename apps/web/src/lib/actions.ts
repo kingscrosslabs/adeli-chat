@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { deleteUserAccount } from "@/lib/account";
 import { listInstagramAccounts } from "@/lib/adeli/instagram";
 import { renameLocalProfile as renameProfile } from "@/lib/adeli/profile";
 import { AdeliError } from "@/lib/adeli/types";
@@ -80,6 +81,26 @@ export async function signInWithGoogle(form?: FormData): Promise<void> {
 
 export async function signOut(): Promise<void> {
   if (authEnabled()) await auth().api.signOut({ headers: await headers() }).catch(() => undefined);
+  redirect("/sign-in");
+}
+
+/**
+ * Deletes the signed-in user's account and everything LedaChat keeps for
+ * them, then signs them out. Refused while Instagram is connected or Pro is
+ * active (`deleteUserAccount`). Signing up again starts a new account.
+ */
+export async function deleteAccount(): Promise<ActionResult> {
+  const result = await guard(async (userId) => {
+    if (!authEnabled()) throw new ActionError("Deleting your account needs sign-in, which is off on this server.");
+    const user = await getCurrentUser();
+    if (!user) throw new SignedOutError();
+    await deleteUserAccount(user);
+    track(userId, "account_deleted");
+    return { ok: true };
+  });
+  if (!result.ok) return result;
+  // The session row went with the user; this clears the cookie.
+  await auth().api.signOut({ headers: await headers() }).catch(() => undefined);
   redirect("/sign-in");
 }
 

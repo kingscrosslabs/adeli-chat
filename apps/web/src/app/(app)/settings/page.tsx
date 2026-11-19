@@ -1,5 +1,6 @@
 import type { PlanStatus } from "@/components/settings/plan-card";
 import { SettingsView } from "@/components/settings/settings-view";
+import { deletionBlocker } from "@/lib/account";
 import { serverKeyRejected } from "@/lib/adeli/client";
 import { DEFAULT_BASE_URL, findAdeliConfig } from "@/lib/adeli/key";
 import { authEnabled } from "@/lib/auth/config";
@@ -19,7 +20,9 @@ export default async function SettingsPage() {
   const automations = account ? await listAutomations(account.id) : [];
   const config = findAdeliConfig();
   const adeli = { configured: Boolean(config), rejected: serverKeyRejected(), baseURL: config?.baseURL ?? DEFAULT_BASE_URL, profileName: settings.adeliProfileName, localProfile: !authEnabled() };
-  return <SettingsView adeli={adeli} account={account} user={authEnabled() ? user : null} liveCount={automations.filter((automation) => automation.status === "live").length} plan={await planStatus(user.id)} />;
+  const plan = await planStatus(user.id);
+  const deleteBlocker = authEnabled() ? await deletionBlocker(user.id) : null;
+  return <SettingsView adeli={adeli} account={account} user={authEnabled() ? user : null} liveCount={automations.filter((automation) => automation.status === "live").length} plan={plan} deleteBlocker={deleteBlocker} />;
 }
 
 /** The Plan card's data, or null when billing is off. A missed webhook is repaired first, without ever blocking the page. */

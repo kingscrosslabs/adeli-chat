@@ -26,6 +26,7 @@ Automation events have `automation_id` and `source`: `app` (the UI) or `mcp` (an
 | `instagram_connect_started` / `instagram_connect_failed` | Browser, `/connect` | `method` (`instagram_login`, `facebook_login`), plus `status` on failure |
 | `instagram_account_connected` | Server | `reconnected` |
 | `instagram_account_disconnected` | Server | |
+| `account_deleted` | Server, Settings > Delete account | |
 | `automation_created` | Server | `automation_type` |
 | `automation_saved` / `automation_save_rejected` | Server | `reason`, `invalid_fields` on rejection |
 | `automation_went_live` | Server | `automation_type`, `post_scope`, `trigger_match`, `keyword_count`, `comment_reply_enabled`, `email_capture_enabled`, `follow_gate_enabled`, `final_dm_buttons` |

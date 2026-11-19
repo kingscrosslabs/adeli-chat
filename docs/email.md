@@ -25,6 +25,15 @@ LedaChat sends its welcome email through [Loops](https://loops.so). It's optiona
 
 Sign-up never waits on Loops: a failure is logged and never retried.
 
+Only a new account sends the event. Signing in to an existing account sends nothing.
+
+## Deleting an account
+
+Settings > Delete account (`apps/web/src/lib/account.ts`) also deletes the user's Loops
+contact (`POST https://app.loops.so/api/v1/contacts/delete`). So signing up again with the
+same Google account is a new sign-up and gets the welcome email again, which is how to test
+the flow. A Loops failure is logged and never stops the deletion.
+
 ## Rules
 
 - Only the LedaChat user's own details go to Loops, never a commenter's or lead's.
