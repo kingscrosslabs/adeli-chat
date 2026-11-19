@@ -4,7 +4,7 @@ import Link from "next/link";
 import { cn } from "@adeli-chat/ui/lib/utils";
 
 import { SiteFooter, SiteHeader, TITLE_UNDERLINE } from "@/components/site-chrome";
-import { APP_URL, CONTACT_EMAIL, GITHUB_URL } from "@/lib/links";
+import { APP_URL, GITHUB_URL } from "@/lib/links";
 import { breadcrumbs, graph, jsonLdScript, organization, website } from "@/lib/schema";
 
 /**
@@ -20,6 +20,8 @@ const DESCRIPTION =
   "Set up LedaChat's MCP server in Claude, Claude Code, Codex or Cursor, then create and run Instagram comment to DM automations by asking your AI agent.";
 
 const SERVER = `${APP_URL}/mcp`;
+/** Where MCP support questions go. The Claude and ChatGPT directory listings show this page as the support contact. */
+const SUPPORT_EMAIL = "hello@kingscrosslabs.com";
 const MARKETPLACE = "kingscrosslabs/ledachat";
 const CLAUDE_CONNECTOR_LINK = `https://claude.ai/customize/connectors?${new URLSearchParams({ modal: "add-custom-connector", connectorName: "LedaChat", connectorUrl: SERVER }).toString()}`;
 const VSCODE_INSTALL_LINK = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "ledachat", type: "http", url: SERVER }))}`;
@@ -179,7 +181,7 @@ export default function McpDocs() {
 
             <h2 id="support">Support</h2>
             <p>
-              Questions or problems: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. Back to the <Link href="/#mcp">MCP overview</Link>.
+              Questions or problems: <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Back to the <Link href="/#mcp">MCP overview</Link>.
             </p>
           </article>
         </div>
