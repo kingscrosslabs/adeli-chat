@@ -84,6 +84,23 @@ It's one command, then a sign-in. These steps follow [Anthropic's Claude Code MC
 
 Run `claude mcp list` to check it's connected.
 
+## How do I connect Codex?
+
+Two commands, then a new session.
+
+1. Add the server:
+
+   ```bash
+   codex mcp add ledachat --url https://app.ledachat.com/mcp
+   ```
+
+2. Sign in: run `codex mcp login ledachat` and finish signing in in the browser window it opens.
+3. Start a new Codex session. Codex loads MCP tools when a session starts, so a session that was already open won't see LedaChat's tools.
+
+Use `https://app.ledachat.com/mcp` exactly. `ledachat.com/mcp` isn't the server, and Codex rightly refuses to follow a redirect while signing in.
+
+To check it worked, ask Codex to "call LedaChat's get_workspace". It answers with your account, your connected Instagram (or a link to connect one) and your plan.
+
 ## How do I connect ChatGPT, Cursor or another client?
 
 ChatGPT, Cursor and Perplexity work like Claude: add LedaChat as a connector or MCP server with the same URL, `https://app.ledachat.com/mcp`, and sign in with OAuth. The **Connect to AI Agent** page has the steps for each one.

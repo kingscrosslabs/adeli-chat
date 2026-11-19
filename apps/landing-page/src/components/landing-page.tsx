@@ -149,7 +149,7 @@ function AskClaude() {
           ))}
         </ul>
         <p className="mt-5 text-sm text-foreground">
-          Add this MCP server to your agent and sign in: <code className="rounded-md border bg-card px-1.5 py-0.5 font-mono text-[0.82rem]">{APP_URL}/mcp</code>
+          Add this MCP server to your agent and sign in: <code className="rounded-md border bg-card px-1.5 py-0.5 font-mono text-[0.82rem]">{`${APP_URL}/mcp`}</code>
         </p>
       </div>
       <div className="grid items-start gap-6 md:grid-cols-[1fr_1.15fr]">
