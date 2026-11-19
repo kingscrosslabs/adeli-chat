@@ -49,6 +49,14 @@ async function stillAllowed(userId: string): Promise<boolean> {
   return Boolean(user && (userId === "local" || isAllowedEmail(user.email)));
 }
 
+/**
+ * What the 401 asks a client to request. `offline_access` earns a refresh token;
+ * it's an authorization server scope, so it isn't in the protected resource
+ * metadata, and clients that only request the challenged scopes would
+ * otherwise lose access after an hour.
+ */
+const CHALLENGE_SCOPES = [...MCP_SCOPES, "offline_access"];
+
 export function protectedResourceMetadataUrl() {
   return `${appUrl()}/.well-known/oauth-protected-resource/mcp`;
 }
@@ -73,7 +81,7 @@ const viaOAuth = (request: Request) => requireMcpAuth(auth(), async (inner, clai
   if (!scopes.includes(MCP_READ_SCOPE) && !scopes.includes(MCP_WRITE_SCOPE)) return unauthorized("This token doesn't allow access to automations.");
   const clientId = typeof claims.azp === "string" ? claims.azp : "oauth";
   return serve(inner, bearerOf(inner) ?? "", clientId, { userId, canWrite: scopes.includes(MCP_WRITE_SCOPE) }, scopes);
-}, { resource: mcpResourceUrl(), challengeScopes: [...MCP_SCOPES] })(request);
+}, { resource: mcpResourceUrl(), challengeScopes: CHALLENGE_SCOPES })(request);
 
 export async function handleMcpRequest(request: Request): Promise<Response> {
   const bearer = bearerOf(request);

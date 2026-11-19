@@ -2,7 +2,7 @@ import { FREE_LIVE_AUTOMATIONS, PRO_MONTHLY_DOLLARS } from "@adeli-chat/ui/billi
 
 import { faqs } from "@/components/landing-page";
 import { getAllPosts } from "@/lib/blog/posts";
-import { GITHUB_URL, WAITLIST_URL } from "@/lib/links";
+import { APP_URL, GITHUB_URL, WAITLIST_URL } from "@/lib/links";
 import { siteUrl } from "@/lib/site-url";
 
 /** /llms.txt (llmstxt.org): the landing page's own copy as plain Markdown for AI agents and answer engines. Built once at build time. */
@@ -36,6 +36,10 @@ LedaChat is opening soon. Join the waitlist to be first in.
 ## MCP
 
 LedaChat has an MCP built in. Ask your AI agent (Claude, ChatGPT, Cursor, Perplexity or Grok Bot) to set up, put live or pause your comment to DM automations instead of clicking through a flow builder. For example: "Set up a comment to DM on my latest reel. When someone comments GUIDE, send them my AI guide link."
+
+- Hosted MCP server: ${APP_URL}/mcp (Streamable HTTP). Sign-in is OAuth, so there's no token to paste: the agent's client opens a sign-in window, and signing in with Google creates the account. Then the server tells the agent to connect Instagram with a one-time link.
+- Claude Code: \`claude mcp add --transport http ledachat ${APP_URL}/mcp\`
+- Clients that can't do OAuth can send \`Authorization: Bearer adc_...\` with an API token from ${APP_URL}/settings.
 
 ## FAQ
 
