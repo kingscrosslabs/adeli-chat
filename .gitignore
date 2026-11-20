@@ -20,3 +20,7 @@ yarn-error.log*
 # PGlite database (used when DATABASE_URL is empty)
 .data/
 .vercel
+
+# Local git worktrees (Claude Code and manual)
+.worktrees/
+.claude/worktrees/
